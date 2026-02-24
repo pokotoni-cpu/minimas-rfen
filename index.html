@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mínimas Natación RFEN 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--agua:#0077b6;--agua-dark:#023e8a;--agua-light:#90e0ef;--splash:#00b4d8;--fondo:#03045e;--blanco:#fff;--gris:#caf0f8;--verde:#06d6a0;--rojo:#ef233c;--amarillo:#ffd60a;--card-bg:rgba(255,255,255,.07);--card-border:rgba(255,255,255,.12);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--blanco);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(0,119,182,.3),transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,180,216,.2),transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(2,62,138,.4),transparent 60%);z-index:0;}
+.ondas{position:fixed;bottom:0;left:0;right:0;height:120px;z-index:0;opacity:.12;}
+.onda{position:absolute;bottom:0;left:-100%;width:300%;height:80px;background:var(--agua-light);border-radius:50% 50% 0 0;animation:ola 6s ease-in-out infinite;}
+.onda:nth-child(2){height:60px;animation:ola 8s ease-in-out infinite reverse;opacity:.6;animation-delay:-2s;}
+@keyframes ola{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(10%) scaleY(1.1)}}
+.app{position:relative;z-index:1;max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+.header{padding:18px 16px 10px;display:flex;align-items:center;gap:10px;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--agua-light);line-height:1;}
+.logo span{color:var(--amarillo);}
+.user-badge{margin-left:auto;background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--gris);cursor:pointer;white-space:nowrap;}
+.role-badge{background:rgba(255,214,10,.15);border:1px solid rgba(255,214,10,.3);color:var(--amarillo);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;letter-spacing:.5px;}
+.content{flex:1;padding:10px 14px 100px;overflow-y:auto;}
+.screen{display:none;animation:fadeIn .3s ease;}
+.screen.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* AUTH */
+.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90vh;padding:30px 20px;}
+.auth-icon{font-size:60px;margin-bottom:10px;animation:bob 2s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.auth-title{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:3px;line-height:1;margin-bottom:4px;text-align:center;}
+.auth-sub{color:var(--agua-light);font-size:12px;margin-bottom:28px;opacity:.8;text-align:center;}
+.auth-tabs{display:flex;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;margin-bottom:18px;border:1px solid var(--card-border);width:100%;max-width:320px;}
+.auth-tab{flex:1;padding:8px;background:transparent;border:none;border-radius:8px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+.auth-tab.active{background:var(--agua);color:#fff;font-weight:600;}
+.auth-form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;}
+.input-group{display:flex;flex-direction:column;gap:4px;}
+.input-group label{font-size:10px;font-weight:600;color:var(--agua-light);letter-spacing:1px;text-transform:uppercase;}
+.input-field{background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:12px;padding:12px 15px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all .2s;width:100%;}
+.input-field:focus{border-color:var(--agua-light);background:rgba(255,255,255,.12);}
+.input-field::placeholder{color:rgba(255,255,255,.3);}
+select.input-field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2390e0ef' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer;}
+select.input-field option{background:#023e8a;color:#fff;}
+.btn-primary{background:linear-gradient(135deg,var(--agua),var(--splash));border:none;border-radius:12px;padding:14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;width:100%;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,119,182,.4);}
+.btn-danger{background:rgba(239,35,60,.2);border:1px solid rgba(239,35,60,.3);border-radius:12px;padding:12px;color:#ff6b81;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;width:100%;}
+.auth-error{background:rgba(239,35,60,.12);border:1px solid rgba(239,35,60,.2);border-radius:10px;padding:10px 14px;font-size:12px;color:#ff6b81;display:none;text-align:center;}
+
+/* SECTION */
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--agua-light);margin-bottom:12px;}
+
+/* CARDS */
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:14px;margin-bottom:10px;backdrop-filter:blur(10px);}
+.marca-card{display:flex;align-items:center;gap:10px;}
+.marca-emoji{font-size:26px;flex-shrink:0;}
+.marca-info{flex:1;min-width:0;}
+.marca-prueba{font-weight:600;font-size:13px;margin-bottom:1px;}
+.marca-tiempo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--agua-light);}
+.marca-meta{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;line-height:1.4;}
+.marca-badge{font-size:9px;font-weight:600;padding:3px 7px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;}
+.badge-si{background:rgba(6,214,160,.15);color:var(--verde);border:1px solid rgba(6,214,160,.3);}
+.badge-no{background:rgba(239,35,60,.12);color:#ff6b81;border:1px solid rgba(239,35,60,.2);}
+.badge-na{background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.form-grid .full{grid-column:1/-1;}
+.tiempo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.tiempo-label{font-size:9px;color:rgba(255,255,255,.4);text-align:center;margin-top:2px;}
+.crono-toggle,.piscina-toggle{display:flex;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;border:1px solid var(--card-border);}
+.crono-btn,.piscina-btn{flex:1;padding:7px 4px;background:transparent;border:none;border-radius:8px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
+.crono-btn.active,.piscina-btn.active{background:var(--agua);color:#fff;font-weight:600;}
+
+/* PREVIEW */
+.resultado-preview{background:linear-gradient(135deg,rgba(6,214,160,.1),rgba(0,119,182,.1));border:1px solid rgba(6,214,160,.2);border-radius:16px;padding:16px;text-align:center;margin-top:12px;display:none;}
+.resultado-preview.visible{display:block;animation:fadeIn .3s ease;}
+.resultado-preview.no{background:linear-gradient(135deg,rgba(239,35,60,.08),rgba(0,119,182,.08));border-color:rgba(239,35,60,.2);}
+.preview-emoji{font-size:40px;margin-bottom:4px;}
+.preview-texto{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;}
+.preview-detalle{font-size:11px;color:rgba(255,255,255,.6);margin-top:4px;}
+
+/* MÍNIMAS */
+.estilos-btns{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
+.estilo-btn{flex:1;min-width:60px;padding:8px 4px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
+.estilo-btn.active{background:linear-gradient(135deg,var(--agua),var(--splash));border-color:transparent;color:#fff;font-weight:600;}
+.minima-row{display:flex;align-items:center;padding:11px 13px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;margin-bottom:6px;}
+.minima-dist{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--agua-light);width:55px;}
+.minima-tiempo{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;flex:1;text-align:center;}
+.minima-na{color:rgba(255,255,255,.3);font-size:12px;font-family:'DM Sans',sans-serif;}
+
+/* TABS */
+.tabs{display:flex;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;margin-bottom:14px;border:1px solid var(--card-border);}
+.tab-btn{flex:1;padding:8px;background:transparent;border:none;border-radius:8px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;}
+.tab-btn.active{background:var(--agua);color:#fff;font-weight:600;}
+
+/* RANKING */
+.filter-chip{padding:6px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;color:rgba(255,255,255,.6);font-size:11px;cursor:pointer;transition:all .2s;display:inline-block;margin:0 4px 6px 0;}
+.filter-chip.active{background:var(--agua);border-color:var(--agua);color:#fff;font-weight:600;}
+.ranking-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;margin-bottom:6px;}
+.ranking-pos{font-family:'Bebas Neue',sans-serif;font-size:20px;width:28px;text-align:center;color:rgba(255,255,255,.3);}
+.ranking-pos.gold{color:var(--amarillo);}
+.ranking-pos.silver{color:#c0c0c0;}
+.ranking-pos.bronze{color:#cd7f32;}
+.ranking-info{flex:1;min-width:0;}
+.ranking-nombre{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ranking-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;}
+.ranking-tiempo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--agua-light);}
+
+/* NADADOR CARD */
+.nadador-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .2s;}
+.nadador-card:hover{border-color:var(--agua-light);}
+.nadador-header{display:flex;align-items:center;gap:10px;}
+.nadador-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--agua),var(--splash));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.nadador-nombre{font-weight:600;font-size:13px;}
+.nadador-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;}
+.nadador-stats{display:flex;gap:8px;margin-top:8px;}
+.nadador-stat{background:rgba(255,255,255,.05);border-radius:8px;padding:6px 10px;flex:1;text-align:center;}
+.nadador-stat-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);}
+.nadador-stat-label{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.5px;}
+
+/* PERFIL */
+.perfil-header{text-align:center;padding:14px 0 20px;}
+.perfil-avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--agua),var(--splash));display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 8px;border:3px solid rgba(144,224,239,.3);}
+.perfil-nombre{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;}
+.perfil-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.stat-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:16px;text-align:center;}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:var(--agua-light);line-height:1;}
+.stat-label{font-size:10px;color:rgba(255,255,255,.4);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(3,4,94,.95);backdrop-filter:blur(20px);border-top:1px solid var(--card-border);display:flex;padding:5px 0 13px;z-index:50;}
+.bottom-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(255,255,255,.4);font-family:'DM Sans',sans-serif;font-size:9px;cursor:pointer;padding:5px 2px;transition:all .2s;}
+.bottom-btn.active{color:var(--agua-light);}
+.bottom-btn .icon{font-size:18px;}
+
+/* UTILS */
+.empty-state{text-align:center;padding:40px 20px;color:rgba(255,255,255,.3);}
+.empty-icon{font-size:40px;margin-bottom:8px;}
+.empty-text{font-size:12px;}
+.loading{text-align:center;padding:30px;color:rgba(255,255,255,.4);font-size:13px;}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--agua-light);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.import-box{background:rgba(0,119,182,.1);border:1px solid rgba(0,119,182,.25);border-radius:14px;padding:12px;margin-bottom:12px;}
+.drop-zone{border:2px dashed rgba(255,255,255,.15);border-radius:10px;padding:14px;text-align:center;color:rgba(255,255,255,.3);font-size:11px;transition:all .2s;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
+.modal-box{background:#031a4a;border:1px solid var(--card-border);border-radius:20px 20px 0 0;padding:20px 16px 30px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--agua-light);margin-bottom:14px;}
+.modal-close{float:right;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;}
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--verde);color:#003d2e;padding:10px 20px;border-radius:50px;font-weight:600;font-size:12px;opacity:0;transition:all .3s;z-index:300;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(min-width:480px){.app{border-left:1px solid var(--card-border);border-right:1px solid var(--card-border);}}
+</style>
+</head>
+<body>
+<div class="ondas"><div class="onda"></div><div class="onda"></div></div>
+
+<!-- AUTH -->
+<div id="authScreen" style="position:relative;z-index:1;min-height:100vh;">
+  <div class="auth-wrap">
+    <div class="auth-icon">🏊</div>
+    <div class="auth-title">MÍNIMAS<br><span style="color:var(--amarillo)">RFEN 26</span></div>
+    <div class="auth-sub">Campeonatos de España · Temporada 2025-2026</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="setAuthTab('login',this)">Entrar</button>
+      <button class="auth-tab" onclick="setAuthTab('registro',this)">Registro</button>
+    </div>
+    <div class="auth-form" id="formLogin">
+      <div class="input-group"><label>Email</label><input type="email" class="input-field" id="lEmail" placeholder="tu@email.com"></div>
+      <div class="input-group"><label>Contraseña</label><input type="password" class="input-field" id="lPass" placeholder="••••••••"></div>
+      <div class="auth-error" id="loginError"></div>
+      <button class="btn-primary" onclick="doLogin()">Entrar</button>
+    </div>
+    <div class="auth-form" id="formRegistro" style="display:none;">
+      <div class="input-group"><label>Nombre completo</label><input type="text" class="input-field" id="rNombre" placeholder="Nombre y apellidos"></div>
+      <div class="input-group"><label>Email</label><input type="email" class="input-field" id="rEmail" placeholder="tu@email.com"></div>
+      <div class="input-group"><label>Contraseña</label><input type="password" class="input-field" id="rPass" placeholder="Mínimo 6 caracteres"></div>
+      <div class="input-group"><label>Club</label><input type="text" class="input-field" id="rClub" placeholder="Nombre de tu club"></div>
+      <div class="input-group">
+        <label>Rol</label>
+        <select class="input-field" id="rRol" onchange="toggleCamposNadador()">
+          <option value="nadador">Nadador/a</option>
+          <option value="entrenador">Entrenador/a</option>
+        </select>
+      </div>
+      <div id="camposNadador">
+        <div class="input-group" style="margin-bottom:0;">
+          <label>Año de nacimiento</label>
+          <select class="input-field" id="rAno">
+            <option value="">Selecciona tu año</option>
+            <option>2014</option><option>2013</option><option>2012</option><option>2011</option>
+            <option>2010</option><option>2009</option><option>2008</option>
+            <option>2007</option><option>2006</option>
+            <option value="abs">2005 o anterior (Absoluto)</option>
+          </select>
+        </div>
+        <div class="input-group" style="margin-top:10px;">
+          <label>Sexo</label>
+          <select class="input-field" id="rSexo">
+            <option value="">Selecciona</option>
+            <option value="F">Femenino</option>
+            <option value="M">Masculino</option>
+          </select>
+        </div>
+      </div>
+      <div class="auth-error" id="registroError"></div>
+      <button class="btn-primary" onclick="doRegistro()">Crear cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appMain" style="display:none;">
+  <div class="header">
+    <div class="logo">MÍN <span>RFEN</span></div>
+    <span id="rolBadge" class="role-badge" style="display:none;">ENTRENADOR</span>
+    <div class="user-badge" onclick="showScreen('Perfil')">👤 <span id="headerNombre"></span></div>
+  </div>
+  <div class="content">
+
+    <!-- MARCAS (nadador) / EQUIPO (entrenador) -->
+    <div class="screen active" id="screenMarcas">
+      <div class="section-title" id="titleMarcas">Mis Marcas</div>
+      <div id="listaMarcas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+    </div>
+
+    <!-- REGISTRAR (solo nadadores) -->
+    <div class="screen" id="screenRegistrar">
+      <div class="section-title">Nueva Marca</div>
+      <!-- IMPORTAR DESDE RFEN DIRECTO -->
+      <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(0,119,182,.15),rgba(0,180,216,.1));border-color:rgba(0,180,216,.3);">
+        <div style="font-weight:600;font-size:13px;color:var(--agua-light);margin-bottom:4px;">⚡ Importar desde RFEN automáticamente</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:10px;">Introduce tu nombre y apellidos como aparecen en la RFEN.</div>
+        <div class="form-grid" style="margin-bottom:8px;">
+          <div class="input-group full">
+            <label>Nombre</label>
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+          </div>
+          <div class="input-group full">
+            <label>Apellidos</label>
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+          </div>
+          <div class="input-group full">
+            <label>Sexo</label>
+            <select class="input-field" id="rfenSexo">
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="importarRFEN()" id="btnRFEN">🔍 Buscar e importar mis marcas</button>
+        <div id="rfenStatus" style="display:none;margin-top:8px;font-size:11px;text-align:center;padding:8px;border-radius:8px;"></div>
+      </div>
+
+      <div class="import-box">
+        <div style="font-weight:600;font-size:12px;color:var(--agua-light);margin-bottom:2px;">📥 Importar desde Excel RFEN</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:10px;">Descarga tu Excel del ranking RFEN y cárgalo aquí.</div>
+        <div style="display:flex;gap:7px;margin-bottom:10px;">
+          <a href="https://rfen.es/especialidades/natacion/ranking-natacion/" target="_blank" style="text-decoration:none;flex:1;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:5px;background:rgba(0,119,182,.2);border:1px solid rgba(0,119,182,.4);border-radius:9px;padding:9px;">
+              <span style="font-size:11px;color:var(--agua-light);">🔍 Ir a RFEN ↗</span>
+            </div>
+          </a>
+          <div style="flex:1;">
+            <label for="excelInput" style="display:flex;align-items:center;justify-content:center;gap:5px;background:rgba(6,214,160,.12);border:1px solid rgba(6,214,160,.3);border-radius:9px;padding:9px;cursor:pointer;">
+              <span style="font-size:11px;color:var(--verde);">📂 Cargar Excel</span>
+            </label>
+            <input type="file" id="excelInput" accept=".xls,.xlsx,.csv" style="display:none;" onchange="importarExcel(this)">
+          </div>
+        </div>
+        <div class="drop-zone" ondragover="event.preventDefault();this.style.borderColor='var(--agua-light)'" ondragleave="this.style.borderColor='rgba(255,255,255,.15)'" ondrop="onDrop(event)">Arrastra el Excel aquí</div>
+        <div id="importStatus" style="display:none;margin-top:7px;font-size:11px;text-align:center;"></div>
+      </div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="input-group full">
+            <label>Estilo</label>
+            <select class="input-field" id="fEstilo" onchange="actualizarDistancias()">
+              <option value="">Selecciona estilo</option>
+              <option>Libres</option><option>Espalda</option><option>Braza</option><option>Mariposa</option><option>Estilos</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Distancia</label>
+            <select class="input-field" id="fDistancia" onchange="calcularPreview()"><option value="">— estilo primero —</option></select>
+          </div>
+          <div class="input-group">
+            <label>Piscina</label>
+            <select class="input-field" id="fPiscina" onchange="calcularPreview()">
+              <option value="50">50m</option><option value="25">25m</option>
+            </select>
+          </div>
+          <div class="input-group full">
+            <label>Cronometraje</label>
+            <div class="crono-toggle">
+              <button class="crono-btn active" id="cronoElec" onclick="setCrono('electronico')">⚡ Electrónico/Semiaut.</button>
+              <button class="crono-btn" id="cronoMan" onclick="setCrono('manual')">🕐 Manual</button>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>Tiempo (min : seg , centésimas)</label>
+            <div class="tiempo-grid">
+              <div><input type="number" class="input-field" id="fMin" placeholder="0" min="0" max="30" oninput="calcularPreview()"><div class="tiempo-label">MIN</div></div>
+              <div><input type="number" class="input-field" id="fSeg" placeholder="00" min="0" max="59" oninput="calcularPreview()"><div class="tiempo-label">SEG</div></div>
+              <div><input type="number" class="input-field" id="fCen" placeholder="00" min="0" max="99" oninput="calcularPreview()"><div class="tiempo-label">CENT</div></div>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>Competición (opcional)</label>
+            <input type="text" class="input-field" id="fCompeticion" placeholder="Nombre del campeonato">
+          </div>
+        </div>
+        <div class="resultado-preview" id="resultadoPreview">
+          <div class="preview-emoji" id="prevEmoji"></div>
+          <div class="preview-texto" id="prevTexto"></div>
+          <div class="preview-detalle" id="prevDetalle"></div>
+        </div>
+        <button class="btn-primary" style="margin-top:12px;" onclick="guardarMarca()">Guardar Marca</button>
+      </div>
+    </div>
+
+    <!-- MÍNIMAS -->
+    <div class="screen" id="screenMinimas">
+      <div class="section-title">Tabla de Mínimas</div>
+      <div id="minimasSelectorEntrenador" style="display:none;margin-bottom:10px;">
+        <div class="form-grid">
+          <select class="input-field" id="minimasAno" onchange="renderMinimas()" style="font-size:12px;">
+            <option value="2014">Alevín 2014</option><option value="2013">Alevín 2013</option>
+            <option value="2012">Infantil 2012</option><option value="2011">Infantil 2011</option>
+            <option value="2010">Junior 2010</option><option value="2009">Junior 2009</option><option value="2008">Junior 2008</option>
+            <option value="2007">Sub20 2007</option><option value="2006">Sub20 2006</option>
+            <option value="abs">Absoluto</option>
+          </select>
+          <select class="input-field" id="minimasSexo" onchange="renderMinimas()" style="font-size:12px;">
+            <option value="F">Femenino</option><option value="M">Masculino</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:rgba(255,255,255,.6);">
+        👤 <span id="minimasCategoria" style="color:var(--agua-light);font-weight:600;"></span>
+      </div>
+      <div class="estilos-btns">
+        <button class="estilo-btn active" onclick="filtrarEstilo('Libres',this)">🏊 Libres</button>
+        <button class="estilo-btn" onclick="filtrarEstilo('Espalda',this)">🔄 Espalda</button>
+        <button class="estilo-btn" onclick="filtrarEstilo('Braza',this)">🐸 Braza</button>
+        <button class="estilo-btn" onclick="filtrarEstilo('Mariposa',this)">🦋 Mariposa</button>
+        <button class="estilo-btn" onclick="filtrarEstilo('Estilos',this)">⚡ Estilos</button>
+      </div>
+      <div class="piscina-toggle" style="margin-bottom:10px;">
+        <button class="piscina-btn active" onclick="filtrarPiscina(50,this)">🏟️ 50m</button>
+        <button class="piscina-btn" onclick="filtrarPiscina(25,this)">🏊 25m</button>
+      </div>
+      <div id="listaMinimas"></div>
+    </div>
+
+    <!-- RANKING -->
+    <div class="screen" id="screenRanking">
+      <div class="section-title">Ranking</div>
+      <div style="margin-bottom:10px;">
+        <span class="filter-chip active" onclick="setRankingScope('todos',this)">🌍 Todos</span>
+        <span class="filter-chip" onclick="setRankingScope('club',this)">🏠 Mi club</span>
+      </div>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <select class="input-field" id="rankEstilo" onchange="cargarRanking()" style="font-size:12px;">
+          <option value="">Todos los estilos</option>
+          <option>Libres</option><option>Espalda</option><option>Braza</option><option>Mariposa</option><option>Estilos</option>
+        </select>
+        <select class="input-field" id="rankDist" onchange="cargarRanking()" style="font-size:12px;">
+          <option value="">Todas las dist.</option>
+          <option>50</option><option>100</option><option>200</option><option>400</option><option>800</option><option>1500</option>
+        </select>
+      </div>
+      <div id="listaRanking"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+    </div>
+
+    <!-- PERFIL -->
+    <div class="screen" id="screenPerfil">
+      <div class="perfil-header">
+        <div class="perfil-avatar" id="perfilAvatar">🏊</div>
+        <div class="perfil-nombre" id="perfilNombre"></div>
+        <div class="perfil-sub" id="perfilCategoria"></div>
+        <div class="perfil-sub" id="perfilClub" style="color:var(--agua-light);margin-top:2px;"></div>
+        <div class="perfil-sub" id="perfilEmail" style="margin-top:2px;"></div>
+      </div>
+      <!-- Nadador: stats -->
+      <div id="perfilStatsNadador" style="display:none;">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Marcas</div></div>
+          <div class="stat-card"><div class="stat-num" id="statMinimas" style="color:var(--verde)">0</div><div class="stat-label">Mínimas</div></div>
+        </div>
+      </div>
+      <!-- Entrenador: nadadores con mínima -->
+      <div id="perfilEntrenador" style="display:none;">
+        <div class="section-title" style="font-size:16px;margin-bottom:10px;margin-top:4px;">🏆 Nadadores del club con mínima</div>
+        <div id="listaConMinima"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn-danger" onclick="doLogout()">Cerrar sesión</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <button class="bottom-btn active" id="btnMarcas" onclick="showScreen('Marcas')"><span class="icon">🏅</span><span id="navMarcasLabel">Mis marcas</span></button>
+    <button class="bottom-btn" id="btnRegistrar" onclick="showScreen('Registrar')"><span class="icon">➕</span>Registrar</button>
+    <button class="bottom-btn" id="btnMinimas" onclick="showScreen('Minimas')"><span class="icon">📋</span>Mínimas</button>
+    <button class="bottom-btn" id="btnRanking" onclick="showScreen('Ranking')"><span class="icon">🏆</span>Ranking</button>
+    <button class="bottom-btn" id="btnPerfil" onclick="showScreen('Perfil')"><span class="icon">👤</span>Perfil</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalNadador">
+  <div class="modal-box">
+    <button class="modal-close" onclick="cerrarModal()">✕</button>
+    <div class="modal-title" id="modalTitle"></div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE ─────────────────────────────────────────────
+const sb = supabase.createClient(
+  'https://vfkunmvkjwejjzsupzix.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZma3VubXZrandlamp6c3Vweml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NTY4MjQsImV4cCI6MjA4NzMzMjgyNH0.N4o7j8aYR6kv-rnQQ7M7DnuyrNYk4aaRZ5zKEgtyVT0'
+);
+
+// ── BASE DE DATOS MÍNIMAS ────────────────────────────────
+const DB = {};
+function t(s){if(!s||s==='-')return null;const r=s.replace(',','.').trim();const p=r.split(':');if(p.length===2)return parseInt(p[0])*60+parseFloat(p[1]);if(p.length===3)return parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]);return parseFloat(r);}
+function add(ano,sx,es,di,p50,p25){if(p50!==null)DB[`${ano}-${sx}-${es}-${di}-50`]=t(p50);if(p25!==null)DB[`${ano}-${sx}-${es}-${di}-25`]=t(p25);}
+
+// ALEVÍN M
+add(2013,'M','Libres',50,'00:28,10','00:26,75');add(2013,'M','Libres',100,'01:02,00','00:59,95');add(2013,'M','Libres',200,'02:16,00','02:11,55');add(2013,'M','Libres',400,'04:50,00','04:39,70');add(2013,'M','Libres',800,'09:57,00','09:41,75');add(2013,'M','Espalda',50,'00:33,15','00:31,15');add(2013,'M','Espalda',100,'01:11,15','01:06,70');add(2013,'M','Espalda',200,'02:34,75','02:25,95');add(2013,'M','Braza',50,'00:36,25','00:34,90');add(2013,'M','Braza',100,'01:20,00','01:17,80');add(2013,'M','Braza',200,'02:53,95','02:46,65');add(2013,'M','Mariposa',50,'00:30,90','00:29,60');add(2013,'M','Mariposa',100,'01:09,85','01:07,45');add(2013,'M','Mariposa',200,'02:37,90','02:32,95');add(2013,'M','Estilos',200,'02:35,00','02:28,15');add(2013,'M','Estilos',400,'05:32,70','05:22,25');
+add(2014,'M','Libres',50,'00:30,15','00:28,70');add(2014,'M','Libres',100,'01:06,45','01:04,25');add(2014,'M','Libres',200,'02:25,70','02:20,85');add(2014,'M','Libres',400,'05:08,00','04:57,30');add(2014,'M','Libres',800,'10:40,00','10:23,85');add(2014,'M','Espalda',50,'00:35,90','00:33,75');add(2014,'M','Espalda',100,'01:16,90','01:12,05');add(2014,'M','Espalda',200,'02:45,00','02:35,75');add(2014,'M','Braza',50,'00:39,35','00:37,90');add(2014,'M','Braza',100,'01:26,00','01:23,60');add(2014,'M','Braza',200,'03:06,00','02:55,30');add(2014,'M','Mariposa',50,'00:33,70','00:32,30');add(2014,'M','Mariposa',100,'01:15,20','01:12,60');add(2014,'M','Mariposa',200,'02:50,00','02:44,70');add(2014,'M','Estilos',200,'02:45,00','02:37,75');add(2014,'M','Estilos',400,'05:52,50','05:41,55');
+// ALEVÍN F
+add(2013,'F','Libres',50,'00:29,30','00:28,35');add(2013,'F','Libres',100,'01:03,90','01:02,15');add(2013,'F','Libres',200,'02:20,00','02:17,65');add(2013,'F','Libres',400,'04:54,35','04:48,00');add(2013,'F','Libres',800,'10:07,45','09:58,35');add(2013,'F','Espalda',50,'00:33,95','00:31,90');add(2013,'F','Espalda',100,'01:13,30','01:09,35');add(2013,'F','Espalda',200,'02:37,15','02:30,65');add(2013,'F','Braza',50,'00:37,25','00:36,25');add(2013,'F','Braza',100,'01:21,95','01:19,70');add(2013,'F','Braza',200,'02:58,00','02:51,50');add(2013,'F','Mariposa',50,'00:31,75','00:31,15');add(2013,'F','Mariposa',100,'01:12,00','01:08,80');add(2013,'F','Mariposa',200,'02:41,40','02:38,20');add(2013,'F','Estilos',200,'02:39,00','02:33,35');add(2013,'F','Estilos',400,'05:38,10','05:26,75');
+add(2014,'F','Libres',50,'00:30,85','00:29,85');add(2014,'F','Libres',100,'01:07,60','01:05,70');add(2014,'F','Libres',200,'02:27,00','02:24,50');add(2014,'F','Libres',400,'05:11,00','05:04,35');add(2014,'F','Libres',800,'10:47,00','10:37,50');add(2014,'F','Espalda',50,'00:36,55','00:34,35');add(2014,'F','Espalda',100,'01:17,50','01:13,30');add(2014,'F','Espalda',200,'02:47,80','02:40,90');add(2014,'F','Braza',50,'00:39,60','00:38,35');add(2014,'F','Braza',100,'01:26,70','01:24,35');add(2014,'F','Braza',200,'03:08,00','03:01,20');add(2014,'F','Mariposa',50,'00:33,85','00:33,20');add(2014,'F','Mariposa',100,'01:16,50','01:13,10');add(2014,'F','Mariposa',200,'02:53,00','02:49,45');add(2014,'F','Estilos',200,'02:48,00','02:42,05');add(2014,'F','Estilos',400,'05:58,00','05:46,15');
+// INFANTIL M
+add(2011,'M','Libres',50,'00:26,25','00:25,00');add(2011,'M','Libres',100,'00:57,20','00:55,30');add(2011,'M','Libres',200,'02:06,00','02:01,85');add(2011,'M','Libres',400,'04:30,95','04:21,45');add(2011,'M','Libres',800,'09:18,00','09:03,95');add(2011,'M','Libres',1500,'17:41,00','17:12,40');add(2011,'M','Espalda',50,'00:30,75','00:28,85');add(2011,'M','Espalda',100,'01:05,00','01:00,90');add(2011,'M','Espalda',200,'02:20,10','02:12,30');add(2011,'M','Braza',50,'00:33,45','00:32,20');add(2011,'M','Braza',100,'01:13,00','01:10,95');add(2011,'M','Braza',200,'02:39,10','02:32,45');add(2011,'M','Mariposa',50,'00:28,35','00:27,15');add(2011,'M','Mariposa',100,'01:03,00','01:00,80');add(2011,'M','Mariposa',200,'02:22,50','02:18,00');add(2011,'M','Estilos',200,'02:22,60','02:16,30');add(2011,'M','Estilos',400,'05:05,10','04:55,45');
+add(2012,'M','Libres',50,'00:27,10','00:25,80');add(2012,'M','Libres',100,'00:59,15','00:57,20');add(2012,'M','Libres',200,'02:10,00','02:05,70');add(2012,'M','Libres',400,'04:37,00','04:27,25');add(2012,'M','Libres',800,'09:31,90','09:17,20');add(2012,'M','Libres',1500,'18:15,00','17:45,60');add(2012,'M','Espalda',50,'00:31,50','00:29,60');add(2012,'M','Espalda',100,'01:07,20','01:03,00');add(2012,'M','Espalda',200,'02:26,00','02:17,85');add(2012,'M','Braza',50,'00:34,90','00:33,55');add(2012,'M','Braza',100,'01:16,20','01:14,10');add(2012,'M','Braza',200,'02:45,80','02:38,85');add(2012,'M','Mariposa',50,'00:29,50','00:28,25');add(2012,'M','Mariposa',100,'01:05,50','01:03,20');add(2012,'M','Mariposa',200,'02:29,75','02:25,00');add(2012,'M','Estilos',200,'02:27,00','02:20,45');add(2012,'M','Estilos',400,'05:16,00','05:06,20');
+// INFANTIL F
+add(2011,'F','Libres',50,'00:28,25','00:27,35');add(2011,'F','Libres',100,'01:01,25','00:59,55');add(2011,'F','Libres',200,'02:13,90','02:11,65');add(2011,'F','Libres',400,'04:42,00','04:35,95');add(2011,'F','Libres',800,'09:42,50','09:33,80');add(2011,'F','Libres',1500,'18:24,00','18:09,70');add(2011,'F','Espalda',50,'00:32,85','00:30,85');add(2011,'F','Espalda',100,'01:09,50','01:05,75');add(2011,'F','Espalda',200,'02:28,45','02:22,35');add(2011,'F','Braza',50,'00:36,30','00:35,35');add(2011,'F','Braza',100,'01:18,10','01:15,95');add(2011,'F','Braza',200,'02:50,50','02:44,25');add(2011,'F','Mariposa',50,'00:30,45','00:29,85');add(2011,'F','Mariposa',100,'01:08,00','01:04,95');add(2011,'F','Mariposa',200,'02:32,55','02:29,45');add(2011,'F','Estilos',200,'02:32,85','02:27,50');add(2011,'F','Estilos',400,'05:23,45','05:12,60');
+add(2012,'F','Libres',50,'00:28,75','00:27,80');add(2012,'F','Libres',100,'01:02,10','01:00,35');add(2012,'F','Libres',200,'02:15,00','02:12,75');add(2012,'F','Libres',400,'04:48,00','04:41,90');add(2012,'F','Libres',800,'09:51,00','09:42,35');add(2012,'F','Libres',1500,'18:51,00','18:36,00');add(2012,'F','Espalda',50,'00:33,35','00:31,35');add(2012,'F','Espalda',100,'01:10,90','01:07,05');add(2012,'F','Espalda',200,'02:32,10','02:25,85');add(2012,'F','Braza',50,'00:36,95','00:35,95');add(2012,'F','Braza',100,'01:20,10','01:17,90');add(2012,'F','Braza',200,'02:52,90','02:46,60');add(2012,'F','Mariposa',50,'00:31,00','00:30,40');add(2012,'F','Mariposa',100,'01:09,70','01:06,60');add(2012,'F','Mariposa',200,'02:36,05','02:32,95');add(2012,'F','Estilos',200,'02:35,00','02:29,55');add(2012,'F','Estilos',400,'05:29,00','05:18,10');
+// JUNIOR M
+add(2010,'M','Libres',50,'00:25,45','00:24,25');add(2010,'M','Libres',100,'00:55,40','00:53,55');add(2010,'M','Libres',200,'02:01,90','01:57,90');add(2010,'M','Libres',400,'04:19,70','04:10,55');add(2010,'M','Libres',800,'08:57,60','08:44,00');add(2010,'M','Libres',1500,'17:12,00','16:44,10');add(2010,'M','Espalda',50,'00:29,70','00:27,90');add(2010,'M','Espalda',100,'01:02,90','00:58,90');add(2010,'M','Espalda',200,'02:16,75','02:09,10');add(2010,'M','Braza',50,'00:32,40','00:31,20');add(2010,'M','Braza',100,'01:10,60','01:08,65');add(2010,'M','Braza',200,'02:34,00','02:27,55');add(2010,'M','Mariposa',50,'00:27,55','00:26,40');add(2010,'M','Mariposa',100,'01:01,05','00:58,90');add(2010,'M','Mariposa',200,'02:18,30','02:14,00');add(2010,'M','Estilos',200,'02:17,15','02:11,00');add(2010,'M','Estilos',400,'04:57,00','04:47,65');
+add(2009,'M','Libres',50,'00:25,00','00:23,80');add(2009,'M','Libres',100,'00:54,35','00:52,55');add(2009,'M','Libres',200,'02:00,10','01:56,15');add(2009,'M','Libres',400,'04:14,95','04:05,90');add(2009,'M','Libres',800,'08:50,40','08:36,80');add(2009,'M','Libres',1500,'16:56,25','16:28,95');add(2009,'M','Espalda',50,'00:29,15','00:27,35');add(2009,'M','Espalda',100,'01:01,60','00:57,70');add(2009,'M','Espalda',200,'02:14,95','02:07,40');add(2009,'M','Braza',50,'00:31,65','00:30,45');add(2009,'M','Braza',100,'01:09,00','01:07,05');add(2009,'M','Braza',200,'02:30,90','02:24,60');add(2009,'M','Mariposa',50,'00:27,00','00:25,85');add(2009,'M','Mariposa',100,'00:59,25','00:57,20');add(2009,'M','Mariposa',200,'02:13,60','02:09,40');add(2009,'M','Estilos',200,'02:15,00','02:08,95');add(2009,'M','Estilos',400,'04:51,00','04:41,90');
+add(2008,'M','Libres',50,'00:24,60','00:23,40');add(2008,'M','Libres',100,'00:53,80','00:52,00');add(2008,'M','Libres',200,'01:58,00','01:54,15');add(2008,'M','Libres',400,'04:10,30','04:01,50');add(2008,'M','Libres',800,'08:45,25','08:31,90');add(2008,'M','Libres',1500,'16:40,35','16:13,20');add(2008,'M','Espalda',50,'00:28,40','00:26,70');add(2008,'M','Espalda',100,'01:00,55','00:56,75');add(2008,'M','Espalda',200,'02:12,50','02:05,10');add(2008,'M','Braza',50,'00:31,10','00:29,90');add(2008,'M','Braza',100,'01:07,95','01:06,05');add(2008,'M','Braza',200,'02:28,70','02:22,45');add(2008,'M','Mariposa',50,'00:26,60','00:25,55');add(2008,'M','Mariposa',100,'00:58,50','00:56,45');add(2008,'M','Mariposa',200,'02:11,90','02:07,75');add(2008,'M','Estilos',200,'02:12,60','02:06,70');add(2008,'M','Estilos',400,'04:46,70','04:37,65');
+// JUNIOR F
+add(2010,'F','Libres',50,'00:27,95','00:27,05');add(2010,'F','Libres',100,'01:00,85','00:59,15');add(2010,'F','Libres',200,'02:10,90','02:08,70');add(2010,'F','Libres',400,'04:35,00','04:29,00');add(2010,'F','Libres',800,'09:26,90','09:18,40');add(2010,'F','Libres',1500,'18:08,00','17:45,70');add(2010,'F','Espalda',50,'00:31,95','00:30,00');add(2010,'F','Espalda',100,'01:08,35','01:04,65');add(2010,'F','Espalda',200,'02:27,90','02:21,80');add(2010,'F','Braza',50,'00:35,35','00:34,40');add(2010,'F','Braza',100,'01:16,80','01:14,70');add(2010,'F','Braza',200,'02:46,00','02:40,00');add(2010,'F','Mariposa',50,'00:30,05','00:29,45');add(2010,'F','Mariposa',100,'01:06,70','01:03,75');add(2010,'F','Mariposa',200,'02:28,75','02:25,70');add(2010,'F','Estilos',200,'02:29,85','02:24,55');add(2010,'F','Estilos',400,'05:16,15','05:05,65');
+add(2009,'F','Libres',50,'00:27,70','00:26,80');add(2009,'F','Libres',100,'01:00,10','00:58,45');add(2009,'F','Libres',200,'02:09,50','02:07,35');add(2009,'F','Libres',400,'04:32,00','04:26,10');add(2009,'F','Libres',800,'09:15,10','09:06,70');add(2009,'F','Libres',1500,'17:53,00','17:38,90');add(2009,'F','Espalda',50,'00:31,55','00:29,65');add(2009,'F','Espalda',100,'01:07,70','01:04,05');add(2009,'F','Espalda',200,'02:25,50','02:19,50');add(2009,'F','Braza',50,'00:35,00','00:34,10');add(2009,'F','Braza',100,'01:16,10','01:14,00');add(2009,'F','Braza',200,'02:44,50','02:38,50');add(2009,'F','Mariposa',50,'00:29,65','00:29,10');add(2009,'F','Mariposa',100,'01:05,70','01:02,75');add(2009,'F','Mariposa',200,'02:25,75','02:22,85');add(2009,'F','Estilos',200,'02:28,00','02:22,80');add(2009,'F','Estilos',400,'05:13,20','05:02,75');
+add(2008,'F','Libres',50,'00:27,35','00:26,45');add(2008,'F','Libres',100,'00:59,50','00:57,85');add(2008,'F','Libres',200,'02:08,25','02:06,05');add(2008,'F','Libres',400,'04:29,90','04:24,00');add(2008,'F','Libres',800,'09:11,00','09:02,65');add(2008,'F','Libres',1500,'17:42,00','17:27,95');add(2008,'F','Espalda',50,'00:31,35','00:29,45');add(2008,'F','Espalda',100,'01:06,95','01:03,30');add(2008,'F','Espalda',200,'02:24,20','02:18,30');add(2008,'F','Braza',50,'00:34,65','00:33,70');add(2008,'F','Braza',100,'01:15,55','01:13,50');add(2008,'F','Braza',200,'02:43,85','02:37,90');add(2008,'F','Mariposa',50,'00:29,30','00:28,70');add(2008,'F','Mariposa',100,'01:05,15','01:02,25');add(2008,'F','Mariposa',200,'02:23,50','02:20,60');add(2008,'F','Estilos',200,'02:26,35','02:21,10');add(2008,'F','Estilos',400,'05:08,00','04:57,70');
+// SUB20
+[2006,2007].forEach(a=>{
+add(a,'M','Libres',50,'00:24,25','00:23,10');add(a,'M','Libres',100,'00:52,95','00:51,20');add(a,'M','Libres',200,'01:56,50','01:52,65');add(a,'M','Libres',400,'04:08,70','03:59,95');add(a,'M','Libres',800,'08:37,60','08:24,35');add(a,'M','Libres',1500,'16:28,00','16:01,20');add(a,'M','Espalda',50,'00:27,95','00:26,25');add(a,'M','Espalda',100,'00:59,50','00:55,75');add(a,'M','Espalda',200,'02:11,00','02:03,70');add(a,'M','Braza',50,'00:30,70','00:29,55');add(a,'M','Braza',100,'01:06,65','01:04,80');add(a,'M','Braza',200,'02:26,90','02:20,70');add(a,'M','Mariposa',50,'00:25,95','00:24,85');add(a,'M','Mariposa',100,'00:57,00','00:55,00');add(a,'M','Mariposa',200,'02:10,50','02:06,40');add(a,'M','Estilos',200,'02:10,85','02:05,00');add(a,'M','Estilos',400,'04:43,90','04:34,95');
+add(a,'F','Libres',50,'00:27,00','00:26,10');add(a,'F','Libres',100,'00:59,00','00:57,35');add(a,'F','Libres',200,'02:07,50','02:05,30');add(a,'F','Libres',400,'04:28,25','04:22,50');add(a,'F','Libres',800,'09:07,00','08:58,70');add(a,'F','Libres',1500,'17:34,00','17:20,00');add(a,'F','Espalda',50,'00:31,15','00:29,25');add(a,'F','Espalda',100,'01:06,25','01:02,65');add(a,'F','Espalda',200,'02:23,10','02:17,20');add(a,'F','Braza',50,'00:34,15','00:33,25');add(a,'F','Braza',100,'01:14,95','01:12,90');add(a,'F','Braza',200,'02:42,75','02:36,85');add(a,'F','Mariposa',50,'00:28,85','00:28,25');add(a,'F','Mariposa',100,'01:04,60','01:01,70');add(a,'F','Mariposa',200,'02:21,80','02:18,95');add(a,'F','Estilos',200,'02:24,80','02:19,70');add(a,'F','Estilos',400,'05:05,00','04:54,80');
+});
+// ABSOLUTO
+add('abs','M','Libres',50,'00:23,85','00:22,70');add('abs','M','Libres',100,'00:51,90','00:50,15');add('abs','M','Libres',200,'01:53,75','01:49,95');add('abs','M','Libres',400,'04:04,50','03:55,85');add('abs','M','Libres',800,'08:28,00','08:15,15');add('abs','M','Libres',1500,'16:19,00','15:52,45');add('abs','M','Espalda',50,'00:27,60','00:25,90');add('abs','M','Espalda',100,'00:58,75','00:55,05');add('abs','M','Espalda',200,'02:09,50','02:02,25');add('abs','M','Braza',50,'00:29,80','00:28,65');add('abs','M','Braza',100,'01:05,00','01:03,15');add('abs','M','Braza',200,'02:24,10','02:18,00');add('abs','M','Mariposa',50,'00:25,10','00:24,05');add('abs','M','Mariposa',100,'00:56,00','00:54,05');add('abs','M','Mariposa',200,'02:08,40','02:04,40');add('abs','M','Estilos',200,'02:09,20','02:03,45');add('abs','M','Estilos',400,'04:38,90','04:30,10');
+add('abs','F','Libres',50,'00:26,85','00:25,95');add('abs','F','Libres',100,'00:58,50','00:56,85');add('abs','F','Libres',200,'02:06,95','02:04,85');add('abs','F','Libres',400,'04:27,30','04:21,60');add('abs','F','Libres',800,'09:05,90','08:57,70');add('abs','F','Libres',1500,'17:30,00','17:16,40');add('abs','F','Espalda',50,'00:30,95','00:29,10');add('abs','F','Espalda',100,'01:05,75','01:02,15');add('abs','F','Espalda',200,'02:22,55','02:16,70');add('abs','F','Braza',50,'00:33,95','00:33,05');add('abs','F','Braza',100,'01:14,50','01:12,50');add('abs','F','Braza',200,'02:41,50','02:35,65');add('abs','F','Mariposa',50,'00:28,40','00:27,50');add('abs','F','Mariposa',100,'01:03,80','01:00,95');add('abs','F','Mariposa',200,'02:21,00','02:18,15');add('abs','F','Estilos',200,'02:24,00','02:18,95');add('abs','F','Estilos',400,'05:03,95','04:53,75');
+
+const DISTS = {Libres:[50,100,200,400,800,1500],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
+const DISTS_AL = {Libres:[50,100,200,400,800],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
+
+// ── ESTADO ───────────────────────────────────────────────
+let usuario=null, sesion=null, misMarcase=[];
+let filtroEstilo='Libres', filtroPiscina=50, cronoTipo='electronico';
+let rankingScope='todos', equipoScope='club';
+
+// ── HELPERS ──────────────────────────────────────────────
+function getAnoKey(ano){const a=parseInt(ano);if(!a||a<=2005||ano==='abs')return 'abs';return a;}
+function getCatLabel(ano){const a=parseInt(ano);if(ano==='abs'||a<=2005)return 'Absoluto';if(a===2006||a===2007)return `Sub20 (${ano})`;if(a>=2008&&a<=2010)return `Junior ${ano}`;if(a>=2011&&a<=2012)return `Infantil ${ano}`;if(a>=2013&&a<=2014)return `Alevín ${ano}`;return ano;}
+function getDBMinima(ano,sexo,estilo,dist,piscina){const k=getAnoKey(ano);return DB[`${k}-${sexo}-${estilo}-${dist}-${piscina}`]??null;}
+function getMinima(estilo,dist,piscina){if(!usuario)return null;return getDBMinima(usuario.ano,usuario.sexo,estilo,dist,piscina);}
+function tdis(seg){const min=Math.floor(seg/60);const s=Math.floor(seg%60);const c=Math.round((seg-Math.floor(seg))*100);return `${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(2,'0')}`;}
+function penalizar(seg,dist){return cronoTipo==='manual'?seg+(dist===50?0.29:0.19):seg;}
+function showToast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.style.background=err?'#ef233c':'var(--verde)';el.style.color=err?'#fff':'#003d2e';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
+function marcaHtml(m,mostrarNombre=false,pos=null){
+  let emoji,bc,bt;
+  if(m.tiene_minima==='si'){emoji='🏆';bc='badge-si';bt='MÍNIMA ✓';}
+  else if(m.tiene_minima==='no'){emoji='💪';bc='badge-no';bt='Sin mínima';}
+  else{emoji='⚪';bc='badge-na';bt='N/A';}
+  const posHtml=pos!==null?`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${pos<3?'var(--amarillo)':'rgba(255,255,255,.3)'};width:26px;flex-shrink:0;">${pos+1}</div>`:'';
+  const nombre=mostrarNombre?`<div class="marca-prueba">${m.nombre_nadador} · ${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`:`<div class="marca-prueba">${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`;
+  // Calcular diferencia con mínima
+  let difStr='';
+  if(m.minima_display){
+    const minSeg=getDBMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,m.piscina);
+    if(minSeg){
+      const dif=m.tiempo_seg-minSeg;
+      if(m.tiene_minima==='si') difStr=` · -${Math.abs(dif).toFixed(2)}s de la mínima`;
+      else difStr=` · le faltan ${dif.toFixed(2)}s`;
+    }
+  }
+  const meta=mostrarNombre
+    ?`${m.club} · ${getCatLabel(m.ano_nacimiento)} · ${m.fecha||''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`
+    :`${m.fecha||''}${m.competicion?' · '+m.competicion:''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`;
+  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div></div></div>`;
+}
+
+// ── AUTH ─────────────────────────────────────────────────
+function setAuthTab(tab,btn){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('formLogin').style.display=tab==='login'?'flex':'none';
+  document.getElementById('formRegistro').style.display=tab==='registro'?'flex':'none';
+}
+function toggleCamposNadador(){
+  const esE=document.getElementById('rRol').value==='entrenador';
+  document.getElementById('camposNadador').style.display=esE?'none':'block';
+}
+async function doLogin(){
+  const email=document.getElementById('lEmail').value.trim();
+  const pass=document.getElementById('lPass').value;
+  const err=document.getElementById('loginError');
+  err.style.display='none';
+  if(!email||!pass){err.textContent='Rellena todos los campos';err.style.display='block';return;}
+  const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent='Email o contraseña incorrectos';err.style.display='block';return;}
+  sesion=data.session;
+  await cargarPerfil(data.user.id);
+  iniciarApp();
+}
+async function doRegistro(){
+  const nombre=document.getElementById('rNombre').value.trim();
+  const email=document.getElementById('rEmail').value.trim();
+  const pass=document.getElementById('rPass').value;
+  const club=document.getElementById('rClub').value.trim();
+  const rol=document.getElementById('rRol').value;
+  const err=document.getElementById('registroError');
+  err.style.display='none';
+  const esE=rol==='entrenador';
+  const ano=esE?'entrenador':document.getElementById('rAno').value;
+  const sexo=esE?'-':document.getElementById('rSexo').value;
+  if(!nombre||!email||!pass||!club){err.textContent='Rellena todos los campos';err.style.display='block';return;}
+  if(!esE&&(!ano||!sexo)){err.textContent='Selecciona año de nacimiento y sexo';err.style.display='block';return;}
+  if(pass.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres';err.style.display='block';return;}
+  const{data,error}=await sb.auth.signUp({email,password:pass});
+  if(error){err.textContent=error.message;err.style.display='block';return;}
+  await sb.from('perfiles').insert({id:data.user.id,nombre,club,ano,sexo,rol,email});
+  showToast('Cuenta creada. Ahora entra con tu email y contrasena.');
+  setAuthTab('login',document.querySelector('.auth-tab'));
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  usuario=null;sesion=null;misMarcase=[];
+  document.getElementById('authScreen').style.display='block';
+  document.getElementById('appMain').style.display='none';
+}
+async function cargarPerfil(uid){
+  const{data}=await sb.from('perfiles').select('*').eq('id',uid).single();
+  usuario=data;
+}
+
+// ── INICIAR APP ──────────────────────────────────────────
+function iniciarApp(){
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('appMain').style.display='flex';
+  const esE=usuario.rol==='entrenador';
+  document.getElementById('headerNombre').textContent=usuario.nombre.split(' ')[0];
+  document.getElementById('perfilNombre').textContent=usuario.nombre;
+  document.getElementById('perfilClub').textContent='🏠 '+usuario.club;
+  document.getElementById('perfilEmail').textContent=usuario.email;
+  // Resetear siempre el estado del nav y header antes de aplicar el rol
+  document.getElementById('rolBadge').style.display='none';
+  document.getElementById('btnRegistrar').style.display='';
+  document.getElementById('navMarcasLabel').textContent='Mis marcas';
+  document.getElementById('titleMarcas').textContent='Mis Marcas';
+  document.getElementById('perfilAvatar').textContent='🏊';
+  if(esE){
+    // Header
+    document.getElementById('rolBadge').style.display='inline';
+    // Nav: ocultar Registrar, cambiar label
+    document.getElementById('btnRegistrar').style.display='none';
+    document.getElementById('navMarcasLabel').textContent='Mi equipo';
+    document.getElementById('titleMarcas').textContent='Marcas del equipo';
+    // Mínimas: mostrar selector
+    document.getElementById('minimasSelectorEntrenador').style.display='block';
+    document.getElementById('minimasCategoria').textContent='Selecciona categoría arriba';
+    // Perfil entrenador
+    document.getElementById('perfilAvatar').textContent='👨‍🏫';
+    document.getElementById('perfilCategoria').textContent='Entrenador/a';
+    document.getElementById('perfilStatsNadador').style.display='none';
+    document.getElementById('perfilEntrenador').style.display='block';
+    renderMinimas();
+    cargarMarcasEquipo();
+  } else {
+    const cat=getCatLabel(usuario.ano);
+    const sx=usuario.sexo==='F'?'Femenino':'Masculino';
+    document.getElementById('perfilCategoria').textContent=`${cat} · ${sx}`;
+    document.getElementById('perfilStatsNadador').style.display='block';
+    document.getElementById('perfilEntrenador').style.display='none';
+    // Mostrar selector para nadadores con sus valores por defecto
+    document.getElementById('minimasSelectorEntrenador').style.display='block';
+    const selAno=document.getElementById('minimasAno');
+    const selSexo=document.getElementById('minimasSexo');
+    if(selAno) selAno.value=usuario.ano;
+    if(selSexo) selSexo.value=usuario.sexo;
+    renderMinimas();
+    cargarMisMarcase();
+  }
+  showScreen('Marcas');
+}
+
+window.addEventListener('load',async()=>{
+  const{data:{session}}=await sb.auth.getSession();
+  if(session){sesion=session;await cargarPerfil(session.user.id);iniciarApp();}
+});
+
+// ── NAVEGACIÓN ───────────────────────────────────────────
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.bottom-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen'+name).classList.add('active');
+  const btn=document.getElementById('btn'+name);
+  if(btn)btn.classList.add('active');
+  if(name==='Marcas'){usuario?.rol==='entrenador'?cargarMarcasEquipo():renderMarcas();}
+  if(name==='Ranking')cargarRanking();
+  if(name==='Perfil')renderPerfil();
+}
+
+// ── MIS MARCAS (nadador) ─────────────────────────────────
+async function cargarMisMarcase(){
+  const{data}=await sb.from('marcas').select('*').eq('user_id',sesion.user.id).order('fecha',{ascending:false});
+  misMarcase=data||[];
+  renderMarcas();
+}
+function renderMarcas(){
+  const lista=document.getElementById('listaMarcas');
+  if(!misMarcase.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Aún no has registrado ninguna marca.</div></div>';return;}
+  lista.innerHTML=misMarcase.map(m=>marcaHtml(m)).join('');
+}
+
+// ── MARCAS EQUIPO (entrenador) ────────────────────────────
+async function cargarMarcasEquipo(){
+  const lista=document.getElementById('listaMarcas');
+  // Guardar filtros actuales antes de redibujar
+  const estiloActual=document.getElementById('equipoEstilo')?.value||'';
+  const distActual=document.getElementById('equipoDist')?.value||'';
+
+  lista.innerHTML=`
+    <div class="tabs" style="margin-bottom:10px;">
+      <button class="tab-btn ${equipoScope==='club'?'active':''}" onclick="setEquipoScope('club',this)">🏠 Mi club</button>
+      <button class="tab-btn ${equipoScope==='clasificacion'?'active':''}" onclick="setEquipoScope('clasificacion',this)">🌍 Clasificación</button>
+    </div>
+    <div class="form-grid" style="margin-bottom:10px;">
+      <select class="input-field" id="equipoEstilo" onchange="cargarMarcasEquipo()" style="font-size:12px;">
+        <option value="">Todos los estilos</option>
+        <option ${estiloActual==='Libres'?'selected':''}>Libres</option>
+        <option ${estiloActual==='Espalda'?'selected':''}>Espalda</option>
+        <option ${estiloActual==='Braza'?'selected':''}>Braza</option>
+        <option ${estiloActual==='Mariposa'?'selected':''}>Mariposa</option>
+        <option ${estiloActual==='Estilos'?'selected':''}>Estilos</option>
+      </select>
+      <select class="input-field" id="equipoDist" onchange="cargarMarcasEquipo()" style="font-size:12px;">
+        <option value="">Todas las dist.</option>
+        <option ${distActual==='50'?'selected':''}>50</option>
+        <option ${distActual==='100'?'selected':''}>100</option>
+        <option ${distActual==='200'?'selected':''}>200</option>
+        <option ${distActual==='400'?'selected':''}>400</option>
+        <option ${distActual==='800'?'selected':''}>800</option>
+        <option ${distActual==='1500'?'selected':''}>1500</option>
+      </select>
+    </div>
+    <div id="equipoResultados"><div class="loading"><span class="spinner"></span>Cargando...</div></div>`;
+
+  const estilo=estiloActual;
+  const dist=distActual;
+  let q=sb.from('marcas').select('*');
+  if(equipoScope==='club'){
+    q=q.eq('club',usuario.club).order('fecha',{ascending:false});
+  } else {
+    // Clasificacion: todos los mejores tiempos sin filtro de minima
+    q=q.order('tiempo_seg',{ascending:true});
+  }
+  if(estilo)q=q.eq('estilo',estilo);
+  if(dist)q=q.eq('distancia',parseInt(dist));
+  q=q.limit(100);
+  const{data}=await q;
+  const res=document.getElementById('equipoResultados');
+  if(!res)return;
+  if(!data||!data.length){res.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin marcas para estos filtros</div></div>';return;}
+  res.innerHTML=data.map((m,i)=>marcaHtml(m,true,equipoScope==='clasificacion'?i:null)).join('');
+}
+
+function setEquipoScope(scope,btn){
+  equipoScope=scope;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  cargarMarcasEquipo();
+}
+
+// ── FORMULARIO ───────────────────────────────────────────
+function setCrono(tipo){cronoTipo=tipo;document.getElementById('cronoElec').classList.toggle('active',tipo==='electronico');document.getElementById('cronoMan').classList.toggle('active',tipo==='manual');calcularPreview();}
+function actualizarDistancias(){
+  const es=document.getElementById('fEstilo').value;
+  const sel=document.getElementById('fDistancia');
+  sel.innerHTML='<option value="">Selecciona distancia</option>';
+  const esAl=(usuario?.ano==='2013'||usuario?.ano==='2014');
+  const d=(esAl?DISTS_AL:DISTS)[es]||[];
+  d.forEach(v=>sel.innerHTML+=`<option value="${v}">${v}m</option>`);
+  calcularPreview();
+}
+function filtrarEstilo(es,btn){filtroEstilo=es;document.querySelectorAll('.estilo-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderMinimas();}
+function filtrarPiscina(p,btn){filtroPiscina=p;document.querySelectorAll('.piscina-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderMinimas();}
+function calcularPreview(){
+  const es=document.getElementById('fEstilo').value;
+  const di=parseInt(document.getElementById('fDistancia').value);
+  const pi=parseInt(document.getElementById('fPiscina').value);
+  const mn=parseFloat(document.getElementById('fMin').value)||0;
+  const sg=parseFloat(document.getElementById('fSeg').value)||0;
+  const cn=parseFloat(document.getElementById('fCen').value)||0;
+  const prev=document.getElementById('resultadoPreview');
+  if(!es||!di||(!mn&&!sg&&!cn)){prev.classList.remove('visible');return;}
+  const tPen=penalizar(mn*60+sg+cn/100,di);
+  const min=getMinima(es,di,pi);
+  const penStr=cronoTipo==='manual'?` (+${di===50?'0,29':'0,19'}s manual)`:'';
+  prev.classList.add('visible');
+  if(min===null){prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='⚪';document.getElementById('prevTexto').textContent='SIN MÍNIMA EN TU CATEGORÍA';document.getElementById('prevDetalle').textContent='Esta prueba no tiene mínima nacional para ti';}
+  else if(tPen<=min){prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='🏆';document.getElementById('prevTexto').textContent='¡MÍNIMA NACIONAL!';document.getElementById('prevDetalle').textContent=`La superas por ${(min-tPen).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;}
+  else{prev.className='resultado-preview visible no';document.getElementById('prevEmoji').textContent='💪';document.getElementById('prevTexto').textContent='TODAVÍA NO, ¡SIGUE!';document.getElementById('prevDetalle').textContent=`Te faltan ${(tPen-min).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;}
+}
+async function guardarMarca(){
+  const es=document.getElementById('fEstilo').value;
+  const di=parseInt(document.getElementById('fDistancia').value);
+  const pi=parseInt(document.getElementById('fPiscina').value);
+  const mn=parseFloat(document.getElementById('fMin').value)||0;
+  const sg=parseFloat(document.getElementById('fSeg').value)||0;
+  const cn=parseFloat(document.getElementById('fCen').value)||0;
+  const comp=document.getElementById('fCompeticion').value;
+  if(!es){showToast('Selecciona un estilo',true);return;}
+  if(!di){showToast('Selecciona una distancia',true);return;}
+  if(!mn&&!sg&&!cn){showToast('Introduce el tiempo',true);return;}
+  const tPen=penalizar(mn*60+sg+cn/100,di);
+  const min=getMinima(es,di,pi);
+  let tm='sin_minima';if(min!==null&&min>0)tm=tPen<=min?'si':'no';
+  const{error}=await sb.from('marcas').insert({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,estilo:es,distancia:di,piscina:pi,tiempo_seg:tPen,tiempo_display:tdis(tPen),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:comp,crono:cronoTipo,fecha:new Date().toLocaleDateString('es-ES')});
+  if(error){showToast('Error al guardar',true);return;}
+  ['fEstilo','fCompeticion'].forEach(id=>document.getElementById(id).value='');
+  ['fMin','fSeg','fCen'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fDistancia').innerHTML='<option value="">— estilo primero —</option>';
+  document.getElementById('resultadoPreview').classList.remove('visible');
+  showToast('Marca guardada');
+  await cargarMisMarcase();
+  showScreen('Marcas');
+}
+
+// ── MÍNIMAS ──────────────────────────────────────────────
+function renderMinimas(){
+  if(!usuario)return;
+  const lista=document.getElementById('listaMinimas');
+  // Usar siempre el selector (para nadadores ya está inicializado con su año/sexo)
+  const ano=document.getElementById('minimasAno')?.value||usuario.ano||'2011';
+  const sexo=document.getElementById('minimasSexo')?.value||usuario.sexo||'F';
+  const sx=sexo==='F'?'Femenino':'Masculino';
+  document.getElementById('minimasCategoria').textContent=`${getCatLabel(ano)} · ${sx}`;
+  const esAl=(ano==='2013'||ano==='2014');
+  const dists=(esAl?DISTS_AL:DISTS)[filtroEstilo]||[];
+  if(!dists.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin mínimas</div></div>';return;}
+  lista.innerHTML=dists.map(d=>{
+    const seg=getDBMinima(ano,sexo,filtroEstilo,d,filtroPiscina);
+    return `<div class="minima-row"><div class="minima-dist">${d}m</div>${seg?`<div class="minima-tiempo">${tdis(seg)}</div>`:`<div class="minima-tiempo minima-na">Sin mínima</div>`}</div>`;
+  }).join('');
+}
+
+// ── RANKING ──────────────────────────────────────────────
+function setRankingScope(scope,el){
+  rankingScope=scope;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  cargarRanking();
+}
+async function cargarRanking(){
+  const lista=document.getElementById('listaRanking');
+  lista.innerHTML='<div class="loading"><span class="spinner"></span>Cargando...</div>';
+  const estilo=document.getElementById('rankEstilo').value;
+  const dist=document.getElementById('rankDist').value;
+  let q=sb.from('marcas').select('*').order('tiempo_seg',{ascending:true});
+  if(rankingScope==='club')q=q.eq('club',usuario.club);
+  if(estilo)q=q.eq('estilo',estilo);
+  if(dist)q=q.eq('distancia',parseInt(dist));
+  q=q.limit(50);
+  const{data}=await q;
+  if(!data||!data.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin marcas con mínima para estos filtros</div></div>';return;}
+  lista.innerHTML=data.map((m,i)=>{
+    const posClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const esYo=m.user_id===sesion?.user?.id;
+    return `<div class="ranking-row" style="${esYo?'border-color:var(--agua-light);':''}">
+      <div class="ranking-pos ${posClass}">${i+1}</div>
+      <div class="ranking-info">
+        <div class="ranking-nombre">${m.nombre_nadador}${esYo?' 👈':''}</div>
+        <div class="ranking-sub">${m.club} · ${m.estilo} ${m.distancia}m (${m.piscina}m) · ${getCatLabel(m.ano_nacimiento)}</div>
+      </div>
+      <div class="ranking-tiempo">${m.tiempo_display}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── PERFIL ───────────────────────────────────────────────
+async function renderPerfil(){
+  if(usuario?.rol==='entrenador'){
+    const lista=document.getElementById('listaConMinima');
+    lista.innerHTML='<div class="loading"><span class="spinner"></span>Cargando...</div>';
+    const{data}=await sb.from('marcas').select('nombre_nadador,estilo,distancia,piscina,tiempo_display,ano_nacimiento,fecha').eq('club',usuario.club).eq('tiene_minima','si').order('nombre_nadador');
+    if(!data||!data.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-text">Ningún nadador del club tiene mínima registrada aún</div></div>';return;}
+    const porNadador={};
+    data.forEach(m=>{if(!porNadador[m.nombre_nadador])porNadador[m.nombre_nadador]={cat:getCatLabel(m.ano_nacimiento),marcas:[]};porNadador[m.nombre_nadador].marcas.push(m);});
+    lista.innerHTML=Object.entries(porNadador).map(([nombre,info])=>`
+      <div class="nadador-card" style="cursor:default;">
+        <div class="nadador-header">
+          <div class="nadador-avatar">🏊</div>
+          <div style="flex:1;">
+            <div class="nadador-nombre">${nombre}</div>
+            <div class="nadador-sub">${info.cat} · ${info.marcas.length} mínima${info.marcas.length>1?'s':''}</div>
+          </div>
+          <div class="marca-badge badge-si">🏆 MÍNIMA</div>
+        </div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+          ${info.marcas.map(m=>`<div style="font-size:11px;color:rgba(255,255,255,.5);padding:4px 8px;background:rgba(6,214,160,.06);border-radius:6px;">${m.estilo} ${m.distancia}m (${m.piscina}m) — <span style="color:var(--agua-light);font-family:'Bebas Neue',sans-serif;">${m.tiempo_display}</span>${m.fecha?' · '+m.fecha:''}</div>`).join('')}
+        </div>
+      </div>`).join('');
+  } else {
+    document.getElementById('statTotal').textContent=misMarcase.length;
+    document.getElementById('statMinimas').textContent=misMarcase.filter(m=>m.tiene_minima==='si').length;
+  }
+}
+
+// ── IMPORTAR EXCEL ───────────────────────────────────────
+const EMAP={libre:'Libres',libres:'Libres',free:'Libres',espalda:'Espalda',back:'Espalda',braza:'Braza',breast:'Braza',mariposa:'Mariposa',butterfly:'Mariposa',fly:'Mariposa',estilos:'Estilos',medley:'Estilos',im:'Estilos'};
+function onDrop(e){e.preventDefault();document.getElementById('dropZone').style.borderColor='rgba(255,255,255,.15)';if(e.dataTransfer.files[0])procesarArchivo(e.dataTransfer.files[0]);}
+function importarExcel(i){if(i.files[0])procesarArchivo(i.files[0]);}
+function procesarArchivo(file){
+  const st=document.getElementById('importStatus');st.style.display='block';st.style.color='var(--agua-light)';st.textContent='Leyendo...';
+  const r=new FileReader();
+  r.onload=async function(e){
+    try{
+      let rows=[];
+      if(file.name.endsWith('.csv')){const txt=e.target.result;const lns=txt.split('\n').filter(l=>l.trim());const cab=lns[0].split(';').map(c=>c.trim().toLowerCase());for(let i=1;i<lns.length;i++){const c=lns[i].split(';').map(c=>c.trim().replace(/"/g,''));const f={};cab.forEach((h,idx)=>f[h]=c[idx]||'');rows.push(f);}}
+      else{const d=new Uint8Array(e.target.result);const wb=XLSX.read(d,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{defval:''});rows=rows.map(f=>{const n={};Object.keys(f).forEach(k=>n[k.toLowerCase().trim()]=String(f[k]).trim());return n;});}
+      if(!rows.length){st.style.color='var(--rojo)';st.textContent='Sin datos';return;}
+      const keys=Object.keys(rows[0]);
+      const cE=keys.find(k=>k.includes('estilo')||k.includes('style'))||'';
+      const cD=keys.find(k=>k.includes('distancia')||k.includes('dist'))||'';
+      const cP=keys.find(k=>k.includes('piscina')||k.includes('pool')||k.includes('course'))||'';
+      const cR=keys.find(k=>k.includes('resultado')||k.includes('result')||k.includes('tiempo')||k.includes('value'))||'';
+      const cF=keys.find(k=>k.includes('fecha')||k.includes('date'))||'';
+      const cL=keys.find(k=>k.includes('lugar')||k.includes('location'))||'';
+      let ign=0;const ins=[];
+      rows.forEach(f=>{
+        try{
+          const es=EMAP[(f[cE]||'').toLowerCase().trim()]||null;
+          const di=parseInt(f[cD])||0;
+          const pi=parseInt(String(f[cP]||'50').replace(/[^0-9]/g,''))||50;
+          const tR=String(f[cR]||'').trim();
+          // Convertir fecha: puede ser string o número Excel
+          let fe='';
+          const feRaw=f[cF]||'';
+          if(feRaw){
+            const feNum=parseFloat(feRaw);
+            if(!isNaN(feNum)&&feNum>40000){
+              // Número Excel → fecha real
+              const d=new Date(Math.round((feNum-25569)*86400*1000));
+              fe=d.toLocaleDateString('es-ES');
+            } else {
+              fe=String(feRaw).split(' ')[0]||'';
+            }
+          }
+          if(!fe)fe=new Date().toLocaleDateString('es-ES');
+          const lu=String(f[cL]||'').trim();
+          if(!es||!di||!tR){ign++;return;}
+          const tp=tR.replace(',','.').replace(/^0+:/,'');const ps=tp.split(':');
+          let ts=0;if(ps.length===3)ts=parseInt(ps[0])*3600+parseInt(ps[1])*60+parseFloat(ps[2]);else if(ps.length===2)ts=parseInt(ps[0])*60+parseFloat(ps[1]);else ts=parseFloat(ps[0]);
+          if(!ts||ts<=0){ign++;return;}
+          const min=getMinima(es,di,pi);let tm='sin_minima';if(min!==null&&min>0)tm=ts<=min?'si':'no';
+          ins.push({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,estilo:es,distancia:di,piscina:pi,tiempo_seg:ts,tiempo_display:tdis(ts),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:lu,crono:'electronico',fecha:fe});
+        }catch(err){ign++;}
+      });
+      if(ins.length)await sb.from('marcas').insert(ins);
+      const conMin=ins.filter(m=>m.tiene_minima==='si').length;
+      st.style.color='var(--verde)';st.textContent=`${ins.length} marcas importadas · ${conMin} con minima · ${ign} ignoradas`;
+      await cargarMisMarcase();
+      setTimeout(()=>showScreen('Marcas'),1500);
+    }catch(err){st.style.color='var(--rojo)';st.textContent='Error al leer el archivo';}
+  };
+  if(file.name.endsWith('.csv'))r.readAsText(file,'UTF-8');else r.readAsArrayBuffer(file);
+}
+
+function cerrarModal(){document.getElementById('modalNadador').classList.remove('open');}
+
+// ── IMPORTAR DESDE RFEN ──────────────────────────────────
+const ESTILO_MAP = {
+  'libre':'Libres','libres':'Libres',
+  'espalda':'Espalda',
+  'braza':'Braza',
+  'mariposa':'Mariposa','butterfly':'Mariposa',
+  'estilos':'Estilos','estilos (4 estilos)':'Estilos'
+};
+
+async function importarRFEN(){
+  const nombre=document.getElementById('rfenNombre').value.trim();
+  const apellidos=document.getElementById('rfenApellidos').value.trim();
+  const sexo=document.getElementById('rfenSexo').value;
+  const status=document.getElementById('rfenStatus');
+  const btn=document.getElementById('btnRFEN');
+
+  if(!nombre||!apellidos){
+    status.style.display='block';
+    status.style.background='rgba(239,35,60,.15)';
+    status.style.color='#ff6b81';
+    status.textContent='Introduce nombre y apellidos';
+    return;
+  }
+
+  btn.disabled=true;
+  btn.textContent='Buscando...';
+  status.style.display='block';
+  status.style.background='rgba(0,119,182,.15)';
+  status.style.color='var(--agua-light)';
+  status.textContent='⏳ Buscando en RFEN...';
+
+  try {
+    const res = await fetch('/.netlify/functions/rfen', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({nombre, apellidos, sexo})
+    });
+    const json = await res.json();
+
+    if(!res.ok || json.error){
+      status.style.background='rgba(239,35,60,.15)';
+      status.style.color='#ff6b81';
+      status.textContent='❌ ' + (json.error||'No encontrado. Comprueba nombre y apellidos.');
+      btn.disabled=false;
+      btn.textContent='🔍 Buscar e importar mis marcas';
+      return;
+    }
+
+    status.textContent=`✅ Encontrado: ${json.nombre}. Importando ${json.marks.length} marcas...`;
+
+    // Convertir y guardar marcas
+    const ins=[];
+    json.marks.forEach(m=>{
+      const estiloKey=(m.estilo||'').toLowerCase().trim();
+      const estilo=ESTILO_MAP[estiloKey]||null;
+      if(!estilo||!m.distancia||!m.resultado)return;
+
+      // Parsear tiempo formato 00:00:29.55
+      const tStr=m.resultado.trim();
+      const parts=tStr.split(':');
+      let ts=0;
+      if(parts.length===3) ts=parseInt(parts[0])*3600+parseInt(parts[1])*60+parseFloat(parts[2].replace(',','.'));
+      else if(parts.length===2) ts=parseInt(parts[0])*60+parseFloat(parts[1].replace(',','.'));
+      else ts=parseFloat(tStr.replace(',','.'));
+      if(!ts||ts<=0)return;
+
+      const piscina=m.piscina||25;
+      const cronoTipoMarca=(m.crono||'').toLowerCase().includes('manual')?'manual':'electronico';
+      const min=getDBMinima(usuario.ano,usuario.sexo,estilo,m.distancia,piscina);
+      let tiene_minima='sin_minima';
+      if(min!==null&&min>0) tiene_minima=ts<=min?'si':'no';
+
+      ins.push({
+        user_id:sesion.user.id,
+        nombre_nadador:usuario.nombre,
+        club:usuario.club,
+        ano_nacimiento:usuario.ano,
+        sexo:usuario.sexo,
+        estilo,
+        distancia:m.distancia,
+        piscina,
+        tiempo_seg:ts,
+        tiempo_display:tdis(ts),
+        minima_display:min?tdis(min):null,
+        tiene_minima,
+        competicion:m.lugar||'',
+        crono:cronoTipoMarca,
+        fecha:m.fecha||''
+      });
+    });
+
+    if(ins.length){
+      const{error}=await sb.from('marcas').insert(ins);
+      if(error){
+        status.style.background='rgba(239,35,60,.15)';
+        status.style.color='#ff6b81';
+        status.textContent='❌ Error al guardar las marcas: '+error.message;
+        btn.disabled=false;
+        btn.textContent='🔍 Buscar e importar mis marcas';
+        return;
+      }
+    }
+
+    const conMin=ins.filter(m=>m.tiene_minima==='si').length;
+    status.style.background='rgba(6,214,160,.12)';
+    status.style.color='var(--verde)';
+    status.textContent=`✅ ${ins.length} marcas importadas · ${conMin} con mínima`;
+    btn.textContent='✅ Importado';
+
+    await cargarMisMarcase();
+    setTimeout(()=>showScreen('Marcas'),1500);
+
+  } catch(err){
+    status.style.background='rgba(239,35,60,.15)';
+    status.style.color='#ff6b81';
+    status.textContent='❌ Error de conexión: '+err.message;
+    btn.disabled=false;
+    btn.textContent='🔍 Buscar e importar mis marcas';
+  }
+}
+</script>
+</body>
+</html>
