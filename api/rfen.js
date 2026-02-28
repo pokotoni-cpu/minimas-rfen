@@ -60,7 +60,12 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { nombre, apellidos, sexo } = req.body || {};
+    // Vercel puede pasar body como string o como objeto
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch(e) { body = {}; }
+    }
+    const { nombre, apellidos, sexo } = body;
     if (!nombre || !apellidos) {
       return res.status(400).json({ error: 'Faltan nombre y apellidos' });
     }
