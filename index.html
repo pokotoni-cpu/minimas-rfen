@@ -1006,7 +1006,7 @@ async function importarRFEN(){
   status.textContent='⏳ Buscando en RFEN...';
 
   try {
-    const res = await fetch('/api/rfen', {
+    const res = await fetch('https://minimas-rfen.vercel.app/api/rfen', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({nombre, apellidos, sexo})
