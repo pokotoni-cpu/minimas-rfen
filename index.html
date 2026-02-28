@@ -179,7 +179,22 @@ select.input-field option{background:#023e8a;color:#fff;}
       <div class="input-group"><label>Nombre completo</label><input type="text" class="input-field" id="rNombre" placeholder="Nombre y apellidos"></div>
       <div class="input-group"><label>Email</label><input type="email" class="input-field" id="rEmail" placeholder="tu@email.com"></div>
       <div class="input-group"><label>Contraseña</label><input type="password" class="input-field" id="rPass" placeholder="Mínimo 6 caracteres"></div>
-      <div class="input-group"><label>Club</label><input type="text" class="input-field" id="rClub" placeholder="Nombre de tu club"></div>
+      <div class="input-group">
+        <label>Comunidad</label>
+        <select class="input-field" id="rComunidad" onchange="actualizarClubs()">
+          <option value="">Selecciona comunidad</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Club</label>
+        <select class="input-field" id="rClub">
+          <option value="">— elige comunidad primero —</option>
+        </select>
+      </div>
+      <div class="input-group" id="rClubManualWrap" style="display:none;">
+        <label>Nombre del club</label>
+        <input type="text" class="input-field" id="rClubManual" placeholder="Escribe el nombre de tu club">
+      </div>
       <div class="input-group">
         <label>Rol</label>
         <select class="input-field" id="rRol" onchange="toggleCamposNadador()">
@@ -427,6 +442,59 @@ select.input-field option{background:#023e8a;color:#fff;}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── CLUBES POR COMUNIDAD ────────────────────────────────
+const CLUBES_ESPANA = {
+  "Andalucía": ["A.C.D. ENTRETORRES","C.D. NATACION ALMERIA","C.D. NATACION GRANADA","C.D. SWIM GRANADA","C.D. SWIM SEVILLA","C.N. ALGECIRAS","C.N. ALMERIA","C.N. CADIZ","C.N. CORDOBA","C.N. EL EJIDO","C.N. GRANADA","C.N. HUELVA","C.N. JAEN","C.N. JEREZ","C.N. LINARES","C.N. LOS BARRIOS","C.N. MALAGA","C.N. MARBELLA","C.N. MOTRIL","C.N. ROQUETAS","C.N. SEVILLA"],
+  "Aragón": ["A.D.A. CALATAYUD","C.D. NATACION ARAGON","C.D.N. ZOITI","C.N. CALATAYUD","C.N. CASPE","C.N. HELIOS","C.N. HUESCA","C.N. MONZON","C.N. TERUEL","C.N. UTEBO","C.N. ZARAGOZA"],
+  "Asturias": ["C.N. AVILÉS","C.N. GIJÓN","C.N. LANGREO","C.N. MIERES","C.N. NAVIA","C.N. OVIEDO","C.N. SIERO","REAL GRUPO CULTURA COVADONGA"],
+  "Baleares": ["C.N. ANDRATX","C.N. CALVIÀ","C.N. FORMENTERA","C.N. IBIZA","C.N. INCA","C.N. MANACOR","C.N. MENORCA","C.N. PALMA","C.N. POLLENÇA"],
+  "Canarias": ["C.N. EL HIERRO","C.N. FUERTEVENTURA","C.N. GRAN CANARIA","C.N. LA GOMERA","C.N. LAGUNA","C.N. LANZAROTE","C.N. LAS PALMAS","C.N. SANTA CRUZ","C.N. TENERIFE"],
+  "Cantabria": ["A. CAMPURRIANA NATACION","A. CANTABRA NAT.","A.D. ALBERDI PROINCA","C.N. CASTRO URDIALES","C.N. LAREDO","C.N. SANTANDER","C.N. TORRELAVEGA"],
+  "Castilla y León": ["C.D. NATACION VALLADOLID","C.N. AVILA","C.N. BURGOS","C.N. LEON","C.N. PALENCIA","C.N. PONFERRADA","C.N. SALAMANCA","C.N. SEGOVIA","C.N. SORIA","C.N. VALLADOLID","C.N. ZAMORA"],
+  "Castilla-La Mancha": ["C.D. SWIM ALBACETE","C.N. ALBACETE","C.N. CIUDAD REAL","C.N. CUENCA","C.N. GUADALAJARA","C.N. PUERTOLLANO","C.N. TALAVERA","C.N. TOLEDO"],
+  "Catalunya": ["C.N. BADALONA","C.N. BARCELONA","C.N. CORNELLÀ","C.N. FIGUERES","C.N. GIRONA","C.N. GRANOLLERS","C.N. L'HOSPITALET","C.N. LLEIDA","C.N. MANRESA","C.N. MATARÓ","C.N. OLOT","C.N. REUS","C.N. SABADELL","C.N. SANT ANDREU","C.N. TARRAGONA","C.N. TERRASSA","C.N. VIC","CLUB NATACIÓ ATLÈTIC-BARCELONETA"],
+  "Ceuta": ["C.D. NATACION CEUTA","C.N. CEUTA"],
+  "Comunidad de Madrid": ["C.N. ALCALA","C.N. ALCOBENDAS","C.N. BOADILLA","C.N. FUENLABRADA","C.N. GETAFE","C.N. LAS ROZAS","C.N. LEGANES","C.N. MADRID","C.N. MAJADAHONDA","C.N. MASTER MADRID","C.N. MOSTOLES","C.N. POZUELO","C.N. TEMPORIS","C.N. TORREJÓN","C.N. VALLECAS","REAL CANOE N.C."],
+  "Comunidad Valenciana": ["C.N. ALCOI","C.N. ALICANTE","C.N. ALTEA","C.N. BENIDORM","C.N. BENIMAMET","C.N. BURJASSOT","C.N. BURRIANA","C.N. CALP","C.N. CASTELLÓN","C.N. DÉNIA","C.N. ELCHE","C.N. GANDIA","C.N. MANISES","C.N. MISLATA","C.N. NAZARET","C.N. ONTINYENT","C.N. ORIHUELA","C.N. PATERNA","C.N. PETRER","C.N. QUART DE POBLET","C.N. SAGUNTO","C.N. TORRENT","C.N. TORREVIEJA","C.N. VALENCIA","C.N. VILLARREAL","C.N. VILLENA","C.N. XIRIVELLA","C.N. XÀTIVA","CVN CASTELLÓN","DELFIN C.N.","A.C. ALMASSERA"],
+  "Extremadura": ["C.N. BADAJOZ","C.N. CACERES","C.N. DON BENITO","C.N. MERIDA","C.N. PLASENCIA"],
+  "Galicia": ["C.N. CORUÑA","C.N. FERROL","C.N. LUGO","C.N. OURENSE","C.N. PONTEVEDRA","C.N. SANTIAGO","C.N. VIGO","C.N. VILAGARCIA"],
+  "La Rioja": ["C.N. CALAHORRA","C.N. LOGROÑO","C.N. RIOJA"],
+  "Melilla": ["C.N. MELILLA"],
+  "Murcia": ["C.N. CARTAGENA","C.N. CIEZA","C.N. JUMILLA","C.N. LORCA","C.N. MAZARRON","C.N. MOLINA","C.N. MURCIA","C.N. YECLA","A.C.R. EMP"],
+  "Navarra": ["C.N. ESTELLA","C.N. NAVARRA","C.N. PAMPLONA","C.N. TUDELA"],
+  "País Vasco": ["C.N. BARAKALDO","C.N. BILBAO","C.N. EIBAR","C.N. IRUN","C.N. RENTERIA","C.N. SAN SEBASTIAN","C.N. VITORIA","HERNANI K.E."]
+};
+
+function inicializarSelectorComunidades(){
+  const sel=document.getElementById('rComunidad');
+  if(!sel)return;
+  Object.keys(CLUBES_ESPANA).sort().forEach(com=>{
+    const opt=document.createElement('option');
+    opt.value=com; opt.textContent=com;
+    sel.appendChild(opt);
+  });
+}
+
+function actualizarClubs(){
+  const com=document.getElementById('rComunidad').value;
+  const selClub=document.getElementById('rClub');
+  const manualWrap=document.getElementById('rClubManualWrap');
+  selClub.innerHTML='<option value="">Selecciona club</option>';
+  if(!com)return;
+  const clubs=CLUBES_ESPANA[com]||[];
+  clubs.forEach(cl=>{
+    const opt=document.createElement('option');
+    opt.value=cl; opt.textContent=cl;
+    selClub.appendChild(opt);
+  });
+  const otroOpt=document.createElement('option');
+  otroOpt.value='__otro__'; otroOpt.textContent='Mi club no aparece...';
+  selClub.appendChild(otroOpt);
+  selClub.onchange=()=>{
+    manualWrap.style.display=selClub.value==='__otro__'?'block':'none';
+  };
+}
+
 // ── SUPABASE ─────────────────────────────────────────────
 const sb = supabase.createClient(
   'https://vfkunmvkjwejjzsupzix.supabase.co',
@@ -534,7 +602,8 @@ async function doRegistro(){
   const nombre=document.getElementById('rNombre').value.trim();
   const email=document.getElementById('rEmail').value.trim();
   const pass=document.getElementById('rPass').value;
-  const club=document.getElementById('rClub').value.trim();
+  const clubSel=document.getElementById('rClub').value;
+  const club=clubSel==='__otro__'?document.getElementById('rClubManual').value.trim():clubSel;
   const rol=document.getElementById('rRol').value;
   const err=document.getElementById('registroError');
   err.style.display='none';
@@ -612,6 +681,7 @@ function iniciarApp(){
 }
 
 window.addEventListener('load',async()=>{
+  inicializarSelectorComunidades();
   const{data:{session}}=await sb.auth.getSession();
   if(session){sesion=session;await cargarPerfil(session.user.id);iniciarApp();}
 });
