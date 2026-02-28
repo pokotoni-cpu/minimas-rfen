@@ -35,7 +35,9 @@ function parseMarks(html) {
     while ((cellMatch = cellRegex.exec(row)) !== null) {
       cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
     }
-    if (cells.length >= 9 && cells[0].match(/\d{2}\/\d{2}\/\d{4}/)) {
+    const esParcial = cells[6] && cells[6].trim() !== '';
+    const esRelevo = cells[7] && cells[7].trim() !== '';
+    if (cells.length >= 9 && cells[0].match(/\d{2}\/\d{2}\/\d{4}/) && !esParcial && !esRelevo) {
       marks.push({
         fecha: cells[0].split(' ')[0],
         lugar: cells[1],
@@ -70,7 +72,10 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Faltan nombre y apellidos' });
     }
 
-    const postData = new URLSearchParams({ nombre, apellidos, sexo: sexo || 'Masculino' }).toString();
+    // RFEN requiere mayúsculas
+    const nombreUpper = nombre.toUpperCase().trim();
+    const apellidosUpper = apellidos.toUpperCase().trim();
+    const postData = new URLSearchParams({ nombre: nombreUpper, apellidos: apellidosUpper, sexo: sexo || 'Masculino' }).toString();
 
     const searchRes = await httpRequest({
       hostname: 'intranet.rfen.es',
