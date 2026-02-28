@@ -238,11 +238,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Nombre">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Apellidos">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -503,7 +503,8 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   const meta=mostrarNombre
     ?`${m.club} · ${getCatLabel(m.ano_nacimiento)} · ${m.fecha||''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`
     :`${m.fecha||''}${m.competicion?' · '+m.competicion:''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`;
-  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div></div></div>`;
+  const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${m.id}')" style="background:none;border:none;color:rgba(255,255,255,.2);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
+  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
 }
 
 // ── AUTH ─────────────────────────────────────────────────
@@ -894,6 +895,14 @@ function procesarArchivo(file){
 }
 
 function cerrarModal(){document.getElementById('modalNadador').classList.remove('open');}
+
+async function borrarMarca(id){
+  if(!confirm('¿Seguro que quieres borrar esta marca?'))return;
+  const{error}=await sb.from('marcas').delete().eq('id',id);
+  if(error){showToast('Error al borrar',true);return;}
+  showToast('Marca borrada');
+  await cargarMisMarcase();
+}
 
 // ── IMPORTAR DESDE RFEN ──────────────────────────────────
 const ESTILO_MAP = {
