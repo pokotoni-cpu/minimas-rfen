@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/rfen.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "edge"
     }
   }
 }
