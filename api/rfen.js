@@ -104,7 +104,13 @@ module.exports = async (req, res) => {
 
     const athletes = parseAthletes(html);
     if (!athletes.length) {
-      return res.status(404).json({ error: 'Nadador no encontrado. Comprueba nombre y apellidos.' });
+      // Devolver el HTML para depuración
+      return res.status(404).json({ 
+        error: 'Nadador no encontrado. Comprueba nombre y apellidos.',
+        debug_status: searchRes.status,
+        debug_html_length: html.length,
+        debug_html_preview: html.substring(0, 500)
+      });
     }
 
     const { d, e } = athletes[0];
