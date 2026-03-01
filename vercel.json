@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "api/rfen.js": {
-      "runtime": "edge"
-    }
-  }
-}
+{}
