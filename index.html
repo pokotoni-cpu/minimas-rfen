@@ -174,6 +174,7 @@ select.input-field option{background:#023e8a;color:#fff;}
       <div class="input-group"><label>Contraseña</label><input type="password" class="input-field" id="lPass" placeholder="••••••••"></div>
       <div class="auth-error" id="loginError"></div>
       <button class="btn-primary" onclick="doLogin()">Entrar</button>
+      <button style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;width:100%;margin-top:4px;" onclick="entrarDemo()">👀 Ver demo sin registrarse</button>
     </div>
     <div class="auth-form" id="formRegistro" style="display:none;">
       <div class="input-group"><label>Nombre completo</label><input type="text" class="input-field" id="rNombre" placeholder="Nombre y apellidos"></div>
@@ -586,6 +587,33 @@ function toggleCamposNadador(){
   const esE=document.getElementById('rRol').value==='entrenador';
   document.getElementById('camposNadador').style.display=esE?'none':'block';
 }
+function entrarDemo(){
+  // Usuario demo de solo lectura
+  usuario = {
+    id: 'demo',
+    nombre: 'Nadador Demo',
+    email: 'demo@minimas.app',
+    club: 'C.N. DEMO',
+    ano: '2010',
+    sexo: 'M',
+    rol: 'nadador'
+  };
+  sesion = { user: { id: 'demo' } };
+  misMarcase = [
+    {id:'d1',estilo:'Libres',distancia:100,piscina:50,tiempo_seg:58.45,tiempo_display:'00:58,45',minima_display:'00:54,35',tiene_minima:'no',fecha:'15/01/2026',competicion:'Campeonato Provincial',club:'C.N. DEMO',nombre_nadador:'Nadador Demo',ano_nacimiento:'2010',sexo:'M'},
+    {id:'d2',estilo:'Espalda',distancia:100,piscina:25,tiempo_seg:62.30,tiempo_display:'01:02,30',minima_display:'01:07,70',tiene_minima:'si',fecha:'20/12/2025',competicion:'Liga Autonómica',club:'C.N. DEMO',nombre_nadador:'Nadador Demo',ano_nacimiento:'2010',sexo:'M'},
+    {id:'d3',estilo:'Mariposa',distancia:50,piscina:25,tiempo_seg:27.85,tiempo_display:'00:27,85',minima_display:'00:27,00',tiene_minima:'si',fecha:'10/11/2025',competicion:'Trofeo Navidad',club:'C.N. DEMO',nombre_nadador:'Nadador Demo',ano_nacimiento:'2010',sexo:'M'},
+    {id:'d4',estilo:'Braza',distancia:200,piscina:25,tiempo_seg:152.40,tiempo_display:'02:32,40',minima_display:'02:30,90',tiene_minima:'no',fecha:'05/10/2025',competicion:'',club:'C.N. DEMO',nombre_nadador:'Nadador Demo',ano_nacimiento:'2010',sexo:'M'},
+    {id:'d5',estilo:'Libres',distancia:200,piscina:50,tiempo_seg:118.50,tiempo_display:'01:58,50',minima_display:'02:00,10',tiene_minima:'si',fecha:'22/06/2025',competicion:'Campeonato Regional',club:'C.N. DEMO',nombre_nadador:'Nadador Demo',ano_nacimiento:'2010',sexo:'M'}
+  ];
+  // Ocultar botones que no aplican en demo
+  document.getElementById('appMain').dataset.demo = 'true';
+  iniciarApp();
+  setTimeout(()=>{
+    showToast('Modo demo — solo lectura');
+  }, 500);
+}
+
 async function doLogin(){
   const email=document.getElementById('lEmail').value.trim();
   const pass=document.getElementById('lPass').value;
@@ -700,6 +728,7 @@ function showScreen(name){
 
 // ── MIS MARCAS (nadador) ─────────────────────────────────
 async function cargarMisMarcase(){
+  if(sesion?.user?.id==='demo'){renderMarcas();return;}
   const{data}=await sb.from('marcas').select('*').eq('user_id',sesion.user.id).order('fecha',{ascending:false});
   misMarcase=data||[];
   renderMarcas();
@@ -813,6 +842,7 @@ async function guardarMarca(){
   const tPen=penalizar(mn*60+sg+cn/100,di);
   const min=getMinima(es,di,pi);
   let tm='sin_minima';if(min!==null&&min>0)tm=tPen<=min?'si':'no';
+  if(sesion?.user?.id==='demo'){showToast('Modo demo — no se pueden guardar marcas',true);return;}
   const{error}=await sb.from('marcas').insert({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,estilo:es,distancia:di,piscina:pi,tiempo_seg:tPen,tiempo_display:tdis(tPen),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:comp,crono:cronoTipo,fecha:new Date().toLocaleDateString('es-ES')});
   if(error){showToast('Error al guardar',true);return;}
   ['fEstilo','fCompeticion'].forEach(id=>document.getElementById(id).value='');
