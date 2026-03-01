@@ -121,11 +121,3 @@ module.exports = async (req, res) => {
       method: 'GET',
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
-
-    const marks = parseMarks(historialRes.body);
-    return res.status(200).json({ nombre: d, marks });
-
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-};
