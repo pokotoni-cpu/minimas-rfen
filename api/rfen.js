@@ -22,33 +22,38 @@ export default async function handler(req) {
 
     const nombreUpper = nombre.toUpperCase().trim();
     const apellidosUpper = apellidos.toUpperCase().trim();
+    const genero = sexo === 'Femenino' ? 'F' : 'M';
 
-    const postData = new URLSearchParams({
-      nombre: nombreUpper,
-      apellidos: apellidosUpper,
-      sexo: sexo || 'Masculino'
-    }).toString();
-
-    const searchRes = await fetch('https://intranet.rfen.es/buscarPersonas', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0'
-      },
-      body: postData,
-      redirect: 'follow'
+    const params = new URLSearchParams({
+      x_nombre: nombreUpper,
+      x_apellidos: apellidosUpper,
+      x_genero: genero,
+      buscar: '1'
     });
 
-    const html = await searchRes.text();
+    const searchRes = await fetch(`https://intranet.rfen.es/FormularioAjaxProcesar?${params}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': 'https://intranet.rfen.es/buscarPersonas',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9'
+      }
+    });
 
-    const regex = /ConsultarHistorial\?d=([^&"]+)&e=([^"&\s]+)/g;
+    const buffer = await searchRes.arrayBuffer();
+    const decoder = new TextDecoder('iso-8859-1');
+    const html = decoder.decode(buffer);
+
+    const regex = /ConsultarHistorial\?d=([^&"'\s]+)&(?:amp;)?e=([^"'&\s]+)/;
     const match = regex.exec(html);
 
     if (!match) {
       return new Response(JSON.stringify({
         error: 'Nadador no encontrado. Comprueba nombre y apellidos.',
         debug_status: searchRes.status,
-        debug_preview: html.substring(0, 300)
+        debug_preview: html.substring(0, 500)
       }), { status: 404, headers });
     }
 
@@ -56,9 +61,14 @@ export default async function handler(req) {
     const e = match[2];
 
     const histRes = await fetch(`https://intranet.rfen.es/ConsultarHistorial?d=${encodeURIComponent(d)}&e=${e}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://intranet.rfen.es/buscarPersonas'
+      }
     });
-    const histHtml = await histRes.text();
+
+    const histBuffer = await histRes.arrayBuffer();
+    const histHtml = new TextDecoder('iso-8859-1').decode(histBuffer);
 
     const marks = [];
     const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
