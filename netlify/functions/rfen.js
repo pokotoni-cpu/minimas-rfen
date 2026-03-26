@@ -1,131 +1,106 @@
-const https = require('https');
+export const config = { runtime: 'edge' };
 
-function httpRequest(options, postData) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }));
-    });
-    req.on('error', reject);
-    if (postData) req.write(postData);
-    req.end();
-  });
-}
-
-function parseAthletes(html) {
-  // Busca enlaces del tipo ConsultarHistorial?d=...&e=...
-  const regex = /ConsultarHistorial\?d=([^&"]+)&e=([^"&\s]+)/g;
-  const results = [];
-  let match;
-  while ((match = regex.exec(html)) !== null) {
-    results.push({ d: decodeURIComponent(match[1].replace(/\+/g, ' ')), e: match[2] });
-  }
-  return results;
-}
-
-function parseMarks(html) {
-  const marks = [];
-  // Busca filas de tabla con marcas
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-  let rowMatch;
-  while ((rowMatch = rowRegex.exec(html)) !== null) {
-    const row = rowMatch[1];
-    const cells = [];
-    let cellMatch;
-    while ((cellMatch = cellRegex.exec(row)) !== null) {
-      cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
-    }
-    if (cells.length >= 9 && cells[0].match(/\d{2}\/\d{2}\/\d{4}/)) {
-      marks.push({
-        fecha: cells[0].split(' ')[0],
-        lugar: cells[1],
-        estilo: cells[2],
-        distancia: parseInt(cells[3]),
-        crono: cells[4],
-        piscina: parseInt(cells[5]),
-        resultado: cells[8]
-      });
-    }
-  }
-  return marks;
-}
-
-exports.handler = async (event) => {
+export default async function handler(req) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+  if (req.method === 'OPTIONS') {
+    return new Response('', { status: 200, headers });
   }
 
   try {
-    const { nombre, apellidos, sexo } = JSON.parse(event.body || '{}');
+    let body = {};
+    try { body = await req.json(); } catch(e) {}
+    const { nombre, apellidos, sexo } = body;
+
     if (!nombre || !apellidos) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Faltan nombre y apellidos' }) };
+      return new Response(JSON.stringify({ error: 'Faltan nombre y apellidos' }), { status: 400, headers });
     }
 
-    const postData = new URLSearchParams({ nombre, apellidos, sexo: sexo || 'Masculino' }).toString();
+    const nombreUpper = nombre.toUpperCase().trim();
+    const apellidosUpper = apellidos.toUpperCase().trim();
+    const genero = sexo === 'Femenino' ? 'F' : 'M';
 
-    // Paso 1: buscar persona
-    const searchRes = await httpRequest({
-      hostname: 'intranet.rfen.es',
-      path: '/buscarPersonas',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postData),
-        'User-Agent': 'Mozilla/5.0'
-      }
-    }, postData);
-
-    // Puede haber redirect
-    let html = searchRes.body;
-    if (searchRes.status === 302 || searchRes.status === 301) {
-      const location = searchRes.headers.location;
-      if (location) {
-        const redirectRes = await httpRequest({
-          hostname: 'intranet.rfen.es',
-          path: location,
-          method: 'GET',
-          headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
-        html = redirectRes.body;
-      }
-    }
-
-    const athletes = parseAthletes(html);
-    if (!athletes.length) {
-      // Intentar también en la respuesta directa si hay hash en la URL
-      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Nadador no encontrado' }) };
-    }
-
-    const { d, e } = athletes[0];
-
-    // Paso 2: obtener historial
-    const historialRes = await httpRequest({
-      hostname: 'intranet.rfen.es',
-      path: `/ConsultarHistorial?d=${encodeURIComponent(d)}&e=${e}`,
-      method: 'GET',
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+    const params = new URLSearchParams({
+      x_nombre: nombreUpper,
+      x_apellidos: apellidosUpper,
+      x_genero: genero,
+      buscar: '1'
     });
 
-    const marks = parseMarks(historialRes.body);
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ nombre: d, marks })
-    };
+    const searchRes = await fetch(`https://intranet.rfen.es/FormularioAjaxProcesar?${params}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': 'https://intranet.rfen.es/buscarPersonas',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9'
+      }
+    });
+
+    const buffer = await searchRes.arrayBuffer();
+    const decoder = new TextDecoder('iso-8859-1');
+    const html = decoder.decode(buffer);
+
+    const regex = /ConsultarHistorial\?d=([^&"'\s]+)&(?:amp;)?e=([^"'&\s]+)/;
+    const match = regex.exec(html);
+
+    if (!match) {
+      return new Response(JSON.stringify({
+        error: 'Nadador no encontrado. Comprueba nombre y apellidos.',
+        debug_status: searchRes.status,
+        debug_preview: html.substring(0, 500)
+      }), { status: 404, headers });
+    }
+
+    const d = decodeURIComponent(match[1].replace(/\+/g, ' '));
+    const e = match[2];
+
+    const histRes = await fetch(`https://intranet.rfen.es/ConsultarHistorial?d=${encodeURIComponent(d)}&e=${e}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://intranet.rfen.es/buscarPersonas'
+      }
+    });
+
+    const histBuffer = await histRes.arrayBuffer();
+    const histHtml = new TextDecoder('iso-8859-1').decode(histBuffer);
+
+    const marks = [];
+    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(histHtml)) !== null) {
+      const row = rowMatch[1];
+      const cells = [];
+      let cellMatch;
+      while ((cellMatch = cellRegex.exec(row)) !== null) {
+        cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
+      }
+      if (cells.length >= 9 && cells[0].match(/\d{2}\/\d{2}\/\d{4}/)) {
+        const esParcial = cells[6] && cells[6].trim() !== '';
+        const esRelevo = cells[7] && cells[7].trim() !== '';
+        if (!esParcial && !esRelevo) {
+          marks.push({
+            fecha: cells[0].split(' ')[0],
+            lugar: cells[1],
+            estilo: cells[2],
+            distancia: parseInt(cells[3]),
+            crono: cells[4],
+            piscina: parseInt(cells[5]),
+            resultado: cells[8]
+          });
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({ nombre: d, marks }), { status: 200, headers });
 
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: err.message })
-    };
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
   }
-};
+}
