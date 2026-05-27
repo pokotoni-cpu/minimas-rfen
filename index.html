@@ -1029,6 +1029,8 @@ async function importarRFEN(){
   status.style.color='var(--agua-light)';
   status.textContent='⏳ Buscando en RFEN...';
 
+  if(sesion?.user?.id==='demo'){showToast('Modo demo — no se puede importar',true);return;}
+
   try {
     // Paso 1: buscar nadador
     const genero = sexo === 'Femenino' ? 'F' : 'M';
