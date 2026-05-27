@@ -254,11 +254,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Nombre">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Apellidos">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1005,13 +1005,7 @@ async function borrarMarca(id){
 }
 
 // ── IMPORTAR DESDE RFEN ──────────────────────────────────
-const ESTILO_MAP = {
-  'libre':'Libres','libres':'Libres',
-  'espalda':'Espalda',
-  'braza':'Braza',
-  'mariposa':'Mariposa','butterfly':'Mariposa',
-  'estilos':'Estilos','estilos (4 estilos)':'Estilos'
-};
+const BACKEND_URL = 'https://minimas-backend.vercel.app';
 
 async function importarRFEN(){
   const nombre=document.getElementById('rfenNombre').value.trim();
@@ -1036,32 +1030,59 @@ async function importarRFEN(){
   status.textContent='⏳ Buscando en RFEN...';
 
   try {
-    const res = await fetch('https://minimas-rfen.vercel.app/api/rfen', {
+    // Paso 1: buscar nadador
+    const genero = sexo === 'Femenino' ? 'F' : 'M';
+    const buscarRes = await fetch(`${BACKEND_URL}/api/rfen/buscar`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({nombre, apellidos, sexo})
+      body: JSON.stringify({nombre, apellidos, sexo: genero})
     });
-    const json = await res.json();
+    const buscarJson = await buscarRes.json();
 
-    if(!res.ok || json.error){
+    if(!buscarRes.ok || buscarJson.error){
       status.style.background='rgba(239,35,60,.15)';
       status.style.color='#ff6b81';
-      status.textContent='❌ ' + (json.error||'No encontrado. Comprueba nombre y apellidos.');
+      status.textContent='❌ ' + (buscarJson.error||'No encontrado. Comprueba nombre y apellidos.');
       btn.disabled=false;
       btn.textContent='🔍 Buscar e importar mis marcas';
       return;
     }
 
-    status.textContent=`✅ Encontrado: ${json.nombre}. Importando ${json.marks.length} marcas...`;
+    if(!buscarJson.nadadores||!buscarJson.nadadores.length){
+      status.style.background='rgba(239,35,60,.15)';
+      status.style.color='#ff6b81';
+      status.textContent='❌ Nadador no encontrado. Comprueba nombre y apellidos.';
+      btn.disabled=false;
+      btn.textContent='🔍 Buscar e importar mis marcas';
+      return;
+    }
 
-    // Convertir y guardar marcas
+    const nadador = buscarJson.nadadores[0];
+    status.textContent=`✅ Encontrado: ${nadador.nombre} ${nadador.apellidos} (${nadador.anioNacimiento}). Obteniendo marcas...`;
+
+    // Paso 2: obtener historial
+    const histRes = await fetch(`${BACKEND_URL}/api/rfen/historial`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({linkHistorial: nadador.linkHistorial})
+    });
+    const histJson = await histRes.json();
+
+    if(!histRes.ok || histJson.error){
+      status.style.background='rgba(239,35,60,.15)';
+      status.style.color='#ff6b81';
+      status.textContent='❌ ' + (histJson.error||'Error al obtener marcas.');
+      btn.disabled=false;
+      btn.textContent='🔍 Buscar e importar mis marcas';
+      return;
+    }
+
+    const marcasRFEN = histJson.marcas || [];
+    status.textContent=`📥 Importando ${marcasRFEN.length} marcas...`;
+
     const ins=[];
-    json.marks.forEach(m=>{
-      const estiloKey=(m.estilo||'').toLowerCase().trim();
-      const estilo=ESTILO_MAP[estiloKey]||null;
-      if(!estilo||!m.distancia||!m.resultado)return;
-
-      // Parsear tiempo formato 00:00:29.55
+    marcasRFEN.forEach(m=>{
+      if(!m.estilo||!m.distancia||!m.resultado)return;
       const tStr=m.resultado.trim();
       const parts=tStr.split(':');
       let ts=0;
@@ -1072,7 +1093,7 @@ async function importarRFEN(){
 
       const piscina=m.piscina||25;
       const cronoTipoMarca=(m.crono||'').toLowerCase().includes('manual')?'manual':'electronico';
-      const min=getDBMinima(usuario.ano,usuario.sexo,estilo,m.distancia,piscina);
+      const min=getDBMinima(usuario.ano,usuario.sexo,m.estilo,m.distancia,piscina);
       let tiene_minima='sin_minima';
       if(min!==null&&min>0) tiene_minima=ts<=min?'si':'no';
 
@@ -1082,7 +1103,7 @@ async function importarRFEN(){
         club:usuario.club,
         ano_nacimiento:usuario.ano,
         sexo:usuario.sexo,
-        estilo,
+        estilo:m.estilo,
         distancia:m.distancia,
         piscina,
         tiempo_seg:ts,
