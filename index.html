@@ -1105,7 +1105,7 @@ async function renderLiveEventos(){
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
   // Cargar resultados de todos los eventos en paralelo (máx 20 a la vez)
-  const eventosConResultados=liveEventosData.filter(e=>e.status>=3);
+  const eventosConResultados=liveEventosData.filter(e=>e.status>=1);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
     return;
