@@ -641,9 +641,17 @@ async function doRegistro(){
   if(!nombre||!email||!pass||!club){err.textContent='Rellena todos los campos';err.style.display='block';return;}
   if(!esE&&(!ano||!sexo)){err.textContent='Selecciona año de nacimiento y sexo';err.style.display='block';return;}
   if(pass.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres';err.style.display='block';return;}
-  const{data,error}=await sb.auth.signUp({email,password:pass});
+  const{data,error}=await sb.auth.signUp({
+    email,
+    password:pass,
+    options:{
+      data:{nombre,club,ano,sexo,rol}
+    }
+  });
   if(error){err.textContent=error.message;err.style.display='block';return;}
-  await sb.from('perfiles').insert({id:data.user.id,nombre,club,ano,sexo,rol,email});
+  // El trigger de Supabase crea el perfil automáticamente
+  // Por si acaso también lo insertamos directamente
+  await sb.from('perfiles').upsert({id:data.user.id,nombre,club,ano,sexo,rol,email});
   showToast('Cuenta creada. Ahora entra con tu email y contrasena.');
   setAuthTab('login',document.querySelector('.auth-tab'));
 }
