@@ -464,7 +464,7 @@ select.input-field option{background:#023e8a;color:#fff;}
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CLUBES POR COMUNIDAD ────────────────────────────────
+// -- CLUBES POR COMUNIDAD --------------------------------
 const CLUBES_ESPANA = {
   "Andalucía": ["A.C.D. ENTRETORRES","C.D. NATACION ALMERIA","C.D. NATACION GRANADA","C.D. SWIM GRANADA","C.D. SWIM SEVILLA","C.N. ALGECIRAS","C.N. ALMERIA","C.N. CADIZ","C.N. CORDOBA","C.N. EL EJIDO","C.N. GRANADA","C.N. HUELVA","C.N. JAEN","C.N. JEREZ","C.N. LINARES","C.N. LOS BARRIOS","C.N. MALAGA","C.N. MARBELLA","C.N. MOTRIL","C.N. ROQUETAS","C.N. SEVILLA"],
   "Aragón": ["A.D.A. CALATAYUD","C.D. NATACION ARAGON","C.D.N. ZOITI","C.N. CALATAYUD","C.N. CASPE","C.N. HELIOS","C.N. HUESCA","C.N. MONZON","C.N. TERUEL","C.N. UTEBO","C.N. ZARAGOZA"],
@@ -517,13 +517,13 @@ function actualizarClubs(){
   };
 }
 
-// ── SUPABASE ─────────────────────────────────────────────
+// -- SUPABASE ---------------------------------------------
 const sb = supabase.createClient(
   'https://wklasylvurnemortitaf.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrbGFzeWx2dXJuZW1vcnRpdGFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkxODMsImV4cCI6MjA5MTQwNTE4M30.EQQ2S6RGj3aAClwA6DJNxLiHr6jjgI2TTM12bPeZKxs'
 );
 
-// ── BASE DE DATOS MÍNIMAS ────────────────────────────────
+// -- BASE DE DATOS MÍNIMAS --------------------------------
 const DB = {};
 function t(s){if(!s||s==='-')return null;const r=s.replace(',','.').trim();const p=r.split(':');if(p.length===2)return parseInt(p[0])*60+parseFloat(p[1]);if(p.length===3)return parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]);return parseFloat(r);}
 function add(ano,sx,es,di,p50,p25){if(p50!==null)DB[`${ano}-${sx}-${es}-${di}-50`]=t(p50);if(p25!==null)DB[`${ano}-${sx}-${es}-${di}-25`]=t(p25);}
@@ -560,12 +560,12 @@ add('abs','F','Libres',50,'00:26,85','00:25,95');add('abs','F','Libres',100,'00:
 const DISTS = {Libres:[50,100,200,400,800,1500],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
 const DISTS_AL = {Libres:[50,100,200,400,800],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
 
-// ── ESTADO ───────────────────────────────────────────────
+// -- ESTADO -----------------------------------------------
 let usuario=null, sesion=null, misMarcase=[];
 let filtroEstilo='Libres', filtroPiscina=50, cronoTipo='electronico';
 let rankingScope='todos', equipoScope='club';
 
-// ── HELPERS ──────────────────────────────────────────────
+// -- HELPERS ----------------------------------------------
 function getAnoKey(ano){const a=parseInt(ano);if(!a||a<=2005||ano==='abs')return 'abs';return a;}
 function getCatLabel(ano){const a=parseInt(ano);if(ano==='abs'||a<=2005)return 'Absoluto';if(a===2006||a===2007)return `Sub20 (${ano})`;if(a>=2008&&a<=2010)return `Junior ${ano}`;if(a>=2011&&a<=2012)return `Infantil ${ano}`;if(a>=2013&&a<=2014)return `Alevín ${ano}`;return ano;}
 function getDBMinima(ano,sexo,estilo,dist,piscina){const k=getAnoKey(ano);return DB[`${k}-${sexo}-${estilo}-${dist}-${piscina}`]??null;}
@@ -597,7 +597,7 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
 }
 
-// ── AUTH ─────────────────────────────────────────────────
+// -- AUTH -------------------------------------------------
 function setAuthTab(tab,btn){
   document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -687,7 +687,7 @@ async function cargarPerfil(uid){
   usuario=data;
 }
 
-// ── INICIAR APP ──────────────────────────────────────────
+// -- INICIAR APP ------------------------------------------
 function iniciarApp(){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('appMain').style.display='flex';
@@ -743,7 +743,7 @@ window.addEventListener('load',async()=>{
   if(session){sesion=session;await cargarPerfil(session.user.id);iniciarApp();}
 });
 
-// ── NAVEGACIÓN ───────────────────────────────────────────
+// -- NAVEGACIÓN -------------------------------------------
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.bottom-btn').forEach(b=>b.classList.remove('active'));
@@ -756,7 +756,7 @@ function showScreen(name){
   if(name==='Live')cargarCompeticionesESP();
 }
 
-// ── MIS MARCAS (nadador) ─────────────────────────────────
+// -- MIS MARCAS (nadador) ---------------------------------
 async function cargarMisMarcase(){
   if(sesion?.user?.id==='demo'){renderMarcas();return;}
   const{data}=await sb.from('marcas').select('*').eq('user_id',sesion.user.id).order('fecha',{ascending:false});
@@ -769,7 +769,7 @@ function renderMarcas(){
   lista.innerHTML=misMarcase.map(m=>marcaHtml(m)).join('');
 }
 
-// ── MARCAS EQUIPO (entrenador) ────────────────────────────
+// -- MARCAS EQUIPO (entrenador) ----------------------------
 async function cargarMarcasEquipo(){
   const lista=document.getElementById('listaMarcas');
   // Guardar filtros actuales antes de redibujar
@@ -828,7 +828,7 @@ function setEquipoScope(scope,btn){
   cargarMarcasEquipo();
 }
 
-// ── FORMULARIO ───────────────────────────────────────────
+// -- FORMULARIO -------------------------------------------
 function setCrono(tipo){cronoTipo=tipo;document.getElementById('cronoElec').classList.toggle('active',tipo==='electronico');document.getElementById('cronoMan').classList.toggle('active',tipo==='manual');calcularPreview();}
 function actualizarDistancias(){
   const es=document.getElementById('fEstilo').value;
@@ -884,7 +884,7 @@ async function guardarMarca(){
   showScreen('Marcas');
 }
 
-// ── MÍNIMAS ──────────────────────────────────────────────
+// -- MÍNIMAS ----------------------------------------------
 function renderMinimas(){
   if(!usuario)return;
   const lista=document.getElementById('listaMinimas');
@@ -902,7 +902,7 @@ function renderMinimas(){
   }).join('');
 }
 
-// ── RANKING ──────────────────────────────────────────────
+// -- RANKING ----------------------------------------------
 function setRankingScope(scope,el){
   rankingScope=scope;
   document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
@@ -935,7 +935,7 @@ async function cargarRanking(){
   }).join('');
 }
 
-// ── PERFIL ───────────────────────────────────────────────
+// -- PERFIL -----------------------------------------------
 async function renderPerfil(){
   if(usuario?.rol==='entrenador'){
     const lista=document.getElementById('listaConMinima');
@@ -964,7 +964,7 @@ async function renderPerfil(){
   }
 }
 
-// ── IMPORTAR EXCEL ───────────────────────────────────────
+// -- IMPORTAR EXCEL ---------------------------------------
 const EMAP={libre:'Libres',libres:'Libres',free:'Libres',espalda:'Espalda',back:'Espalda',braza:'Braza',breast:'Braza',mariposa:'Mariposa',butterfly:'Mariposa',fly:'Mariposa',estilos:'Estilos',medley:'Estilos',im:'Estilos'};
 function onDrop(e){e.preventDefault();document.getElementById('dropZone').style.borderColor='rgba(255,255,255,.15)';if(e.dataTransfer.files[0])procesarArchivo(e.dataTransfer.files[0]);}
 function importarExcel(i){if(i.files[0])procesarArchivo(i.files[0]);}
@@ -1026,7 +1026,7 @@ function procesarArchivo(file){
 
 function cerrarModal(){document.getElementById('modalNadador').classList.remove('open');}
 
-// ── LIVE ─────────────────────────────────────────────────
+// -- LIVE -------------------------------------------------
 const LIVE_BASE = 'https://live.swimrankings.net';
 let liveCompeticionActual = null;
 let liveEventosData = [];
@@ -1208,7 +1208,7 @@ async function borrarMarca(id){
   await cargarMisMarcase();
 }
 
-// ── IMPORTAR DESDE RFEN ──────────────────────────────────
+// -- IMPORTAR DESDE RFEN ----------------------------------
 const BACKEND_URL = 'https://minimas-backend.vercel.app';
 
 async function importarRFEN(){
