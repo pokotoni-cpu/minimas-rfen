@@ -151,6 +151,24 @@ select.input-field option{background:#023e8a;color:#fff;}
 .modal-box{background:#031a4a;border:1px solid var(--card-border);border-radius:20px 20px 0 0;padding:20px 16px 30px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--agua-light);margin-bottom:14px;}
 .modal-close{float:right;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;}
+.live-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .2s;}
+.live-card:hover{border-color:var(--agua-light);}
+.live-status{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+.live-status.active{background:#06d6a0;box-shadow:0 0 6px #06d6a0;animation:pulse 1.5s infinite;}
+.live-status.recent{background:var(--amarillo);}
+.live-status.upcoming{background:rgba(255,255,255,.3);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.result-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;margin-bottom:5px;}
+.result-pos{font-family:'Bebas Neue',sans-serif;font-size:18px;width:24px;text-align:center;color:rgba(255,255,255,.4);}
+.result-pos.gold{color:var(--amarillo);}
+.result-pos.silver{color:#c0c0c0;}
+.result-pos.bronze{color:#cd7f32;}
+.result-nombre{flex:1;min-width:0;}
+.result-nombre-text{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.result-club-text{font-size:10px;color:rgba(255,255,255,.4);}
+.result-tiempo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--agua-light);}
+.result-minima{font-size:9px;padding:2px 6px;border-radius:10px;margin-left:4px;}
+.mi-club{border-color:var(--agua-light)!important;background:rgba(144,224,239,.06)!important;}
 .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--verde);color:#003d2e;padding:10px 20px;border-radius:50px;font-weight:600;font-size:12px;opacity:0;transition:all .3s;z-index:300;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 @media(min-width:480px){.app{border-left:1px solid var(--card-border);border-right:1px solid var(--card-border);}}
@@ -254,11 +272,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -403,12 +421,33 @@ select.input-field option{background:#023e8a;color:#fff;}
 
   </div>
 
+    <!-- LIVE -->
+    <div class="screen" id="screenLive">
+      <div class="section-title">🔴 Competiciones ESP</div>
+      <div id="liveCompeticiones"><div class="loading"><span class="spinner"></span>Cargando competiciones...</div></div>
+      <div id="liveResultados" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <button onclick="volverCompeticiones()" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;">← Volver</button>
+          <div id="liveTituloComp" style="font-size:12px;color:var(--agua-light);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
+        <div class="tabs" style="margin-bottom:10px;">
+          <button class="tab-btn active" id="tabTodos" onclick="filtrarLive('todos',this)">Todos</button>
+          <button class="tab-btn" id="tabMiClub" onclick="filtrarLive('club',this)">Mi club</button>
+        </div>
+        <div id="liveEventos"><div class="loading"><span class="spinner"></span>Cargando resultados...</div></div>
+      </div>
+    </div>
+
+  </div>
+
   <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <button class="bottom-btn active" id="btnMarcas" onclick="showScreen('Marcas')"><span class="icon">🏅</span><span id="navMarcasLabel">Mis marcas</span></button>
     <button class="bottom-btn" id="btnRegistrar" onclick="showScreen('Registrar')"><span class="icon">➕</span>Registrar</button>
     <button class="bottom-btn" id="btnMinimas" onclick="showScreen('Minimas')"><span class="icon">📋</span>Mínimas</button>
     <button class="bottom-btn" id="btnRanking" onclick="showScreen('Ranking')"><span class="icon">🏆</span>Ranking</button>
+    <button class="bottom-btn" id="btnLive" onclick="showScreen('Live')"><span class="icon">🔴</span>Live</button>
     <button class="bottom-btn" id="btnPerfil" onclick="showScreen('Perfil')"><span class="icon">👤</span>Perfil</button>
   </div>
 </div>
@@ -714,6 +753,7 @@ function showScreen(name){
   if(name==='Marcas'){usuario?.rol==='entrenador'?cargarMarcasEquipo():renderMarcas();}
   if(name==='Ranking')cargarRanking();
   if(name==='Perfil')renderPerfil();
+  if(name==='Live')cargarCompeticionesESP();
 }
 
 // ── MIS MARCAS (nadador) ─────────────────────────────────
@@ -985,6 +1025,180 @@ function procesarArchivo(file){
 }
 
 function cerrarModal(){document.getElementById('modalNadador').classList.remove('open');}
+
+// ── LIVE ─────────────────────────────────────────────────
+const LIVE_BASE = 'https://live.swimrankings.net';
+let liveCompeticionActual = null;
+let liveEventosData = [];
+let liveAtletasData = {};
+let liveFiltro = 'todos';
+
+function getLiveStatusInfo(status){
+  if(status===3||status===2){return{clase:'active',texto:'🔴 En directo'};}
+  if(status===0||status===1){return{clase:'upcoming',texto:'⏳ Próxima'};}
+  return{clase:'recent',texto:'✅ Finalizada'};
+}
+
+async function cargarCompeticionesESP(){
+  const lista=document.getElementById('liveCompeticiones');
+  try{
+    const res=await fetch(`${LIVE_BASE}/index.php?Cmd=Meets&t=${Date.now()}`);
+    const json=await res.json();
+    const esp=json.meetgroups?.find(g=>g.code==='ESP');
+    if(!esp||!esp.meets.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏊</div><div class="empty-text">No hay competiciones españolas disponibles</div></div>';return;}
+    // Ordenar: en directo primero, luego próximas, luego finalizadas
+    const meets=[...esp.meets].sort((a,b)=>{
+      const orden={3:0,2:1,1:2,0:3,5:4};
+      return (orden[a.status]??5)-(orden[b.status]??5);
+    });
+    lista.innerHTML=meets.map(m=>{
+      const si=getLiveStatusInfo(m.status);
+      const curso=m.course===1?'50m':'25m';
+      const fecha=m.startdate===m.enddate?m.startdate:`${m.startdate} → ${m.enddate}`;
+      return `<div class="live-card" onclick="abrirCompeticion('${m.id}','${m.name.replace(/'/g,"\'")}')">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span class="live-status ${si.clase}"></span>
+          <span style="font-size:10px;color:rgba(255,255,255,.5);">${si.texto}</span>
+          <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.3);">${curso}</span>
+        </div>
+        <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${m.name}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4);">${m.city} · ${fecha}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    lista.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Error al cargar competiciones: ${e.message}</div></div>`;
+  }
+}
+
+async function abrirCompeticion(id, nombre){
+  liveCompeticionActual=id;
+  document.getElementById('liveCompeticiones').style.display='none';
+  document.getElementById('liveResultados').style.display='block';
+  document.getElementById('liveTituloComp').textContent=nombre;
+  document.getElementById('liveClubFiltro').textContent=usuario?.club||'';
+  document.getElementById('liveEventos').innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
+
+  try{
+    // Cargar eventos y atletas en paralelo
+    const [evRes,atRes]=await Promise.all([
+      fetch(`${LIVE_BASE}/meets/${id}/events.json?t=${Date.now()}`),
+      fetch(`${LIVE_BASE}/meets/${id}/athletes.json?t=${Date.now()}`)
+    ]);
+    const eventos=await evRes.json();
+    const atletas=await atRes.json();
+
+    // Indexar atletas por id
+    liveAtletasData={};
+    (atletas.athletes||[]).forEach(a=>liveAtletasData[a.id]=a);
+
+    liveEventosData=eventos.events||[];
+    document.getElementById('liveTotalResultados').textContent=`${liveEventosData.length} pruebas`;
+
+    await renderLiveEventos();
+  }catch(e){
+    document.getElementById('liveEventos').innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Error: ${e.message}</div></div>`;
+  }
+}
+
+async function renderLiveEventos(){
+  const cont=document.getElementById('liveEventos');
+  cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
+
+  // Cargar resultados de todos los eventos en paralelo (máx 20 a la vez)
+  const eventosConResultados=liveEventosData.filter(e=>e.status>=3);
+  if(!eventosConResultados.length){
+    cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
+    return;
+  }
+
+  let html='';
+  for(const ev of eventosConResultados){
+    try{
+      const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${ev.id}.json?t=${Date.now()}`);
+      const data=await res.json();
+      const resultados=data.results||[];
+      if(!resultados.length)continue;
+
+      // Filtrar por club si aplica
+      const miClub=(usuario?.club||'').toUpperCase();
+      const filtrados=liveFiltro==='club'
+        ?resultados.filter(r=>{const a=liveAtletasData[r.athleteid];return a&&(a.club||'').toUpperCase().includes(miClub.substring(0,5));})
+        :resultados;
+
+      if(!filtrados.length)continue;
+
+      // Nombre del evento
+      const nombreEv=`${ev.distance}m ${mapearEstiloLive(ev.stroke)} · ${ev.gender==='M'?'Masculino':'Femenino'} · ${ev.agegroup||''}`;
+      html+=`<div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--agua-light);margin-bottom:6px;padding:4px 8px;background:rgba(0,119,182,.15);border-radius:8px;">${nombreEv}</div>`;
+
+      filtrados.slice(0,20).forEach((r,i)=>{
+        const atleta=liveAtletasData[r.athleteid]||{};
+        const nombre=atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:(r.name||'—');
+        const club=atleta.club||'';
+        const tiempo=formatTiempoLive(r.swimtime||r.time||0);
+        const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,5));
+        const pos=r.place||r.rank||i+1;
+        const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
+
+        // Comparar con mínima
+        let badgeMinima='';
+        if(usuario&&r.swimtime){
+          const ts=r.swimtime/100;
+          const estiloApp=mapearEstiloLive(ev.stroke);
+          const piscina=ev.course===1?50:25;
+          const min=getDBMinima(usuario.ano,usuario.sexo,estiloApp,ev.distance,piscina);
+          if(min){
+            if(ts<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
+            else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(ts-min).toFixed(2)}s</span>`;
+          }
+        }
+
+        html+=`<div class="result-row${esMiClub?' mi-club':''}">
+          <div class="result-pos ${posClass}">${pos}</div>
+          <div class="result-nombre">
+            <div class="result-nombre-text">${nombre}</div>
+            <div class="result-club-text">${club}</div>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <div class="result-tiempo">${tiempo}</div>
+            ${badgeMinima}
+          </div>
+        </div>`;
+      });
+      html+='</div>';
+    }catch(e){continue;}
+  }
+
+  cont.innerHTML=html||'<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin resultados para mostrar</div></div>';
+}
+
+function mapearEstiloLive(stroke){
+  const m={1:'Libres',2:'Espalda',3:'Braza',4:'Mariposa',5:'Estilos'};
+  return m[stroke]||'Libres';
+}
+
+function formatTiempoLive(centesimas){
+  if(!centesimas)return '--:--.--';
+  const total=centesimas/100;
+  const min=Math.floor(total/60);
+  const seg=Math.floor(total%60);
+  const cen=Math.round((total-Math.floor(total))*100);
+  return `${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')},${String(cen).padStart(2,'0')}`;
+}
+
+function filtrarLive(filtro,btn){
+  liveFiltro=filtro;
+  document.querySelectorAll('#screenLive .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLiveEventos();
+}
+
+function volverCompeticiones(){
+  document.getElementById('liveResultados').style.display='none';
+  document.getElementById('liveCompeticiones').style.display='block';
+  liveCompeticionActual=null;
+}
 
 async function borrarMarca(id){
   if(!confirm('¿Seguro que quieres borrar esta marca?'))return;
