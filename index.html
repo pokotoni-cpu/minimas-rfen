@@ -1159,7 +1159,7 @@ async function renderLiveEventos(){
       filtrados.slice(0,20).forEach((r,i)=>{
         const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.id]||{};
         const nombre=atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:
-                     (r.lastname?`${r.lastname}, ${r.firstname}`):(r.name||r.fullname||'—');
+                     (r.lastname?`${r.lastname}, ${r.firstname}`:(r.name||r.fullname||'—'));
         const club=atleta.club||r.club||'';
         const tiempo=formatTiempoLive(r.swimtime||r.time||0);
         const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
