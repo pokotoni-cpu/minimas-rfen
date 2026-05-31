@@ -272,11 +272,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1140,14 +1140,24 @@ async function renderLiveEventos(){
     resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
   }
 
+  console.log('allData length:', allData.length);
   let html='';
   for(const {ev,data} of allData){
     try{
-      // results puede ser array o objeto con IDs como claves
+      // results/ID.json tiene estructura: {agegroups: [{results: [...]}]}
       let resultados=[];
-      if(Array.isArray(data.results)) resultados=data.results;
-      else if(data.results&&typeof data.results==='object') resultados=Object.values(data.results);
-      else if(Array.isArray(data)) resultados=data;
+      if(Array.isArray(data.agegroups)){
+        data.agegroups.forEach(ag=>{
+          if(Array.isArray(ag.results)) resultados.push(...ag.results);
+        });
+      } else if(Array.isArray(data.results)){
+        resultados=data.results;
+      } else if(Array.isArray(data)){
+        resultados=data;
+      }
+      // Filtrar los que tienen tiempo válido
+      resultados=resultados.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0);
+      console.log('ev',ev.id,'resultados:',resultados.length);
       if(!resultados.length)continue;
 
       // Filtrar por club si aplica
@@ -1166,19 +1176,19 @@ async function renderLiveEventos(){
         <div style="font-size:11px;font-weight:600;color:var(--agua-light);margin-bottom:6px;padding:4px 8px;background:rgba(0,119,182,.15);border-radius:8px;">${nombreEv}</div>`;
 
       filtrados.slice(0,20).forEach((r,i)=>{
-        const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.id]||{};
-        const nombre=atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:
-                     (r.lastname?`${r.lastname}, ${r.firstname}`:(r.name||r.fullname||'—'));
-        const club=atleta.club||r.club||'';
-        const tiempo=formatTiempoLive(r.swimtime||r.time||0);
-        const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
+        const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
+        const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
+        const club=r.clubname||atleta.club||'';
+        const swimSeg=parseFloat(r.swimtime||r.time||0);
+        const tiempo=swimSeg>0?formatTiempoLive(swimSeg*100):'--:--.--';
+        const esMiClub=miClub&&(club.toUpperCase().includes(miClub.substring(0,6))||(r.clubcode&&usuario?.clubcode&&r.clubcode===usuario.clubcode));
         const pos=r.place||r.rank||i+1;
         const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
 
         // Comparar con mínima
         let badgeMinima='';
         if(usuario&&r.swimtime){
-          const ts=r.swimtime/100;
+          const ts=parseFloat(r.swimtime||0);
           const estiloApp=mapearEstiloLive(ev.stroke);
           const piscina=ev.course===1?50:25;
           const distNum=parseInt((ev.distance||'').replace('m','').replace('x','').trim())||0;
