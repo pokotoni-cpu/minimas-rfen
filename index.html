@@ -1123,7 +1123,7 @@ async function renderLiveEventos(){
   const cont=document.getElementById('liveEventos');
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
-  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay);
+  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay).slice(0,40);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
     return;
@@ -1135,7 +1135,7 @@ async function renderLiveEventos(){
   for(let i=0;i<eventosConResultados.length;i+=BATCH){
     const lote=eventosConResultados.slice(i,i+BATCH);
     const resultados=await Promise.allSettled(
-      lote.map(ev=>fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${ev.id}.json?t=${Date.now()}`).then(r=>r.json()).then(data=>({ev,data})).catch(()=>null))
+      lote.map(ev=>{const eid=ev.id||ev.eid;return fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`).then(r=>r.json()).then(data=>({ev,data})).catch(()=>null);})
     );
     resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
   }
