@@ -1123,18 +1123,26 @@ async function renderLiveEventos(){
   const cont=document.getElementById('liveEventos');
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
-  // Cargar resultados de todos los eventos en paralelo (máx 20 a la vez)
   const eventosConResultados=liveEventosData.filter(e=>e.status>=1);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
     return;
   }
 
+  // Cargar en paralelo en lotes de 10
+  const BATCH=10;
+  const allData=[];
+  for(let i=0;i<eventosConResultados.length;i+=BATCH){
+    const lote=eventosConResultados.slice(i,i+BATCH);
+    const resultados=await Promise.allSettled(
+      lote.map(ev=>fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${ev.id}.json?t=${Date.now()}`).then(r=>r.json()).then(data=>({ev,data})).catch(()=>null))
+    );
+    resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
+  }
+
   let html='';
-  for(const ev of eventosConResultados){
+  for(const {ev,data} of allData){
     try{
-      const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${ev.id}.json?t=${Date.now()}`);
-      const data=await res.json();
       // results puede ser array o objeto con IDs como claves
       let resultados=[];
       if(Array.isArray(data.results)) resultados=data.results;
@@ -1195,7 +1203,7 @@ async function renderLiveEventos(){
       });
       html+='</div>';
     }catch(e){continue;}
-  }
+  } // end for allData
 
   cont.innerHTML=html||'<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin resultados para mostrar</div></div>';
 }
