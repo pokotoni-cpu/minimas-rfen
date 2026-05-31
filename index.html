@@ -442,7 +442,7 @@ select.input-field option{background:#023e8a;color:#fff;}
   </div>
 
   <!-- BOTTOM NAV -->
-  <div class="bottom-nav">
+  <div class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="bottom-btn active" id="btnMarcas" onclick="showScreen('Marcas')"><span class="icon">🏅</span><span id="navMarcasLabel">Mis marcas</span></button>
     <button class="bottom-btn" id="btnRegistrar" onclick="showScreen('Registrar')"><span class="icon">➕</span>Registrar</button>
     <button class="bottom-btn" id="btnMinimas" onclick="showScreen('Minimas')"><span class="icon">📋</span>Mínimas</button>
@@ -691,6 +691,7 @@ async function cargarPerfil(uid){
 function iniciarApp(){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('appMain').style.display='flex';
+  document.getElementById('bottomNav').style.display='flex';
   const esE=usuario.rol==='entrenador';
   document.getElementById('headerNombre').textContent=usuario.nombre.split(' ')[0];
   document.getElementById('perfilNombre').textContent=usuario.nombre;
