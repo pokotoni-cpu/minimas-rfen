@@ -1109,7 +1109,7 @@ async function abrirCompeticion(id, nombre){
       liveEventosData=eventos.events;
     } else {
       // Es un objeto con IDs como claves
-      liveEventosData=Object.values(eventos).filter(v=>typeof v==='object'&&v.id&&!v.version&&!v.status);
+      liveEventosData=Object.values(eventos).filter(v=>typeof v==='object'&&v.id&&v.stroke!==undefined);
     }
     document.getElementById('liveTotalResultados').textContent=`${liveEventosData.length} pruebas`;
 
@@ -1123,7 +1123,7 @@ async function renderLiveEventos(){
   const cont=document.getElementById('liveEventos');
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
-  const eventosConResultados=liveEventosData.filter(e=>e.status>=1);
+  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
     return;
