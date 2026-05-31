@@ -1079,19 +1079,37 @@ async function abrirCompeticion(id, nombre){
   document.getElementById('liveEventos').innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
   try{
-    // Cargar eventos y atletas en paralelo
-    const [evRes,atRes]=await Promise.all([
+    // Cargar eventos, atletas y clubs en paralelo
+    const [evRes,atRes,clRes]=await Promise.all([
       fetch(`${LIVE_BASE}/meets/${id}/events.json?t=${Date.now()}`),
-      fetch(`${LIVE_BASE}/meets/${id}/athletes.json?t=${Date.now()}`)
+      fetch(`${LIVE_BASE}/meets/${id}/athletes.json?t=${Date.now()}`),
+      fetch(`${LIVE_BASE}/meets/${id}/clubs.json?t=${Date.now()}`)
     ]);
     const eventos=await evRes.json();
     const atletas=await atRes.json();
+    const clubsData=await clRes.json();
 
-    // Indexar atletas por id
+    // Indexar clubs por id
+    const clubsMap={};
+    (clubsData.clubs||[]).forEach(cl=>clubsMap[cl.id]=cl.name||cl.shortname||'');
+
+    // Indexar atletas por id (atletas es array directo)
     liveAtletasData={};
-    (atletas.athletes||[]).forEach(a=>liveAtletasData[a.id]=a);
+    const atletasArr=Array.isArray(atletas)?atletas:(atletas.athletes||[]);
+    atletasArr.forEach(a=>{
+      liveAtletasData[a.id]={
+        ...a,
+        club: clubsMap[a.clubid]||a.club||''
+      };
+    });
 
-    liveEventosData=eventos.events||[];
+    // events.json puede ser objeto {id: eventObj} o {events: [...]}
+    if(Array.isArray(eventos.events)){
+      liveEventosData=eventos.events;
+    } else {
+      // Es un objeto con IDs como claves
+      liveEventosData=Object.values(eventos).filter(v=>typeof v==='object'&&v.id&&!v.version&&!v.status);
+    }
     document.getElementById('liveTotalResultados').textContent=`${liveEventosData.length} pruebas`;
 
     await renderLiveEventos();
@@ -1116,28 +1134,35 @@ async function renderLiveEventos(){
     try{
       const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${ev.id}.json?t=${Date.now()}`);
       const data=await res.json();
-      const resultados=data.results||[];
+      // results puede ser array o objeto con IDs como claves
+      let resultados=[];
+      if(Array.isArray(data.results)) resultados=data.results;
+      else if(data.results&&typeof data.results==='object') resultados=Object.values(data.results);
+      else if(Array.isArray(data)) resultados=data;
       if(!resultados.length)continue;
 
       // Filtrar por club si aplica
       const miClub=(usuario?.club||'').toUpperCase();
       const filtrados=liveFiltro==='club'
-        ?resultados.filter(r=>{const a=liveAtletasData[r.athleteid];return a&&(a.club||'').toUpperCase().includes(miClub.substring(0,5));})
+        ?resultados.filter(r=>{const a=liveAtletasData[r.athleteid];return a&&(a.club||'').toUpperCase().includes(miClub.substring(0,6));})
         :resultados;
 
       if(!filtrados.length)continue;
 
       // Nombre del evento
-      const nombreEv=`${ev.distance}m ${mapearEstiloLive(ev.stroke)} · ${ev.gender==='M'?'Masculino':'Femenino'} · ${ev.agegroup||''}`;
+      const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':'Mixto';
+      const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
+      const nombreEv=`${ev.distance} ${mapearEstiloLive(ev.stroke)} - ${genStr}${agStr?' - '+agStr:''}`;
       html+=`<div style="margin-bottom:14px;">
         <div style="font-size:11px;font-weight:600;color:var(--agua-light);margin-bottom:6px;padding:4px 8px;background:rgba(0,119,182,.15);border-radius:8px;">${nombreEv}</div>`;
 
       filtrados.slice(0,20).forEach((r,i)=>{
-        const atleta=liveAtletasData[r.athleteid]||{};
-        const nombre=atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:(r.name||'—');
-        const club=atleta.club||'';
+        const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.id]||{};
+        const nombre=atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:
+                     (r.lastname?`${r.lastname}, ${r.firstname}`):(r.name||r.fullname||'—');
+        const club=atleta.club||r.club||'';
         const tiempo=formatTiempoLive(r.swimtime||r.time||0);
-        const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,5));
+        const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
         const pos=r.place||r.rank||i+1;
         const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
 
@@ -1147,7 +1172,8 @@ async function renderLiveEventos(){
           const ts=r.swimtime/100;
           const estiloApp=mapearEstiloLive(ev.stroke);
           const piscina=ev.course===1?50:25;
-          const min=getDBMinima(usuario.ano,usuario.sexo,estiloApp,ev.distance,piscina);
+          const distNum=parseInt((ev.distance||'').replace('m','').replace('x','').trim())||0;
+          const min=getDBMinima(usuario.ano,usuario.sexo,estiloApp,distNum,piscina);
           if(min){
             if(ts<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
             else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(ts-min).toFixed(2)}s</span>`;
