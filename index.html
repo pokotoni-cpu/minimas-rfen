@@ -1140,7 +1140,6 @@ async function renderLiveEventos(){
     resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
   }
 
-  console.log('allData length:', allData.length);
   let html='';
   for(const {ev,data} of allData){
     try{
@@ -1157,13 +1156,15 @@ async function renderLiveEventos(){
       }
       // Filtrar los que tienen tiempo válido
       resultados=resultados.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0);
-      console.log('ev',ev.id,'resultados:',resultados.length);
       if(!resultados.length)continue;
 
       // Filtrar por club si aplica
       const miClub=(usuario?.club||'').toUpperCase();
       const filtrados=liveFiltro==='club'
-        ?resultados.filter(r=>{const a=liveAtletasData[r.athleteid];return a&&(a.club||'').toUpperCase().includes(miClub.substring(0,6));})
+        ?resultados.filter(r=>{
+          const clubR=(r.clubname||'').toUpperCase();
+          return clubR.includes(miClub.substring(0,6));
+        })
         :resultados;
 
       if(!filtrados.length)continue;
@@ -1179,7 +1180,14 @@ async function renderLiveEventos(){
         const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
         const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
         const club=r.clubname||atleta.club||'';
-        const swimSeg=parseFloat(r.swimtime||r.time||0);
+        const swimRaw=String(r.swimtime||r.time||'');
+        let swimSeg=0;
+        if(swimRaw.includes(':')){
+          const p=swimRaw.split(':');
+          swimSeg=parseInt(p[0])*60+parseFloat(p[1]||0);
+        } else {
+          swimSeg=parseFloat(swimRaw)||0;
+        }
         const tiempo=swimSeg>0?formatTiempoLive(swimSeg*100):'--:--.--';
         const esMiClub=miClub&&(club.toUpperCase().includes(miClub.substring(0,6))||(r.clubcode&&usuario?.clubcode&&r.clubcode===usuario.clubcode));
         const pos=r.place||r.rank||i+1;
@@ -1188,7 +1196,10 @@ async function renderLiveEventos(){
         // Comparar con mínima
         let badgeMinima='';
         if(usuario&&r.swimtime){
-          const ts=parseFloat(r.swimtime||0);
+          const tsRaw=String(r.swimtime||'');
+          let ts=0;
+          if(tsRaw.includes(':')){const p=tsRaw.split(':');ts=parseInt(p[0])*60+parseFloat(p[1]||0);}
+          else ts=parseFloat(tsRaw)||0;
           const estiloApp=mapearEstiloLive(ev.stroke);
           const piscina=ev.course===1?50:25;
           const distNum=parseInt((ev.distance||'').replace('m','').replace('x','').trim())||0;
