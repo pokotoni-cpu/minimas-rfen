@@ -1200,11 +1200,12 @@ async function renderLiveEventos(){
         const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
         const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
         const club=r.clubname||atleta.club||'';
-        const swimRaw=String(r.swimtime||r.time||'');
+        const swimRaw=String(r.swimtime||r.time||'').replace(',','.');
         let swimSeg=0;
         if(swimRaw.includes(':')){
           const p=swimRaw.split(':');
-          swimSeg=parseInt(p[0])*60+parseFloat(p[1]||0);
+          if(p.length===3) swimSeg=parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]||0);
+          else swimSeg=parseInt(p[0])*60+parseFloat(p[1]||0);
         } else {
           swimSeg=parseFloat(swimRaw)||0;
         }
@@ -1216,17 +1217,20 @@ async function renderLiveEventos(){
         // Comparar con mínima
         let badgeMinima='';
         if(usuario&&r.swimtime){
-          const tsRaw=String(r.swimtime||'');
+          const tsRaw=String(r.swimtime||'').replace(',','.');
           let ts=0;
-          if(tsRaw.includes(':')){const p=tsRaw.split(':');ts=parseInt(p[0])*60+parseFloat(p[1]||0);}
-          else ts=parseFloat(tsRaw)||0;
-          const estiloApp=mapearEstiloLive(ev.stroke);
-          const piscina=liveCompeticionCourse===1?50:25;
-          const distNum=parseInt((ev.distance||'').replace('m','').replace('x','').trim())||0;
-          // Usar año y sexo del propio nadador del resultado
+          if(tsRaw.includes(':')){
+            const p=tsRaw.split(':');
+            if(p.length===3) ts=parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]||0);
+            else ts=parseInt(p[0])*60+parseFloat(p[1]||0);
+          } else ts=parseFloat(tsRaw)||0;
+          const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
+          const piscina=(r.entrycourse==='1'||r.entrycourse===1)?50:(liveCompeticionCourse===1?50:25);
+          const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
+          const distNum=parseInt(distRaw)||0;
           const anoNadador=r.agetext||'abs';
-          const sexoNadador=r.gender==='1'||r.gender===1?'M':'F';
-          const min=getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina);
+          const sexoNadador=(r.gender==='2'||r.gender===2)?'F':'M';
+          const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
           if(min){
             if(ts<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
             else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(ts-min).toFixed(2)}s</span>`;
