@@ -933,7 +933,7 @@ async function cargarRanking(){
   if(estilo)q=q.eq('estilo',estilo);
   if(dist)q=q.eq('distancia',parseInt(dist));
   if(sexo)q=q.eq('sexo',sexo);
-  q=q.limit(50);
+  q=q.limit(100);
   const{data}=await q;
   if(!data||!data.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin marcas con mínima para estos filtros</div></div>';return;}
   lista.innerHTML=data.map((m,i)=>{
