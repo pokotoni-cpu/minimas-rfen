@@ -1217,7 +1217,10 @@ async function renderLiveEventos(){
           const estiloApp=mapearEstiloLive(ev.stroke);
           const piscina=ev.course===1?50:25;
           const distNum=parseInt((ev.distance||'').replace('m','').replace('x','').trim())||0;
-          const min=getDBMinima(usuario.ano,usuario.sexo,estiloApp,distNum,piscina);
+          // Usar año y sexo del propio nadador del resultado
+          const anoNadador=r.agetext||'abs';
+          const sexoNadador=r.gender==='1'||r.gender===1?'M':'F';
+          const min=getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina);
           if(min){
             if(ts<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
             else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(ts-min).toFixed(2)}s</span>`;
