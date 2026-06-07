@@ -272,11 +272,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -381,6 +381,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <span class="filter-chip" onclick="setRankingScope('club',this)">🏠 Mi club</span>
       </div>
       <div class="form-grid" style="margin-bottom:10px;">
+        <select class="input-field" id="rankSexo" onchange="cargarRanking()" style="font-size:12px;">
+          <option value="">Todos</option>
+          <option value="F">Femenino</option>
+          <option value="M">Masculino</option>
+        </select>
         <select class="input-field" id="rankEstilo" onchange="cargarRanking()" style="font-size:12px;">
           <option value="">Todos los estilos</option>
           <option>Libres</option><option>Espalda</option><option>Braza</option><option>Mariposa</option><option>Estilos</option>
@@ -570,7 +575,14 @@ function getAnoKey(ano){const a=parseInt(ano);if(!a||a<=2005||ano==='abs')return
 function getCatLabel(ano){const a=parseInt(ano);if(ano==='abs'||a<=2005)return 'Absoluto';if(a===2006||a===2007)return `Sub20 (${ano})`;if(a>=2008&&a<=2010)return `Junior ${ano}`;if(a>=2011&&a<=2012)return `Infantil ${ano}`;if(a>=2013&&a<=2014)return `Alevín ${ano}`;return ano;}
 function getDBMinima(ano,sexo,estilo,dist,piscina){const k=getAnoKey(ano);return DB[`${k}-${sexo}-${estilo}-${dist}-${piscina}`]??null;}
 function getMinima(estilo,dist,piscina){if(!usuario)return null;return getDBMinima(usuario.ano,usuario.sexo,estilo,dist,piscina);}
-function tdis(seg){const min=Math.floor(seg/60);const s=Math.floor(seg%60);const c=Math.round((seg-Math.floor(seg))*100);return `${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(2,'0')}`;}
+function tdis(seg){
+  const h=Math.floor(seg/3600);
+  const min=Math.floor((seg%3600)/60);
+  const s=Math.floor(seg%60);
+  const c=Math.round((seg-Math.floor(seg))*100);
+  if(h>0) return `${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(2,'0')}`;
+  return `${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(2,'0')}`;
+}
 function penalizar(seg,dist){return cronoTipo==='manual'?seg+(dist===50?0.29:0.19):seg;}
 function showToast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.style.background=err?'#ef233c':'var(--verde)';el.style.color=err?'#fff':'#003d2e';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
 function marcaHtml(m,mostrarNombre=false,pos=null){
@@ -915,10 +927,12 @@ async function cargarRanking(){
   lista.innerHTML='<div class="loading"><span class="spinner"></span>Cargando...</div>';
   const estilo=document.getElementById('rankEstilo').value;
   const dist=document.getElementById('rankDist').value;
+  const sexo=document.getElementById('rankSexo').value;
   let q=sb.from('marcas').select('*').order('tiempo_seg',{ascending:true});
   if(rankingScope==='club')q=q.eq('club',usuario.club);
   if(estilo)q=q.eq('estilo',estilo);
   if(dist)q=q.eq('distancia',parseInt(dist));
+  if(sexo)q=q.eq('sexo',sexo);
   q=q.limit(50);
   const{data}=await q;
   if(!data||!data.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin marcas con mínima para estos filtros</div></div>';return;}
@@ -1237,9 +1251,11 @@ function mapearEstiloLive(stroke){
 function formatTiempoLive(centesimas){
   if(!centesimas)return '--:--.--';
   const total=centesimas/100;
-  const min=Math.floor(total/60);
+  const h=Math.floor(total/3600);
+  const min=Math.floor((total%3600)/60);
   const seg=Math.floor(total%60);
   const cen=Math.round((total-Math.floor(total))*100);
+  if(h>0) return `${h}:${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')},${String(cen).padStart(2,'0')}`;
   return `${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')},${String(cen).padStart(2,'0')}`;
 }
 
