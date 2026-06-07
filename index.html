@@ -1231,7 +1231,6 @@ async function renderLiveEventos(){
           const anoNadador=r.agetext||'abs';
           const sexoNadador=(r.gender==='2'||r.gender===2)?'F':'M';
           const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
-          if(r.place===1) console.log('MIN CHECK:',{anoNadador,sexoNadador,estiloApp,distNum,piscina,ts,min,stroke:ev.stroke,distance:ev.distance,entrycourse:r.entrycourse});
           if(min){
             if(ts<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
             else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(ts-min).toFixed(2)}s</span>`;
@@ -1242,7 +1241,7 @@ async function renderLiveEventos(){
           <div class="result-pos ${posClass}">${pos}</div>
           <div class="result-nombre">
             <div class="result-nombre-text">${nombre}</div>
-            <div class="result-club-text">${club}</div>
+            <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
           </div>
           <div style="display:flex;align-items:center;">
             <div class="result-tiempo">${tiempo}</div>
