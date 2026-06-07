@@ -1143,7 +1143,7 @@ async function renderLiveEventos(){
   const cont=document.getElementById('liveEventos');
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
-  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay).slice(0,40);
+  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay).slice(0,80);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
     return;
