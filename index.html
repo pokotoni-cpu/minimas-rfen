@@ -1044,6 +1044,7 @@ function cerrarModal(){document.getElementById('modalNadador').classList.remove(
 // -- LIVE -------------------------------------------------
 const LIVE_BASE = 'https://live.swimrankings.net';
 let liveCompeticionActual = null;
+let liveCompeticionCourse = 2; // 1=50m, 2=25m
 let liveEventosData = [];
 let liveAtletasData = {};
 let liveFiltro = 'todos';
@@ -1087,6 +1088,7 @@ async function cargarCompeticionesESP(){
 
 async function abrirCompeticion(id, nombre){
   liveCompeticionActual=id;
+  liveCompeticionCourse=2; // por defecto 25m, se actualiza con main.json
   document.getElementById('liveCompeticiones').style.display='none';
   document.getElementById('liveResultados').style.display='block';
   document.getElementById('liveTituloComp').textContent=nombre;
@@ -1094,15 +1096,19 @@ async function abrirCompeticion(id, nombre){
   document.getElementById('liveEventos').innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
   try{
-    // Cargar eventos, atletas y clubs en paralelo
-    const [evRes,atRes,clRes]=await Promise.all([
+    // Cargar eventos, atletas, clubs y main en paralelo
+    const [evRes,atRes,clRes,mainRes]=await Promise.all([
       fetch(`${LIVE_BASE}/meets/${id}/events.json?t=${Date.now()}`),
       fetch(`${LIVE_BASE}/meets/${id}/athletes.json?t=${Date.now()}`),
-      fetch(`${LIVE_BASE}/meets/${id}/clubs.json?t=${Date.now()}`)
+      fetch(`${LIVE_BASE}/meets/${id}/clubs.json?t=${Date.now()}`),
+      fetch(`${LIVE_BASE}/meets/${id}/main.json?t=${Date.now()}`)
     ]);
     const eventos=await evRes.json();
     const atletas=await atRes.json();
     const clubsData=await clRes.json();
+    const mainData=await mainRes.json();
+    // Guardar course de la competición (1=50m, 2=25m)
+    if(mainData.course) liveCompeticionCourse=mainData.course;
 
     // Indexar clubs por id
     const clubsMap={};
@@ -1215,7 +1221,7 @@ async function renderLiveEventos(){
           if(tsRaw.includes(':')){const p=tsRaw.split(':');ts=parseInt(p[0])*60+parseFloat(p[1]||0);}
           else ts=parseFloat(tsRaw)||0;
           const estiloApp=mapearEstiloLive(ev.stroke);
-          const piscina=ev.course===1?50:25;
+          const piscina=liveCompeticionCourse===1?50:25;
           const distNum=parseInt((ev.distance||'').replace('m','').replace('x','').trim())||0;
           // Usar año y sexo del propio nadador del resultado
           const anoNadador=r.agetext||'abs';
