@@ -272,11 +272,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -933,7 +933,7 @@ async function cargarRanking(){
   if(estilo)q=q.eq('estilo',estilo);
   if(dist)q=q.eq('distancia',parseInt(dist));
   if(sexo)q=q.eq('sexo',sexo);
-  q=q.limit(100);
+  q=q.limit(50);
   const{data}=await q;
   if(!data||!data.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin marcas con mínima para estos filtros</div></div>';return;}
   lista.innerHTML=data.map((m,i)=>{
@@ -1108,7 +1108,7 @@ async function abrirCompeticion(id, nombre){
     const clubsData=await clRes.json();
     const mainData=await mainRes.json();
     // Guardar course de la competición (1=50m, 2=25m)
-    if(mainData.course) liveCompeticionCourse=mainData.course;
+    if(mainData.course) liveCompeticionCourse=parseInt(mainData.course)||2;
 
     // Indexar clubs por id
     const clubsMap={};
@@ -1143,7 +1143,7 @@ async function renderLiveEventos(){
   const cont=document.getElementById('liveEventos');
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
-  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay).slice(0,80);
+  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
     return;
@@ -1225,7 +1225,7 @@ async function renderLiveEventos(){
             else ts=parseInt(p[0])*60+parseFloat(p[1]||0);
           } else ts=parseFloat(tsRaw)||0;
           const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
-          const piscina=(r.entrycourse==='1'||r.entrycourse===1)?50:(liveCompeticionCourse===1?50:25);
+          const piscina=liveCompeticionCourse===1?50:25;
           const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
           const distNum=parseInt(distRaw)||0;
           const anoNadador=r.agetext||'abs';
