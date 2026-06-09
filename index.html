@@ -928,7 +928,7 @@ async function cargarRanking(){
   const estilo=document.getElementById('rankEstilo').value;
   const dist=document.getElementById('rankDist').value;
   const sexo=document.getElementById('rankSexo').value;
-  let q=sb.from('marcas').select('*').order('tiempo_seg',{ascending:true});
+  let q=sb.from('marcas').select('nombre_nadador,club,estilo,distancia,piscina,tiempo_seg,tiempo_display,ano_nacimiento,tiene_minima,user_id,sexo').order('tiempo_seg',{ascending:true});
   if(rankingScope==='club')q=q.eq('club',usuario.club);
   if(estilo)q=q.eq('estilo',estilo);
   if(dist)q=q.eq('distancia',parseInt(dist));
@@ -945,7 +945,10 @@ async function cargarRanking(){
         <div class="ranking-nombre">${m.nombre_nadador}${esYo?' 👈':''}</div>
         <div class="ranking-sub">${m.club} · ${m.estilo} ${m.distancia}m (${m.piscina}m) · ${getCatLabel(m.ano_nacimiento)}</div>
       </div>
-      <div class="ranking-tiempo">${m.tiempo_display}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+        <div class="ranking-tiempo">${m.tiempo_display}</div>
+        ${m.tiene_minima==='si'?'<span class="marca-badge badge-si" style="font-size:8px;">MÍN ✓</span>':''}
+      </div>
     </div>`;
   }).join('');
 }
