@@ -241,6 +241,12 @@ select.input-field option{background:#023e8a;color:#fff;}
           </select>
         </div>
       </div>
+      <div class="input-group" style="margin-top:4px;">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:11px;color:rgba(255,255,255,.6);text-transform:none;letter-spacing:0;line-height:1.4;">
+          <input type="checkbox" id="rConsentimiento" style="margin-top:2px;flex-shrink:0;">
+          Acepto que mi nombre y marcas aparezcan en el ranking visible para otros usuarios de la app
+        </label>
+      </div>
       <div class="auth-error" id="registroError"></div>
       <button class="btn-primary" onclick="doRegistro()">Crear cuenta</button>
     </div>
@@ -272,11 +278,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -674,17 +680,16 @@ async function doRegistro(){
   if(!nombre||!email||!pass||!club){err.textContent='Rellena todos los campos';err.style.display='block';return;}
   if(!esE&&(!ano||!sexo)){err.textContent='Selecciona año de nacimiento y sexo';err.style.display='block';return;}
   if(pass.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres';err.style.display='block';return;}
+  const consentimiento=document.getElementById('rConsentimiento').checked;
   const{data,error}=await sb.auth.signUp({
     email,
     password:pass,
     options:{
-      data:{nombre,club,ano,sexo,rol}
+      data:{nombre,club,ano,sexo,rol,consentimiento}
     }
   });
   if(error){err.textContent=error.message;err.style.display='block';return;}
-  // El trigger de Supabase crea el perfil automáticamente
-  // Por si acaso también lo insertamos directamente
-  await sb.from('perfiles').upsert({id:data.user.id,nombre,club,ano,sexo,rol,email});
+  await sb.from('perfiles').upsert({id:data.user.id,nombre,club,ano,sexo,rol,email,consentimiento});
   showToast('Cuenta creada. Ahora entra con tu email y contrasena.');
   setAuthTab('login',document.querySelector('.auth-tab'));
 }
@@ -886,7 +891,7 @@ async function guardarMarca(){
   const min=getMinima(es,di,pi);
   let tm='sin_minima';if(min!==null&&min>0)tm=tPen<=min?'si':'no';
   if(sesion?.user?.id==='demo'){showToast('Modo demo — no se pueden guardar marcas',true);return;}
-  const{error}=await sb.from('marcas').insert({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,estilo:es,distancia:di,piscina:pi,tiempo_seg:tPen,tiempo_display:tdis(tPen),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:comp,crono:cronoTipo,fecha:new Date().toLocaleDateString('es-ES')});
+  const{error}=await sb.from('marcas').insert({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,consentimiento_ranking:usuario.consentimiento||false,estilo:es,distancia:di,piscina:pi,tiempo_seg:tPen,tiempo_display:tdis(tPen),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:comp,crono:cronoTipo,fecha:new Date().toLocaleDateString('es-ES')});
   if(error){showToast('Error al guardar',true);return;}
   ['fEstilo','fCompeticion'].forEach(id=>document.getElementById(id).value='');
   ['fMin','fSeg','fCen'].forEach(id=>document.getElementById(id).value='');
@@ -929,7 +934,12 @@ async function cargarRanking(){
   const dist=document.getElementById('rankDist').value;
   const sexo=document.getElementById('rankSexo').value;
   let q=sb.from('marcas').select('nombre_nadador,club,estilo,distancia,piscina,tiempo_seg,tiempo_display,ano_nacimiento,tiene_minima,user_id,sexo').order('tiempo_seg',{ascending:true});
-  if(rankingScope==='club')q=q.eq('club',usuario.club);
+  if(rankingScope==='todos'){
+    // Solo mostrar marcas de nadadores que dieron consentimiento o las propias
+    q=q.or(`user_id.eq.${sesion.user.id},and(consentimiento_ranking.eq.true)`);
+  } else {
+    q=q.eq('club',usuario.club);
+  }
   if(estilo)q=q.eq('estilo',estilo);
   if(dist)q=q.eq('distancia',parseInt(dist));
   if(sexo)q=q.eq('sexo',sexo);
@@ -1029,7 +1039,7 @@ function procesarArchivo(file){
           let ts=0;if(ps.length===3)ts=parseInt(ps[0])*3600+parseInt(ps[1])*60+parseFloat(ps[2]);else if(ps.length===2)ts=parseInt(ps[0])*60+parseFloat(ps[1]);else ts=parseFloat(ps[0]);
           if(!ts||ts<=0){ign++;return;}
           const min=getMinima(es,di,pi);let tm='sin_minima';if(min!==null&&min>0)tm=ts<=min?'si':'no';
-          ins.push({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,estilo:es,distancia:di,piscina:pi,tiempo_seg:ts,tiempo_display:tdis(ts),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:lu,crono:'electronico',fecha:fe});
+          ins.push({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,consentimiento_ranking:usuario.consentimiento||false,estilo:es,distancia:di,piscina:pi,tiempo_seg:ts,tiempo_display:tdis(ts),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:lu,crono:'electronico',fecha:fe});
         }catch(err){ign++;}
       });
       if(ins.length)await sb.from('marcas').insert(ins);
@@ -1100,18 +1110,23 @@ async function abrirCompeticion(id, nombre){
 
   try{
     // Cargar eventos, atletas, clubs y main en paralelo
-    const [evRes,atRes,clRes,mainRes]=await Promise.all([
+    const [evRes,atRes,clRes,mainRes,sesRes]=await Promise.all([
       fetch(`${LIVE_BASE}/meets/${id}/events.json?t=${Date.now()}`),
       fetch(`${LIVE_BASE}/meets/${id}/athletes.json?t=${Date.now()}`),
       fetch(`${LIVE_BASE}/meets/${id}/clubs.json?t=${Date.now()}`),
-      fetch(`${LIVE_BASE}/meets/${id}/main.json?t=${Date.now()}`)
+      fetch(`${LIVE_BASE}/meets/${id}/main.json?t=${Date.now()}`),
+      fetch(`${LIVE_BASE}/meets/${id}/eventsBySession.json?t=${Date.now()}`)
     ]);
     const eventos=await evRes.json();
     const atletas=await atRes.json();
     const clubsData=await clRes.json();
     const mainData=await mainRes.json();
+    const sesionesData=await sesRes.json();
     // Guardar course de la competición (1=50m, 2=25m)
     if(mainData.course) liveCompeticionCourse=parseInt(mainData.course)||2;
+    // Guardar sesiones
+    liveEventosData._sessions = Array.isArray(sesionesData.sessions)?sesionesData.sessions:
+      (typeof sesionesData==='object'?Object.values(sesionesData).filter(v=>v&&v.events):null);
 
     // Indexar clubs por id
     const clubsMap={};
@@ -1146,6 +1161,21 @@ async function renderLiveEventos(){
   const cont=document.getElementById('liveEventos');
   cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
+  // Agrupar eventos por sesión si está disponible
+  const sessions=liveEventosData._sessions;
+  let eventosAgrupados=[];
+  if(sessions&&sessions.length){
+    sessions.forEach(s=>{
+      const evIds=s.events||[];
+      const evs=evIds.map(eid=>liveEventosData.find(e=>(e.id||e.eid)===String(eid))).filter(Boolean);
+      if(evs.length) eventosAgrupados.push({session:s, eventos:evs});
+    });
+  }
+  // Si no hay sesiones, usar todos los eventos como una sola sesión
+  if(!eventosAgrupados.length){
+    eventosAgrupados=[{session:null, eventos:liveEventosData}];
+  }
+
   const eventosConResultados=liveEventosData.filter(e=>!e.isrelay);
   if(!eventosConResultados.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
@@ -1163,9 +1193,30 @@ async function renderLiveEventos(){
     resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
   }
 
+  // Construir mapa de sesión por evento
+  const evSessionMap={};
+  if(liveEventosData._sessions){
+    liveEventosData._sessions.forEach(s=>{
+      (s.events||[]).forEach(eid=>{ evSessionMap[String(eid)]=s; });
+    });
+  }
+
   let html='';
+  let sesionActual=null;
   for(const {ev,data} of allData){
     try{
+      // Cabecera de sesión si cambia
+      const eid=String(ev.id||ev.eid||'');
+      const sesion=evSessionMap[eid];
+      if(sesion&&sesion!==sesionActual){
+        sesionActual=sesion;
+        const sesNum=sesion.number||sesion.id||'';
+        const sesDate=sesion.date||sesion.startdate||'';
+        const sesTime=sesion.daytime||sesion.time||'';
+        html+=`<div style="background:linear-gradient(135deg,rgba(0,119,182,.2),rgba(0,180,216,.1));border:1px solid rgba(0,180,216,.3);border-radius:10px;padding:8px 12px;margin:12px 0 6px;font-size:11px;font-weight:600;color:var(--agua-light);">
+          📅 Sesión ${sesNum}${sesDate?' · '+sesDate:''}${sesTime?' · '+sesTime:''}
+        </div>`;
+      }
       // results/ID.json tiene estructura: {agegroups: [{results: [...]}]}
       let resultados=[];
       if(Array.isArray(data.agegroups)){
@@ -1240,15 +1291,31 @@ async function renderLiveEventos(){
           }
         }
 
+        // Marca de inscripción
+        let entryStr='';
+        if(r.entrytime&&r.entrytime!==''){
+          const entRaw=String(r.entrytime).replace(',','.');
+          let entSeg=0;
+          if(entRaw.includes(':')){const p=entRaw.split(':');entSeg=parseInt(p[0])*60+parseFloat(p[1]||0);}
+          else entSeg=parseFloat(entRaw)||0;
+          if(entSeg>0&&swimSeg>0){
+            const diff=swimSeg-entSeg;
+            const diffStr=diff<=0?`<span style="color:var(--verde);font-size:9px;">▼${Math.abs(diff).toFixed(2)}s</span>`:`<span style="color:#ff6b81;font-size:9px;">▲${diff.toFixed(2)}s</span>`;
+            entryStr=`<div style="font-size:9px;color:rgba(255,255,255,.3);">Ins: ${formatTiempoLive(entSeg*100)} ${diffStr}</div>`;
+          }
+        }
         html+=`<div class="result-row${esMiClub?' mi-club':''}">
           <div class="result-pos ${posClass}">${pos}</div>
           <div class="result-nombre">
             <div class="result-nombre-text">${nombre}</div>
             <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
           </div>
-          <div style="display:flex;align-items:center;">
-            <div class="result-tiempo">${tiempo}</div>
-            ${badgeMinima}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+            <div style="display:flex;align-items:center;gap:4px;">
+              <div class="result-tiempo">${tiempo}</div>
+              ${badgeMinima}
+            </div>
+            ${entryStr}
           </div>
         </div>`;
       });
@@ -1397,6 +1464,7 @@ async function importarRFEN(){
         club:usuario.club,
         ano_nacimiento:usuario.ano,
         sexo:usuario.sexo,
+        consentimiento_ranking:usuario.consentimiento||false,
         estilo:m.estilo,
         distancia:m.distancia,
         piscina,
