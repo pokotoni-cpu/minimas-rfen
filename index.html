@@ -1260,19 +1260,32 @@ async function renderVistaResultados(){
     const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`);
     const data=await res.json();
 
-    // Mantener los resultados agrupados por categoría (agegroup) tal cual los da la fuente
-    const grupos=[];
+    // Recopilar todos los resultados de todos los agegroups
+    let todosResultados=[];
     if(Array.isArray(data.agegroups)){
       data.agegroups.forEach(ag=>{
-        if(Array.isArray(ag.results)&&ag.results.length){
-          grupos.push({nombre: getAgegroupNombreFromResults(ag.results)||'', results: ag.results});
-        }
+        if(Array.isArray(ag.results)) todosResultados.push(...ag.results);
       });
     } else if(Array.isArray(data.results)){
-      grupos.push({nombre:'', results:data.results});
+      todosResultados=data.results;
     } else if(Array.isArray(data)){
-      grupos.push({nombre:'', results:data});
+      todosResultados=data;
     }
+
+    // Agrupar manualmente por año de nacimiento real + sexo de cada nadador (evita duplicados de agegroups)
+    const gruposMap={};
+    const ordenGrupos=[];
+    todosResultados.forEach(r=>{
+      const ano=r.agetext||'?';
+      const sexo=r.gender==='1'||r.gender===1?'M':r.gender==='2'||r.gender===2?'F':'X';
+      const key=`${ano}-${sexo}`;
+      if(!gruposMap[key]){
+        gruposMap[key]={nombre: getAgegroupNombreFromResults([r]), results:[]};
+        ordenGrupos.push(key);
+      }
+      gruposMap[key].results.push(r);
+    });
+    const grupos = ordenGrupos.map(k=>gruposMap[k]);
 
     const miClub=(usuario?.club||'').toUpperCase();
     const filtrarClub=lista=>liveFiltro==='club'
@@ -1298,7 +1311,7 @@ async function renderVistaResultados(){
         html += `<div style="font-size:11px;font-weight:700;color:var(--agua-light);background:rgba(0,119,182,.1);padding:7px 12px;border-radius:9px;margin:14px 0 6px;">📋 ${g.nombre}</div>`;
       }
       if(conTiempo.length){
-        html += conTiempo.map((r,i)=>renderResultRow(r,ev,i)).join('');
+        html += conTiempo.map((r,i)=>renderResultRow(r,ev,i,multiplesCategorias?'CATEGORÍA':null)).join('');
       }
       if(sinTiempo.length){
         html += `<div style="font-size:10px;color:rgba(90,107,125,.6);margin:8px 0 4px;">Inscritos sin resultado todavía</div>`;
@@ -1319,7 +1332,7 @@ async function renderVistaResultados(){
           return segA-segB;
         });
         html += `<div style="font-size:11px;font-weight:700;color:var(--amarillo);background:rgba(255,214,10,.1);padding:7px 12px;border-radius:9px;margin:16px 0 6px;">🏆 Clasificación general (todas las categorías)</div>`;
-        html += ordenGeneral.map((r,i)=>renderResultRow(r,ev,i)).join('');
+        html += ordenGeneral.map((r,i)=>renderResultRow(r,ev,i,'GENERAL')).join('');
       }
     }
 
@@ -1329,7 +1342,7 @@ async function renderVistaResultados(){
   }
 }
 
-function renderResultRow(r,ev,i){
+function renderResultRow(r,ev,i,etiqueta){
   const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
   const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
   const club=r.clubname||atleta.club||'';
@@ -1374,10 +1387,11 @@ function renderResultRow(r,ev,i){
     }
   }
   const serieStr = r.heatinfo?.code ? ` · Serie ${r.heatinfo.code}${r.lane?', calle '+r.lane:''}` : (r.lane?` · Calle ${r.lane}`:'');
+  const etiquetaHtml = etiqueta ? `<span style="font-size:8px;font-weight:700;color:${etiqueta==='GENERAL'?'var(--amarillo)':'var(--agua-light)'};background:${etiqueta==='GENERAL'?'rgba(255,214,10,.12)':'rgba(0,119,182,.1)'};padding:1px 6px;border-radius:6px;margin-left:4px;">${etiqueta}</span>` : '';
   return `<div class="result-row${esMiClub?' mi-club':''}">
     <div class="result-pos ${posClass}">${pos}</div>
     <div class="result-nombre">
-      <div class="result-nombre-text">${nombre}</div>
+      <div class="result-nombre-text">${nombre}${etiquetaHtml}</div>
       <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}${serieStr}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
