@@ -1260,32 +1260,26 @@ async function renderVistaResultados(){
     const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`);
     const data=await res.json();
 
-    // Recopilar todos los resultados de todos los agegroups
-    let todosResultados=[];
+    // Usar directamente los agegroups de la fuente: cada uno YA es una categoría real
+    // de competición (ej: "Alevín Masculino"), que puede agrupar varios años de nacimiento
+    const grupos=[];
     if(Array.isArray(data.agegroups)){
       data.agegroups.forEach(ag=>{
-        if(Array.isArray(ag.results)) todosResultados.push(...ag.results);
+        if(Array.isArray(ag.results)&&ag.results.length){
+          // Nombre de la categoría: usar el del propio evento si existe, si no inferir del primer resultado
+          let nombreCat = getAgegroupStr(ev);
+          if(!nombreCat){
+            const genStr=ag.results[0].gender==='1'||ag.results[0].gender===1?'Masculino':ag.results[0].gender==='2'||ag.results[0].gender===2?'Femenino':'';
+            nombreCat = genStr;
+          }
+          grupos.push({nombre: nombreCat, results: ag.results});
+        }
       });
     } else if(Array.isArray(data.results)){
-      todosResultados=data.results;
+      grupos.push({nombre: getAgegroupStr(ev), results:data.results});
     } else if(Array.isArray(data)){
-      todosResultados=data;
+      grupos.push({nombre: getAgegroupStr(ev), results:data});
     }
-
-    // Agrupar manualmente por año de nacimiento real + sexo de cada nadador (evita duplicados de agegroups)
-    const gruposMap={};
-    const ordenGrupos=[];
-    todosResultados.forEach(r=>{
-      const ano=r.agetext||'?';
-      const sexo=r.gender==='1'||r.gender===1?'M':r.gender==='2'||r.gender===2?'F':'X';
-      const key=`${ano}-${sexo}`;
-      if(!gruposMap[key]){
-        gruposMap[key]={nombre: getAgegroupNombreFromResults([r]), results:[]};
-        ordenGrupos.push(key);
-      }
-      gruposMap[key].results.push(r);
-    });
-    const grupos = ordenGrupos.map(k=>gruposMap[k]);
 
     const miClub=(usuario?.club||'').toUpperCase();
     const filtrarClub=lista=>liveFiltro==='club'
