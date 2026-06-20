@@ -278,11 +278,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1260,38 +1260,67 @@ async function renderVistaResultados(){
     const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`);
     const data=await res.json();
 
-    let resultados=[];
+    // Mantener los resultados agrupados por categoría (agegroup) tal cual los da la fuente
+    const grupos=[];
     if(Array.isArray(data.agegroups)){
-      data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) resultados.push(...ag.results); });
+      data.agegroups.forEach(ag=>{
+        if(Array.isArray(ag.results)&&ag.results.length){
+          grupos.push({nombre: getAgegroupNombreFromResults(ag.results)||'', results: ag.results});
+        }
+      });
     } else if(Array.isArray(data.results)){
-      resultados=data.results;
+      grupos.push({nombre:'', results:data.results});
     } else if(Array.isArray(data)){
-      resultados=data;
+      grupos.push({nombre:'', results:data});
     }
-
-    const conTiempo=resultados.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0);
-    const sinTiempo=resultados.filter(r=>!(r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0));
 
     const miClub=(usuario?.club||'').toUpperCase();
     const filtrarClub=lista=>liveFiltro==='club'
       ?lista.filter(r=>(r.clubname||'').toUpperCase().includes(miClub.substring(0,6)))
       :lista;
 
-    const conTiempoF=filtrarClub(conTiempo);
-    const sinTiempoF=filtrarClub(sinTiempo);
+    // Filtrar cada grupo por club si aplica
+    const gruposF=grupos.map(g=>({nombre:g.nombre, results:filtrarClub(g.results)})).filter(g=>g.results.length);
 
-    if(!conTiempoF.length&&!sinTiempoF.length){
+    if(!gruposF.length){
       cont.innerHTML=backBtn+titulo+'<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin inscritos para este filtro</div></div>';
       return;
     }
 
     let html='';
-    if(conTiempoF.length){
-      html+=conTiempoF.map((r,i)=>renderResultRow(r,ev,i)).join('');
-    }
-    if(sinTiempoF.length){
-      html+=`<div style="font-size:10px;color:rgba(90,107,125,.6);margin:12px 0 6px;">Inscritos sin resultado todavía</div>`;
-      html+=sinTiempoF.map(r=>renderInscritoRow(r,ev)).join('');
+    const multiplesCategorias = gruposF.length>1;
+
+    gruposF.forEach(g=>{
+      const conTiempo=g.results.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0);
+      const sinTiempo=g.results.filter(r=>!(r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0));
+
+      if(multiplesCategorias&&g.nombre){
+        html += `<div style="font-size:11px;font-weight:700;color:var(--agua-light);background:rgba(0,119,182,.1);padding:7px 12px;border-radius:9px;margin:14px 0 6px;">📋 ${g.nombre}</div>`;
+      }
+      if(conTiempo.length){
+        html += conTiempo.map((r,i)=>renderResultRow(r,ev,i)).join('');
+      }
+      if(sinTiempo.length){
+        html += `<div style="font-size:10px;color:rgba(90,107,125,.6);margin:8px 0 4px;">Inscritos sin resultado todavía</div>`;
+        html += sinTiempo.map(r=>renderInscritoRow(r,ev)).join('');
+      }
+    });
+
+    // Clasificación general combinando todas las categorías, si hay más de una
+    if(multiplesCategorias && liveFiltro==='todos'){
+      const todosConTiempo=gruposF.flatMap(g=>g.results.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0));
+      if(todosConTiempo.length>1){
+        const ordenGeneral=[...todosConTiempo].sort((a,b)=>{
+          const ta=parseFloat(String(a.swimtime).replace(',','.'))||999999;
+          const tb=parseFloat(String(b.swimtime).replace(',','.'))||999999;
+          // Si el tiempo tiene minutos (contiene ':'), parsearlo bien
+          const segA=parsearTiempoSeg(a.swimtime);
+          const segB=parsearTiempoSeg(b.swimtime);
+          return segA-segB;
+        });
+        html += `<div style="font-size:11px;font-weight:700;color:var(--amarillo);background:rgba(255,214,10,.1);padding:7px 12px;border-radius:9px;margin:16px 0 6px;">🏆 Clasificación general (todas las categorías)</div>`;
+        html += ordenGeneral.map((r,i)=>renderResultRow(r,ev,i)).join('');
+      }
     }
 
     cont.innerHTML=backBtn+titulo+html;
@@ -1383,6 +1412,26 @@ function renderInscritoRow(r,ev){
     </div>
     <div class="result-tiempo" style="color:rgba(90,107,125,.8);">${entryStr}</div>
   </div>`;
+}
+
+function parsearTiempoSeg(swimtime){
+  const raw=String(swimtime||'').replace(',','.');
+  if(!raw)return 999999;
+  if(raw.includes(':')){
+    const p=raw.split(':');
+    if(p.length===3) return parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]||0);
+    return parseInt(p[0])*60+parseFloat(p[1]||0);
+  }
+  return parseFloat(raw)||999999;
+}
+
+function getAgegroupNombreFromResults(results){
+  if(!results||!results.length)return '';
+  const r=results[0];
+  const genStr=r.gender==='1'||r.gender===1?'Masculino':r.gender==='2'||r.gender===2?'Femenino':'';
+  const ano=r.agetext||'';
+  if(ano) return `${ano}${genStr?' · '+genStr:''}`;
+  return genStr;
 }
 
 function getNombreEvento(ev){
