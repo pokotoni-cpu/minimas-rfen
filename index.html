@@ -278,11 +278,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1344,11 +1344,12 @@ function renderResultRow(r,ev,i){
       entryStr=`<div style="font-size:9px;color:rgba(90,107,125,.6);">Ins: ${formatTiempoLive(entSeg*100)} ${diffStr}</div>`;
     }
   }
+  const serieStr = r.heatinfo?.code ? ` · Serie ${r.heatinfo.code}${r.lane?', calle '+r.lane:''}` : (r.lane?` · Calle ${r.lane}`:'');
   return `<div class="result-row${esMiClub?' mi-club':''}">
     <div class="result-pos ${posClass}">${pos}</div>
     <div class="result-nombre">
       <div class="result-nombre-text">${nombre}</div>
-      <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
+      <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}${serieStr}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
       <div style="display:flex;align-items:center;gap:4px;">
