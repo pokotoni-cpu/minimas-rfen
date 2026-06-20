@@ -1304,8 +1304,16 @@ async function renderVistaResultados(){
       if(multiplesCategorias&&g.nombre){
         html += `<div style="font-size:11px;font-weight:700;color:var(--agua-light);background:rgba(0,119,182,.1);padding:7px 12px;border-radius:9px;margin:14px 0 6px;">📋 ${g.nombre}</div>`;
       }
-      if(conTiempo.length){
-        html += conTiempo.map((r,i)=>renderResultRow(r,ev,i,multiplesCategorias?'CATEGORÍA':null)).join('');
+      // Deduplicar por id de resultado/atleta (algunas fuentes repiten entradas)
+      const vistos=new Set();
+      const conTiempoUnico = conTiempo.filter(r=>{
+        const key = r.id || r.uniqueid || `${r.athleteid}-${r.swimtime}`;
+        if(vistos.has(key)) return false;
+        vistos.add(key);
+        return true;
+      });
+      if(conTiempoUnico.length){
+        html += conTiempoUnico.map((r,i)=>renderResultRow(r,ev,i,multiplesCategorias?'CATEGORÍA':null)).join('');
       }
       if(sinTiempo.length){
         html += `<div style="font-size:10px;color:rgba(90,107,125,.6);margin:8px 0 4px;">Inscritos sin resultado todavía</div>`;
@@ -1315,7 +1323,14 @@ async function renderVistaResultados(){
 
     // Clasificación general combinando todas las categorías, si hay más de una
     if(multiplesCategorias && liveFiltro==='todos'){
-      const todosConTiempo=gruposF.flatMap(g=>g.results.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0));
+      const todosConTiempoRaw=gruposF.flatMap(g=>g.results.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0));
+      const vistosGen=new Set();
+      const todosConTiempo=todosConTiempoRaw.filter(r=>{
+        const key = r.id || r.uniqueid || `${r.athleteid}-${r.swimtime}`;
+        if(vistosGen.has(key)) return false;
+        vistosGen.add(key);
+        return true;
+      });
       if(todosConTiempo.length>1){
         const ordenGeneral=[...todosConTiempo].sort((a,b)=>{
           const ta=parseFloat(String(a.swimtime).replace(',','.'))||999999;
