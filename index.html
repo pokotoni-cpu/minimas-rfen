@@ -1145,7 +1145,12 @@ async function abrirCompeticion(id, nombre){
     if(Array.isArray(eventos.events)){
       liveEventosData=eventos.events;
     } else {
-      liveEventosData=Object.values(eventos).filter(v=>typeof v==='object'&&v.id&&v.stroke!==undefined);
+      liveEventosData=Object.values(eventos).filter(v=>{
+        if(typeof v!=='object'||!v.id)return false;
+        // Excluir entradas vacías de sincronización (round 11, sin distance/stroke/stylename)
+        if(v.round==='11'&&!v.distance&&!v.stroke&&!v.stylename)return false;
+        return v.stroke!==undefined||v.stylename!==undefined;
+      });
     }
     document.getElementById('liveTotalResultados').textContent=`${liveSesionesData.length} sesiones`;
 
@@ -1208,9 +1213,9 @@ function renderVistaPruebas(){
   }
 
   const filas=evs.map((ev,i)=>{
-    const genStr=ev.gender==='1'||ev.gender===1?'Masc.':ev.gender==='2'||ev.gender===2?'Fem.':'Mixto';
-    const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
-    const nombreEv=`${ev.distance} ${mapearEstiloLive(ev.stroke)}`;
+    const genStr=ev.gender==='1'||ev.gender===1?'Masc.':ev.gender==='2'||ev.gender===2?'Fem.':ev.gender==='3'||ev.gender===3?'Mixto':'';
+    const agStr=getAgegroupStr(ev);
+    const nombreEv=getNombreEvento(ev);
     const status=ev.status||0;
     let estTxt='⏳',estColor='rgba(90,107,125,.6)';
     if(status>=5){estTxt='✅';estColor='var(--verde)';}
@@ -1240,9 +1245,9 @@ async function renderVistaResultados(){
   const cont=document.getElementById('liveEventos');
   const ev=liveEventoSeleccionado;
   const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
-  const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':'Mixto';
-  const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
-  const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${ev.distance} ${mapearEstiloLive(ev.stroke)} · ${genStr}${agStr?' · '+agStr:''}</div>`;
+  const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':ev.gender==='3'||ev.gender===3?'Mixto':'';
+  const agStr=getAgegroupStr(ev);
+  const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${getNombreEvento(ev)}${genStr?' · '+genStr:''}${agStr?' · '+agStr:''}</div>`;
 
   cont.innerHTML=backBtn+titulo+'<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
 
@@ -1373,6 +1378,22 @@ function renderInscritoRow(r,ev){
     </div>
     <div class="result-tiempo" style="color:rgba(90,107,125,.8);">${entryStr}</div>
   </div>`;
+}
+
+function getNombreEvento(ev){
+  const dist=ev.distance||'';
+  const estilo=ev.stroke!==undefined?mapearEstiloLive(ev.stroke):(ev.stylename||'Relevo');
+  return dist?`${dist} ${estilo}`:estilo;
+}
+
+function getAgegroupStr(ev){
+  if(!ev.agegroup)return '';
+  if(typeof ev.agegroup==='object'){
+    if(ev.agegroup.name)return ev.agegroup.name;
+    if(ev.agegroup.min&&ev.agegroup.max)return `${ev.agegroup.min}-${ev.agegroup.max} años`;
+    return '';
+  }
+  return ev.agegroup;
 }
 
 function mapearEstiloLive(stroke){
