@@ -1397,7 +1397,8 @@ function renderResultRow(r,ev,i,etiqueta){
   }
   const serieStr = r.heatinfo?.code ? ` · Serie ${r.heatinfo.code}${r.lane?', calle '+r.lane:''}` : (r.lane?` · Calle ${r.lane}`:'');
   const etiquetaHtml = etiqueta ? `<span style="font-size:8px;font-weight:700;color:${etiqueta==='GENERAL'?'var(--amarillo)':'var(--agua-light)'};background:${etiqueta==='GENERAL'?'rgba(255,214,10,.12)':'rgba(0,119,182,.1)'};padding:1px 6px;border-radius:6px;margin-left:4px;">${etiqueta}</span>` : '';
-  return `<div class="result-row${esMiClub?' mi-club':''}">
+  const athleteIdStr = r.athleteid || r.uniqueid || '';
+  return `<div class="result-row${esMiClub?' mi-club':''}" onclick="abrirPerfilNadadorLive('${athleteIdStr}')" style="cursor:pointer;">
     <div class="result-pos ${posClass}">${pos}</div>
     <div class="result-nombre">
       <div class="result-nombre-text">${nombre}${etiquetaHtml}</div>
@@ -1427,7 +1428,8 @@ function renderInscritoRow(r,ev){
     else entSeg=parseFloat(entRaw)||0;
     if(entSeg>0) entryStr=formatTiempoLive(entSeg*100);
   }
-  return `<div class="result-row${esMiClub?' mi-club':''}" style="opacity:.7;">
+  const athleteIdStr2 = r.athleteid || r.uniqueid || '';
+  return `<div class="result-row${esMiClub?' mi-club':''}" style="opacity:.7;cursor:pointer;" onclick="abrirPerfilNadadorLive('${athleteIdStr2}')">
     <div class="result-pos"></div>
     <div class="result-nombre">
       <div class="result-nombre-text">${nombre}</div>
@@ -1495,6 +1497,133 @@ function filtrarLive(filtro,btn){
   btn.classList.add('active');
   if(liveVistaActual==='resultados') renderVistaResultados();
   // En vistas de sesiones/pruebas el filtro de club no aplica
+}
+
+// ── PERFIL NADADOR EN LIVE ───────────────────────────────
+async function abrirPerfilNadadorLive(athleteId){
+  if(!athleteId)return;
+  const atleta=liveAtletasData[athleteId]||{};
+  const nombre=atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'Nadador';
+  const club=atleta.club||'';
+
+  document.getElementById('modalTitle').textContent=nombre;
+  document.getElementById('modalContent').innerHTML=`<div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:12px;">${club}</div><div class="loading"><span class="spinner"></span>Buscando todas sus pruebas...</div>`;
+  document.getElementById('modalNadador').classList.add('open');
+
+  try{
+    // Buscar en todos los eventos de la competición las pruebas donde aparece este atleta
+    const eventosNoRelevo = liveEventosData.filter(e=>e.id||e.eid);
+    const BATCH=12;
+    const pruebasNadador=[];
+
+    for(let i=0;i<eventosNoRelevo.length;i+=BATCH){
+      const lote=eventosNoRelevo.slice(i,i+BATCH);
+      const resultados=await Promise.allSettled(
+        lote.map(ev=>{
+          const eid=ev.id||ev.eid;
+          return fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`)
+            .then(r=>r.json()).then(data=>({ev,data})).catch(()=>null);
+        })
+      );
+      resultados.forEach(res=>{
+        if(res.status!=='fulfilled'||!res.value)return;
+        const {ev,data}=res.value;
+        let todosR=[];
+        if(Array.isArray(data.agegroups)){
+          data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) todosR.push(...ag.results); });
+        } else if(Array.isArray(data.results)){
+          todosR=data.results;
+        } else if(Array.isArray(data)){
+          todosR=data;
+        }
+        const miResultado = todosR.find(r=>String(r.athleteid)===String(athleteId)||String(r.uniqueid)===String(athleteId));
+        if(miResultado) pruebasNadador.push({ev, r:miResultado});
+      });
+    }
+
+    if(!pruebasNadador.length){
+      document.getElementById('modalContent').innerHTML=`<div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:12px;">${club}</div><div class="empty-state"><div class="empty-icon">🏊</div><div class="empty-text">No se encontraron pruebas para este nadador en esta competición</div></div>`;
+      return;
+    }
+
+    // Ordenar por fecha/hora del evento
+    pruebasNadador.sort((a,b)=>{
+      const da=`${a.ev.date||''} ${a.ev.time||''}`;
+      const db=`${b.ev.date||''} ${b.ev.time||''}`;
+      return da.localeCompare(db);
+    });
+
+    let html=`<div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:14px;">${club}</div>`;
+    html+=pruebasNadador.map(({ev,r})=>renderPruebaNadadorCard(ev,r)).join('');
+
+    document.getElementById('modalContent').innerHTML=html;
+  }catch(e){
+    document.getElementById('modalContent').innerHTML=`<div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:12px;">${club}</div><div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Error: ${e.message}</div></div>`;
+  }
+}
+
+function renderPruebaNadadorCard(ev,r){
+  const nombreEv=getNombreEvento(ev);
+  const agStr=getAgegroupStr(ev);
+  const pos=r.place&&r.place>0?r.place:null;
+
+  const swimRaw=String(r.swimtime||'').replace(',','.');
+  const tieneTiempo = swimRaw && parseFloat(swimRaw)>0;
+  const swimSeg=tieneTiempo?parsearTiempoSeg(r.swimtime):0;
+  const tiempoFinal=tieneTiempo?formatTiempoLive(swimSeg*100):null;
+
+  let entryStr=null;
+  if(r.entrytime&&r.entrytime!==''){
+    const entSeg=parsearTiempoSeg(r.entrytime);
+    if(entSeg>0&&entSeg<999999) entryStr=formatTiempoLive(entSeg*100);
+  }
+
+  let mejoraHtml='';
+  if(tiempoFinal&&entryStr){
+    const entSeg=parsearTiempoSeg(r.entrytime);
+    const diff=swimSeg-entSeg;
+    mejoraHtml = diff<=0
+      ? `<span style="color:var(--verde);font-weight:600;">▼ ${Math.abs(diff).toFixed(2)}s mejor</span>`
+      : `<span style="color:#ff6b81;font-weight:600;">▲ ${diff.toFixed(2)}s peor</span>`;
+  }
+
+  // Parciales
+  let parcialesHtml='';
+  if(r.splits&&typeof r.splits==='object'){
+    const splitKeys=Object.keys(r.splits).map(k=>parseInt(k)).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+    if(splitKeys.length){
+      parcialesHtml=`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--card-border);">
+        <div style="font-size:10px;color:rgba(90,107,125,.6);margin-bottom:4px;">Parciales</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${splitKeys.map(k=>{
+            const val=r.splits[String(k)];
+            const valStr = typeof val==='string'?val.split('  ')[0]:val;
+            return `<div style="background:rgba(26,26,46,.04);border-radius:8px;padding:4px 8px;font-size:11px;"><span style="color:rgba(90,107,125,.6);">${k}m</span> <strong>${valStr}</strong></div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+  }
+
+  const posHtml = pos
+    ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${pos===1?'var(--amarillo)':pos===2?'#c0c0c0':pos===3?'#cd7f32':'var(--agua-light)'};">#${pos}</div>`
+    : `<div style="font-size:11px;color:rgba(90,107,125,.6);">Sin resultado</div>`;
+
+  return `<div class="card" style="margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+      <div>
+        <div style="font-weight:700;font-size:14px;">${nombreEv}</div>
+        <div style="font-size:10px;color:rgba(90,107,125,.6);">${agStr}${ev.time?' · '+ev.time+'h':''}${ev.date?' · '+ev.date:''}</div>
+      </div>
+      ${posHtml}
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;margin-top:6px;">
+      ${entryStr?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">Inscripción</div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${entryStr}</div></div>`:''}
+      ${tiempoFinal?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">Resultado</div><div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);">${tiempoFinal}</div></div>`:''}
+      ${mejoraHtml?`<div style="margin-left:auto;font-size:12px;">${mejoraHtml}</div>`:''}
+    </div>
+    ${parcialesHtml}
+  </div>`;
 }
 
 function volverCompeticiones(){
