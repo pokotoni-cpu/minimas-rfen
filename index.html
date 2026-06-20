@@ -278,11 +278,11 @@ select.input-field option{background:#023e8a;color:#fff;}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1125,8 +1125,7 @@ async function abrirCompeticion(id, nombre){
     // Guardar course de la competición (1=50m, 2=25m)
     if(mainData.course) liveCompeticionCourse=parseInt(mainData.course)||2;
     // Guardar sesiones
-    liveEventosData._sessions = Array.isArray(sesionesData.sessions)?sesionesData.sessions:
-      (typeof sesionesData==='object'?Object.values(sesionesData).filter(v=>v&&v.events):null);
+    liveEventosData._sessions = Array.isArray(sesionesData.sessions)?sesionesData.sessions:null;
 
     // Indexar clubs por id
     const clubsMap={};
@@ -1193,11 +1192,24 @@ async function renderLiveEventos(){
     resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
   }
 
-  // Construir mapa de sesión por evento
+  // Construir mapa de sesión por evento y orden correcto
   const evSessionMap={};
+  const evOrden=[];
   if(liveEventosData._sessions){
     liveEventosData._sessions.forEach(s=>{
-      (s.events||[]).forEach(eid=>{ evSessionMap[String(eid)]=s; });
+      (s.events||[]).forEach(evObj=>{
+        const eid=typeof evObj==='object'?evObj.id:evObj;
+        evSessionMap[String(eid)]=s;
+        evOrden.push(String(eid));
+      });
+    });
+  }
+  // Reordenar allData según el orden de sesiones
+  if(evOrden.length){
+    allData.sort((a,b)=>{
+      const idA=String(a.ev.id||a.ev.eid||'');
+      const idB=String(b.ev.id||b.ev.eid||'');
+      return evOrden.indexOf(idA)-evOrden.indexOf(idB);
     });
   }
 
@@ -1210,11 +1222,11 @@ async function renderLiveEventos(){
       const sesion=evSessionMap[eid];
       if(sesion&&sesion!==sesionActual){
         sesionActual=sesion;
-        const sesNum=sesion.number||sesion.id||'';
-        const sesDate=sesion.date||sesion.startdate||'';
-        const sesTime=sesion.daytime||sesion.time||'';
+        const sesName=sesion.name||`Sesión ${sesion.number||''}`;
+        const sesDate=sesion.date||'';
+        const sesTime=sesion.time||'';
         html+=`<div style="background:linear-gradient(135deg,rgba(0,119,182,.2),rgba(0,180,216,.1));border:1px solid rgba(0,180,216,.3);border-radius:10px;padding:8px 12px;margin:12px 0 6px;font-size:11px;font-weight:600;color:var(--agua-light);">
-          📅 Sesión ${sesNum}${sesDate?' · '+sesDate:''}${sesTime?' · '+sesTime:''}
+          📅 ${sesName}${sesDate?' · '+sesDate:''}${sesTime?' · '+sesTime+'h':''}
         </div>`;
       }
       // results/ID.json tiene estructura: {agegroups: [{results: [...]}]}
