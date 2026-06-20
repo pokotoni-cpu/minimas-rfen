@@ -1058,6 +1058,11 @@ function cerrarModal(){document.getElementById('modalNadador').classList.remove(
 const LIVE_BASE = 'https://live.swimrankings.net';
 let liveCompeticionActual = null;
 let liveCompeticionCourse = 2; // 1=50m, 2=25m
+let liveCompeticionNombre = '';
+let liveSesionesData = [];
+let liveSesionSeleccionada = null;
+let liveEventoSeleccionado = null;
+let liveVistaActual = 'sesiones';
 let liveEventosData = [];
 let liveAtletasData = {};
 let liveFiltro = 'todos';
@@ -1101,15 +1106,18 @@ async function cargarCompeticionesESP(){
 
 async function abrirCompeticion(id, nombre){
   liveCompeticionActual=id;
-  liveCompeticionCourse=2; // por defecto 25m, se actualiza con main.json
+  liveCompeticionNombre=nombre;
+  liveCompeticionCourse=2;
+  liveVistaActual='sesiones'; // sesiones | pruebas | resultados
+  liveSesionSeleccionada=null;
+  liveEventoSeleccionado=null;
   document.getElementById('liveCompeticiones').style.display='none';
   document.getElementById('liveResultados').style.display='block';
   document.getElementById('liveTituloComp').textContent=nombre;
   document.getElementById('liveClubFiltro').textContent=usuario?.club||'';
-  document.getElementById('liveEventos').innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
+  document.getElementById('liveEventos').innerHTML='<div class="loading"><span class="spinner"></span>Cargando programa...</div>';
 
   try{
-    // Cargar eventos, atletas, clubs y main en paralelo
     const [evRes,atRes,clRes,mainRes,sesRes]=await Promise.all([
       fetch(`${LIVE_BASE}/meets/${id}/events.json?t=${Date.now()}`),
       fetch(`${LIVE_BASE}/meets/${id}/athletes.json?t=${Date.now()}`),
@@ -1122,220 +1130,249 @@ async function abrirCompeticion(id, nombre){
     const clubsData=await clRes.json();
     const mainData=await mainRes.json();
     const sesionesData=await sesRes.json();
-    // Guardar course de la competición (1=50m, 2=25m)
     if(mainData.course) liveCompeticionCourse=parseInt(mainData.course)||2;
-    // Guardar sesiones
-    liveEventosData._sessions = Array.isArray(sesionesData.sessions)?sesionesData.sessions:null;
+    liveSesionesData = Array.isArray(sesionesData.sessions)?sesionesData.sessions:[];
 
-    // Indexar clubs por id
     const clubsMap={};
     (clubsData.clubs||[]).forEach(cl=>clubsMap[cl.id]=cl.name||cl.shortname||'');
 
-    // Indexar atletas por id (atletas es array directo)
     liveAtletasData={};
     const atletasArr=Array.isArray(atletas)?atletas:(atletas.athletes||[]);
     atletasArr.forEach(a=>{
-      liveAtletasData[a.id]={
-        ...a,
-        club: clubsMap[a.clubid]||a.club||''
-      };
+      liveAtletasData[a.id]={...a, club: clubsMap[a.clubid]||a.club||''};
     });
 
-    // events.json puede ser objeto {id: eventObj} o {events: [...]}
     if(Array.isArray(eventos.events)){
       liveEventosData=eventos.events;
     } else {
-      // Es un objeto con IDs como claves
       liveEventosData=Object.values(eventos).filter(v=>typeof v==='object'&&v.id&&v.stroke!==undefined);
     }
-    document.getElementById('liveTotalResultados').textContent=`${liveEventosData.length} pruebas`;
+    document.getElementById('liveTotalResultados').textContent=`${liveSesionesData.length} sesiones`;
 
-    await renderLiveEventos();
+    renderVistaSesiones();
   }catch(e){
     document.getElementById('liveEventos').innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Error: ${e.message}</div></div>`;
   }
 }
 
-async function renderLiveEventos(){
+// ── VISTA 1: Lista de sesiones ───────────────────────────
+function renderVistaSesiones(){
+  liveVistaActual='sesiones';
   const cont=document.getElementById('liveEventos');
-  cont.innerHTML='<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
-
-  // Agrupar eventos por sesión si está disponible
-  const sessions=liveEventosData._sessions;
-  let eventosAgrupados=[];
-  if(sessions&&sessions.length){
-    sessions.forEach(s=>{
-      const evIds=s.events||[];
-      const evs=evIds.map(eid=>liveEventosData.find(e=>(e.id||e.eid)===String(eid))).filter(Boolean);
-      if(evs.length) eventosAgrupados.push({session:s, eventos:evs});
-    });
+  if(!liveSesionesData.length){
+    cont.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Sin sesiones disponibles</div></div>';
+    return;
   }
-  // Si no hay sesiones, usar todos los eventos como una sola sesión
-  if(!eventosAgrupados.length){
-    eventosAgrupados=[{session:null, eventos:liveEventosData}];
-  }
+  cont.innerHTML=liveSesionesData.map((s,idx)=>{
+    const numEv=(s.events||[]).filter(e=>!isRelayEvent(e)).length;
+    const completadas=(s.events||[]).filter(e=>(typeof e==='object'?e.status:0)>=5).length;
+    const enCurso=(s.events||[]).some(e=>(typeof e==='object'?e.status:0)===3);
+    let estadoTxt='⏳ Pendiente', estadoColor='rgba(255,255,255,.3)';
+    if(completadas===numEv&&numEv>0){estadoTxt='✅ Finalizada';estadoColor='var(--verde)';}
+    else if(enCurso||completadas>0){estadoTxt='🔴 En curso';estadoColor='#ff6b81';}
+    return `<div class="live-card" onclick="abrirSesion(${idx})">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-weight:600;font-size:13px;">${s.name||'Sesión '+(idx+1)}</div>
+        <span style="font-size:10px;color:${estadoColor};">${estadoTxt}</span>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);">${s.date||''}${s.time?' · '+s.time+'h':''} · ${numEv} pruebas</div>
+    </div>`;
+  }).join('');
+}
 
-  const eventosConResultados=liveEventosData.filter(e=>!e.isrelay);
-  if(!eventosConResultados.length){
-    cont.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Aún no hay resultados disponibles</div></div>';
+function isRelayEvent(eObj){
+  const eid=typeof eObj==='object'?eObj.id:eObj;
+  const ev=liveEventosData.find(e=>String(e.id||e.eid)===String(eid));
+  return ev?.isrelay;
+}
+
+// ── VISTA 2: Lista de pruebas de una sesión ──────────────
+function abrirSesion(idx){
+  liveSesionSeleccionada=liveSesionesData[idx];
+  renderVistaPruebas();
+}
+
+function renderVistaPruebas(){
+  liveVistaActual='pruebas';
+  const cont=document.getElementById('liveEventos');
+  const s=liveSesionSeleccionada;
+  const evIds=(s.events||[]).map(e=>typeof e==='object'?e.id:e);
+  const evs=evIds.map(eid=>liveEventosData.find(e=>String(e.id||e.eid)===String(eid))).filter(e=>e&&!e.isrelay);
+
+  const backBtn=`<button onclick="renderVistaSesiones()" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;margin-bottom:10px;">← Sesiones</button>`;
+  const titulo=`<div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${s.name||''} ${s.date?' · '+s.date:''}${s.time?' · '+s.time+'h':''}</div>`;
+
+  if(!evs.length){
+    cont.innerHTML=backBtn+titulo+'<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Sin pruebas individuales en esta sesión</div></div>';
     return;
   }
 
-  // Cargar en paralelo en lotes de 10
-  const BATCH=10;
-  const allData=[];
-  for(let i=0;i<eventosConResultados.length;i+=BATCH){
-    const lote=eventosConResultados.slice(i,i+BATCH);
-    const resultados=await Promise.allSettled(
-      lote.map(ev=>{const eid=ev.id||ev.eid;return fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`).then(r=>r.json()).then(data=>({ev,data})).catch(()=>null);})
-    );
-    resultados.forEach(r=>{if(r.status==='fulfilled'&&r.value)allData.push(r.value);});
+  const filas=evs.map((ev,i)=>{
+    const genStr=ev.gender==='1'||ev.gender===1?'Masc.':ev.gender==='2'||ev.gender===2?'Fem.':'Mixto';
+    const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
+    const nombreEv=`${ev.distance} ${mapearEstiloLive(ev.stroke)}`;
+    const status=ev.status||0;
+    let estTxt='⏳',estColor='rgba(255,255,255,.3)';
+    if(status>=5){estTxt='✅';estColor='var(--verde)';}
+    else if(status>=2){estTxt='🔴';estColor='#ff6b81';}
+    return `<div class="live-card" style="padding:11px 13px;" onclick="abrirPrueba('${ev.id||ev.eid}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-weight:600;font-size:13px;">${nombreEv}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.4);">${genStr}${agStr?' · '+agStr:''}</div>
+        </div>
+        <span style="font-size:14px;color:${estColor};">${estTxt}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  cont.innerHTML=backBtn+titulo+filas;
+}
+
+// ── VISTA 3: Resultados de una prueba ────────────────────
+async function abrirPrueba(eventId){
+  liveEventoSeleccionado=liveEventosData.find(e=>String(e.id||e.eid)===String(eventId));
+  liveVistaActual='resultados';
+  await renderVistaResultados();
+}
+
+async function renderVistaResultados(){
+  const cont=document.getElementById('liveEventos');
+  const ev=liveEventoSeleccionado;
+  const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
+  const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':'Mixto';
+  const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
+  const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${ev.distance} ${mapearEstiloLive(ev.stroke)} · ${genStr}${agStr?' · '+agStr:''}</div>`;
+
+  cont.innerHTML=backBtn+titulo+'<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
+
+  try{
+    const eid=ev.id||ev.eid;
+    const res=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`);
+    const data=await res.json();
+
+    let resultados=[];
+    if(Array.isArray(data.agegroups)){
+      data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) resultados.push(...ag.results); });
+    } else if(Array.isArray(data.results)){
+      resultados=data.results;
+    } else if(Array.isArray(data)){
+      resultados=data;
+    }
+
+    const conTiempo=resultados.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0);
+    const sinTiempo=resultados.filter(r=>!(r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0));
+
+    const miClub=(usuario?.club||'').toUpperCase();
+    const filtrarClub=lista=>liveFiltro==='club'
+      ?lista.filter(r=>(r.clubname||'').toUpperCase().includes(miClub.substring(0,6)))
+      :lista;
+
+    const conTiempoF=filtrarClub(conTiempo);
+    const sinTiempoF=filtrarClub(sinTiempo);
+
+    if(!conTiempoF.length&&!sinTiempoF.length){
+      cont.innerHTML=backBtn+titulo+'<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin inscritos para este filtro</div></div>';
+      return;
+    }
+
+    let html='';
+    if(conTiempoF.length){
+      html+=conTiempoF.map((r,i)=>renderResultRow(r,ev,i)).join('');
+    }
+    if(sinTiempoF.length){
+      html+=`<div style="font-size:10px;color:rgba(255,255,255,.3);margin:12px 0 6px;">Inscritos sin resultado todavía</div>`;
+      html+=sinTiempoF.map(r=>renderInscritoRow(r,ev)).join('');
+    }
+
+    cont.innerHTML=backBtn+titulo+html;
+  }catch(e){
+    cont.innerHTML=backBtn+titulo+`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Error: ${e.message}</div></div>`;
+  }
+}
+
+function renderResultRow(r,ev,i){
+  const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
+  const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
+  const club=r.clubname||atleta.club||'';
+  const swimRaw=String(r.swimtime||r.time||'').replace(',','.');
+  let swimSeg=0;
+  if(swimRaw.includes(':')){
+    const p=swimRaw.split(':');
+    if(p.length===3) swimSeg=parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]||0);
+    else swimSeg=parseInt(p[0])*60+parseFloat(p[1]||0);
+  } else { swimSeg=parseFloat(swimRaw)||0; }
+  const tiempo=swimSeg>0?formatTiempoLive(swimSeg*100):'--:--.--';
+  const miClub=(usuario?.club||'').toUpperCase();
+  const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
+  const pos=r.place||r.rank||i+1;
+  const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
+
+  let badgeMinima='';
+  if(usuario&&swimSeg>0){
+    const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
+    const piscina=liveCompeticionCourse===1?50:25;
+    const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
+    const distNum=parseInt(distRaw)||0;
+    const anoNadador=r.agetext||'abs';
+    const sexoNadador=(r.gender==='2'||r.gender===2)?'F':'M';
+    const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
+    if(min){
+      if(swimSeg<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
+      else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(swimSeg-min).toFixed(2)}s</span>`;
+    }
   }
 
-  // Construir mapa de sesión por evento y orden correcto
-  const evSessionMap={};
-  const evOrden=[];
-  if(liveEventosData._sessions){
-    liveEventosData._sessions.forEach(s=>{
-      (s.events||[]).forEach(evObj=>{
-        const eid=typeof evObj==='object'?evObj.id:evObj;
-        evSessionMap[String(eid)]=s;
-        evOrden.push(String(eid));
-      });
-    });
+  let entryStr='';
+  if(r.entrytime&&r.entrytime!==''){
+    const entRaw=String(r.entrytime).replace(',','.');
+    let entSeg=0;
+    if(entRaw.includes(':')){const p=entRaw.split(':');entSeg=parseInt(p[0])*60+parseFloat(p[1]||0);}
+    else entSeg=parseFloat(entRaw)||0;
+    if(entSeg>0&&swimSeg>0){
+      const diff=swimSeg-entSeg;
+      const diffStr=diff<=0?`<span style="color:var(--verde);font-size:9px;">▼${Math.abs(diff).toFixed(2)}s</span>`:`<span style="color:#ff6b81;font-size:9px;">▲${diff.toFixed(2)}s</span>`;
+      entryStr=`<div style="font-size:9px;color:rgba(255,255,255,.3);">Ins: ${formatTiempoLive(entSeg*100)} ${diffStr}</div>`;
+    }
   }
-  // Reordenar allData según el orden de sesiones
-  if(evOrden.length){
-    allData.sort((a,b)=>{
-      const idA=String(a.ev.id||a.ev.eid||'');
-      const idB=String(b.ev.id||b.ev.eid||'');
-      return evOrden.indexOf(idA)-evOrden.indexOf(idB);
-    });
+  return `<div class="result-row${esMiClub?' mi-club':''}">
+    <div class="result-pos ${posClass}">${pos}</div>
+    <div class="result-nombre">
+      <div class="result-nombre-text">${nombre}</div>
+      <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <div class="result-tiempo">${tiempo}</div>
+        ${badgeMinima}
+      </div>
+      ${entryStr}
+    </div>
+  </div>`;
+}
+
+function renderInscritoRow(r,ev){
+  const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
+  const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
+  const club=r.clubname||atleta.club||'';
+  const miClub=(usuario?.club||'').toUpperCase();
+  const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
+  let entryStr='--:--.--';
+  if(r.entrytime&&r.entrytime!==''){
+    const entRaw=String(r.entrytime).replace(',','.');
+    let entSeg=0;
+    if(entRaw.includes(':')){const p=entRaw.split(':');entSeg=parseInt(p[0])*60+parseFloat(p[1]||0);}
+    else entSeg=parseFloat(entRaw)||0;
+    if(entSeg>0) entryStr=formatTiempoLive(entSeg*100);
   }
-
-  let html='';
-  let sesionActual=null;
-  for(const {ev,data} of allData){
-    try{
-      // Cabecera de sesión si cambia
-      const eid=String(ev.id||ev.eid||'');
-      const sesion=evSessionMap[eid];
-      if(sesion&&sesion!==sesionActual){
-        sesionActual=sesion;
-        const sesName=sesion.name||`Sesión ${sesion.number||''}`;
-        const sesDate=sesion.date||'';
-        const sesTime=sesion.time||'';
-        html+=`<div style="background:linear-gradient(135deg,rgba(0,119,182,.2),rgba(0,180,216,.1));border:1px solid rgba(0,180,216,.3);border-radius:10px;padding:8px 12px;margin:12px 0 6px;font-size:11px;font-weight:600;color:var(--agua-light);">
-          📅 ${sesName}${sesDate?' · '+sesDate:''}${sesTime?' · '+sesTime+'h':''}
-        </div>`;
-      }
-      // results/ID.json tiene estructura: {agegroups: [{results: [...]}]}
-      let resultados=[];
-      if(Array.isArray(data.agegroups)){
-        data.agegroups.forEach(ag=>{
-          if(Array.isArray(ag.results)) resultados.push(...ag.results);
-        });
-      } else if(Array.isArray(data.results)){
-        resultados=data.results;
-      } else if(Array.isArray(data)){
-        resultados=data;
-      }
-      // Filtrar los que tienen tiempo válido
-      resultados=resultados.filter(r=>r.swimtime&&r.swimtime!==''&&parseFloat(r.swimtime)>0);
-      if(!resultados.length)continue;
-
-      // Filtrar por club si aplica
-      const miClub=(usuario?.club||'').toUpperCase();
-      const filtrados=liveFiltro==='club'
-        ?resultados.filter(r=>{
-          const clubR=(r.clubname||'').toUpperCase();
-          return clubR.includes(miClub.substring(0,6));
-        })
-        :resultados;
-
-      if(!filtrados.length)continue;
-
-      // Nombre del evento
-      const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':'Mixto';
-      const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
-      const nombreEv=`${ev.distance} ${mapearEstiloLive(ev.stroke)} - ${genStr}${agStr?' - '+agStr:''}`;
-      html+=`<div style="margin-bottom:14px;">
-        <div style="font-size:11px;font-weight:600;color:var(--agua-light);margin-bottom:6px;padding:4px 8px;background:rgba(0,119,182,.15);border-radius:8px;">${nombreEv}</div>`;
-
-      filtrados.slice(0,20).forEach((r,i)=>{
-        const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
-        const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
-        const club=r.clubname||atleta.club||'';
-        const swimRaw=String(r.swimtime||r.time||'').replace(',','.');
-        let swimSeg=0;
-        if(swimRaw.includes(':')){
-          const p=swimRaw.split(':');
-          if(p.length===3) swimSeg=parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]||0);
-          else swimSeg=parseInt(p[0])*60+parseFloat(p[1]||0);
-        } else {
-          swimSeg=parseFloat(swimRaw)||0;
-        }
-        const tiempo=swimSeg>0?formatTiempoLive(swimSeg*100):'--:--.--';
-        const esMiClub=miClub&&(club.toUpperCase().includes(miClub.substring(0,6))||(r.clubcode&&usuario?.clubcode&&r.clubcode===usuario.clubcode));
-        const pos=r.place||r.rank||i+1;
-        const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
-
-        // Comparar con mínima
-        let badgeMinima='';
-        if(usuario&&r.swimtime){
-          const tsRaw=String(r.swimtime||'').replace(',','.');
-          let ts=0;
-          if(tsRaw.includes(':')){
-            const p=tsRaw.split(':');
-            if(p.length===3) ts=parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]||0);
-            else ts=parseInt(p[0])*60+parseFloat(p[1]||0);
-          } else ts=parseFloat(tsRaw)||0;
-          const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
-          const piscina=liveCompeticionCourse===1?50:25;
-          const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
-          const distNum=parseInt(distRaw)||0;
-          const anoNadador=r.agetext||'abs';
-          const sexoNadador=(r.gender==='2'||r.gender===2)?'F':'M';
-          const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
-          if(min){
-            if(ts<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
-            else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(ts-min).toFixed(2)}s</span>`;
-          }
-        }
-
-        // Marca de inscripción
-        let entryStr='';
-        if(r.entrytime&&r.entrytime!==''){
-          const entRaw=String(r.entrytime).replace(',','.');
-          let entSeg=0;
-          if(entRaw.includes(':')){const p=entRaw.split(':');entSeg=parseInt(p[0])*60+parseFloat(p[1]||0);}
-          else entSeg=parseFloat(entRaw)||0;
-          if(entSeg>0&&swimSeg>0){
-            const diff=swimSeg-entSeg;
-            const diffStr=diff<=0?`<span style="color:var(--verde);font-size:9px;">▼${Math.abs(diff).toFixed(2)}s</span>`:`<span style="color:#ff6b81;font-size:9px;">▲${diff.toFixed(2)}s</span>`;
-            entryStr=`<div style="font-size:9px;color:rgba(255,255,255,.3);">Ins: ${formatTiempoLive(entSeg*100)} ${diffStr}</div>`;
-          }
-        }
-        html+=`<div class="result-row${esMiClub?' mi-club':''}">
-          <div class="result-pos ${posClass}">${pos}</div>
-          <div class="result-nombre">
-            <div class="result-nombre-text">${nombre}</div>
-            <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
-            <div style="display:flex;align-items:center;gap:4px;">
-              <div class="result-tiempo">${tiempo}</div>
-              ${badgeMinima}
-            </div>
-            ${entryStr}
-          </div>
-        </div>`;
-      });
-      html+='</div>';
-    }catch(e){continue;}
-  } // end for allData
-
-  cont.innerHTML=html||'<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin resultados para mostrar</div></div>';
+  return `<div class="result-row${esMiClub?' mi-club':''}" style="opacity:.7;">
+    <div class="result-pos"></div>
+    <div class="result-nombre">
+      <div class="result-nombre-text">${nombre}</div>
+      <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
+    </div>
+    <div class="result-tiempo" style="color:rgba(255,255,255,.4);">${entryStr}</div>
+  </div>`;
 }
 
 function mapearEstiloLive(stroke){
@@ -1358,7 +1395,8 @@ function filtrarLive(filtro,btn){
   liveFiltro=filtro;
   document.querySelectorAll('#screenLive .tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  renderLiveEventos();
+  if(liveVistaActual==='resultados') renderVistaResultados();
+  // En vistas de sesiones/pruebas el filtro de club no aplica
 }
 
 function volverCompeticiones(){
