@@ -278,11 +278,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -434,7 +434,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
 
     <!-- LIVE -->
     <div class="screen" id="screenLive">
-      <div class="section-title">🔴 Competiciones ESP</div>
+      <div class="section-title" id="liveTituloFijo">🔴 Competiciones ESP</div>
       <div id="liveCompeticiones"><div class="loading"><span class="spinner"></span>Cargando competiciones...</div></div>
       <div id="liveResultados" style="display:none;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
@@ -1111,7 +1111,10 @@ async function abrirCompeticion(id, nombre){
   liveVistaActual='sesiones'; // sesiones | pruebas | resultados
   liveSesionSeleccionada=null;
   liveEventoSeleccionado=null;
-  document.getElementById('liveCompeticiones').style.display='none';
+  const lcDiv=document.getElementById('liveCompeticiones');
+  lcDiv.style.display='none';
+  lcDiv.innerHTML='';
+  document.getElementById('liveTituloFijo').style.display='none';
   document.getElementById('liveResultados').style.display='block';
   document.getElementById('liveTituloComp').textContent=nombre;
   document.getElementById('liveClubFiltro').textContent=usuario?.club||'';
@@ -1429,6 +1432,7 @@ function filtrarLive(filtro,btn){
 function volverCompeticiones(){
   document.getElementById('liveResultados').style.display='none';
   document.getElementById('liveCompeticiones').style.display='block';
+  document.getElementById('liveTituloFijo').style.display='block';
   liveCompeticionActual=null;
 }
 
