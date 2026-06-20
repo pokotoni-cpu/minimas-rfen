@@ -441,8 +441,8 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
           <button onclick="volverCompeticiones()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;">← Volver</button>
           <div id="liveTituloComp" style="font-size:12px;color:var(--agua-light);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
         </div>
-        <div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:8px;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
-        <div class="tabs" style="margin-bottom:10px;">
+        <div id="liveSubHeader" style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:8px;display:none;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
+        <div class="tabs" id="liveTabs" style="margin-bottom:10px;display:none;">
           <button class="tab-btn active" id="tabTodos" onclick="filtrarLive('todos',this)">Todos</button>
           <button class="tab-btn" id="tabMiClub" onclick="filtrarLive('club',this)">Mi club</button>
         </div>
@@ -1163,6 +1163,8 @@ async function abrirCompeticion(id, nombre){
 // ── VISTA 1: Lista de sesiones ───────────────────────────
 function renderVistaSesiones(){
   liveVistaActual='sesiones';
+  document.getElementById('liveSubHeader').style.display='none';
+  document.getElementById('liveTabs').style.display='none';
   const cont=document.getElementById('liveEventos');
   if(!liveSesionesData.length){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Sin sesiones disponibles</div></div>';
@@ -1199,6 +1201,8 @@ function abrirSesion(idx){
 
 function renderVistaPruebas(){
   liveVistaActual='pruebas';
+  document.getElementById('liveSubHeader').style.display='none';
+  document.getElementById('liveTabs').style.display='none';
   const cont=document.getElementById('liveEventos');
   const s=liveSesionSeleccionada;
   const evIds=(s.events||[]).map(e=>typeof e==='object'?e.id:e);
@@ -1242,6 +1246,8 @@ async function abrirPrueba(eventId){
 }
 
 async function renderVistaResultados(){
+  document.getElementById('liveSubHeader').style.display='block';
+  document.getElementById('liveTabs').style.display='flex';
   const cont=document.getElementById('liveEventos');
   const ev=liveEventoSeleccionado;
   const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
