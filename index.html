@@ -278,11 +278,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1164,7 +1164,7 @@ function renderVistaSesiones(){
     return;
   }
   cont.innerHTML=liveSesionesData.map((s,idx)=>{
-    const numEv=(s.events||[]).filter(e=>!isRelayEvent(e)).length;
+    const numEv=(s.events||[]).length;
     const completadas=(s.events||[]).filter(e=>(typeof e==='object'?e.status:0)>=5).length;
     const enCurso=(s.events||[]).some(e=>(typeof e==='object'?e.status:0)===3);
     let estadoTxt='⏳ Pendiente', estadoColor='rgba(90,107,125,.6)';
@@ -1197,7 +1197,7 @@ function renderVistaPruebas(){
   const cont=document.getElementById('liveEventos');
   const s=liveSesionSeleccionada;
   const evIds=(s.events||[]).map(e=>typeof e==='object'?e.id:e);
-  const evs=evIds.map(eid=>liveEventosData.find(e=>String(e.id||e.eid)===String(eid))).filter(e=>e&&!e.isrelay);
+  const evs=evIds.map(eid=>liveEventosData.find(e=>String(e.id||e.eid)===String(eid))).filter(e=>e);
 
   const backBtn=`<button onclick="renderVistaSesiones()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;margin-bottom:10px;">← Sesiones</button>`;
   const titulo=`<div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${s.name||''} ${s.date?' · '+s.date:''}${s.time?' · '+s.time+'h':''}</div>`;
