@@ -8,10 +8,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--agua:#0077b6;--agua-dark:#023e8a;--agua-light:#90e0ef;--splash:#00b4d8;--fondo:#03045e;--blanco:#fff;--gris:#caf0f8;--verde:#06d6a0;--rojo:#ef233c;--amarillo:#ffd60a;--card-bg:rgba(255,255,255,.07);--card-border:rgba(255,255,255,.12);}
+:root{--agua:#0077b6;--agua-dark:#023e8a;--agua-light:#0077b6;--splash:#00b4d8;--fondo:#ffffff;--blanco:#1a1a2e;--gris:#f0f8ff;--verde:#06a96e;--rojo:#d62839;--amarillo:#e09f00;--card-bg:#ffffff;--card-border:#dde6ef;--texto-principal:#1a1a2e;--texto-secundario:#5a6b7d;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--blanco);min-height:100vh;overflow-x:hidden;}
-body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(0,119,182,.3),transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,180,216,.2),transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(2,62,138,.4),transparent 60%);z-index:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--fondo);color:var(--texto-principal);min-height:100vh;overflow-x:hidden;font-size:15px;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(0,119,182,.06),transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,180,216,.05),transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(2,62,138,.04),transparent 60%);z-index:0;}
 .ondas{position:fixed;bottom:0;left:0;right:0;height:120px;z-index:0;opacity:.12;}
 .onda{position:absolute;bottom:0;left:-100%;width:300%;height:80px;background:var(--agua-light);border-radius:50% 50% 0 0;animation:ola 6s ease-in-out infinite;}
 .onda:nth-child(2){height:60px;animation:ola 8s ease-in-out infinite reverse;opacity:.6;animation-delay:-2s;}
@@ -20,7 +20,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .header{padding:18px 16px 10px;display:flex;align-items:center;gap:10px;}
 .logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--agua-light);line-height:1;}
 .logo span{color:var(--amarillo);}
-.user-badge{margin-left:auto;background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--gris);cursor:pointer;white-space:nowrap;}
+.user-badge{margin-left:auto;background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--texto-principal);cursor:pointer;white-space:nowrap;}
 .role-badge{background:rgba(255,214,10,.15);border:1px solid rgba(255,214,10,.3);color:var(--amarillo);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;letter-spacing:.5px;}
 .content{flex:1;padding:10px 14px 100px;overflow-y:auto;}
 .screen{display:none;animation:fadeIn .3s ease;}
@@ -33,15 +33,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 .auth-title{font-family:'Bebas Neue',sans-serif;font-size:38px;letter-spacing:3px;line-height:1;margin-bottom:4px;text-align:center;}
 .auth-sub{color:var(--agua-light);font-size:12px;margin-bottom:28px;opacity:.8;text-align:center;}
-.auth-tabs{display:flex;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;margin-bottom:18px;border:1px solid var(--card-border);width:100%;max-width:320px;}
-.auth-tab{flex:1;padding:8px;background:transparent;border:none;border-radius:8px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+.auth-tabs{display:flex;background:rgba(26,26,46,.04);border-radius:10px;padding:3px;margin-bottom:18px;border:1px solid var(--card-border);width:100%;max-width:320px;}
+.auth-tab{flex:1;padding:8px;background:transparent;border:none;border-radius:8px;color:#5a6b7d;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
 .auth-tab.active{background:var(--agua);color:#fff;font-weight:600;}
 .auth-form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;}
 .input-group{display:flex;flex-direction:column;gap:4px;}
 .input-group label{font-size:10px;font-weight:600;color:var(--agua-light);letter-spacing:1px;text-transform:uppercase;}
-.input-field{background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:12px;padding:12px 15px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all .2s;width:100%;}
-.input-field:focus{border-color:var(--agua-light);background:rgba(255,255,255,.12);}
-.input-field::placeholder{color:rgba(255,255,255,.3);}
+.input-field{background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:12px;padding:12px 15px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:all .2s;width:100%;}
+.input-field:focus{border-color:var(--agua-light);background:rgba(26,26,46,.1);}
+.input-field::placeholder{color:rgba(90,107,125,.6);}
 select.input-field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2390e0ef' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px;cursor:pointer;}
 select.input-field option{background:#023e8a;color:#fff;}
 .btn-primary{background:linear-gradient(135deg,var(--agua),var(--splash));border:none;border-radius:12px;padding:14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;width:100%;}
@@ -53,25 +53,25 @@ select.input-field option{background:#023e8a;color:#fff;}
 .section-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--agua-light);margin-bottom:12px;}
 
 /* CARDS */
-.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:14px;margin-bottom:10px;backdrop-filter:blur(10px);}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(26,26,46,.06);}
 .marca-card{display:flex;align-items:center;gap:10px;}
 .marca-emoji{font-size:26px;flex-shrink:0;}
 .marca-info{flex:1;min-width:0;}
-.marca-prueba{font-weight:600;font-size:13px;margin-bottom:1px;}
+.marca-prueba{font-weight:600;font-size:15px;margin-bottom:1px;}
 .marca-tiempo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--agua-light);}
-.marca-meta{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;line-height:1.4;}
+.marca-meta{font-size:12px;color:rgba(90,107,125,.8);margin-top:1px;line-height:1.4;}
 .marca-badge{font-size:9px;font-weight:600;padding:3px 7px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;}
 .badge-si{background:rgba(6,214,160,.15);color:var(--verde);border:1px solid rgba(6,214,160,.3);}
 .badge-no{background:rgba(239,35,60,.12);color:#ff6b81;border:1px solid rgba(239,35,60,.2);}
-.badge-na{background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);}
+.badge-na{background:rgba(26,26,46,.06);color:rgba(90,107,125,.8);border:1px solid rgba(26,26,46,.08);}
 
 /* FORM */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .form-grid .full{grid-column:1/-1;}
 .tiempo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
-.tiempo-label{font-size:9px;color:rgba(255,255,255,.4);text-align:center;margin-top:2px;}
-.crono-toggle,.piscina-toggle{display:flex;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;border:1px solid var(--card-border);}
-.crono-btn,.piscina-btn{flex:1;padding:7px 4px;background:transparent;border:none;border-radius:8px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
+.tiempo-label{font-size:9px;color:rgba(90,107,125,.8);text-align:center;margin-top:2px;}
+.crono-toggle,.piscina-toggle{display:flex;background:rgba(26,26,46,.04);border-radius:10px;padding:3px;border:1px solid var(--card-border);}
+.crono-btn,.piscina-btn{flex:1;padding:7px 4px;background:transparent;border:none;border-radius:8px;color:#5a6b7d;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
 .crono-btn.active,.piscina-btn.active{background:var(--agua);color:#fff;font-weight:600;}
 
 /* PREVIEW */
@@ -80,33 +80,33 @@ select.input-field option{background:#023e8a;color:#fff;}
 .resultado-preview.no{background:linear-gradient(135deg,rgba(239,35,60,.08),rgba(0,119,182,.08));border-color:rgba(239,35,60,.2);}
 .preview-emoji{font-size:40px;margin-bottom:4px;}
 .preview-texto{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;}
-.preview-detalle{font-size:11px;color:rgba(255,255,255,.6);margin-top:4px;}
+.preview-detalle{font-size:11px;color:#3d4a58;margin-top:4px;}
 
 /* MÍNIMAS */
 .estilos-btns{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
-.estilo-btn{flex:1;min-width:60px;padding:8px 4px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
+.estilo-btn{flex:1;min-width:60px;padding:8px 4px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:#3d4a58;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
 .estilo-btn.active{background:linear-gradient(135deg,var(--agua),var(--splash));border-color:transparent;color:#fff;font-weight:600;}
 .minima-row{display:flex;align-items:center;padding:11px 13px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;margin-bottom:6px;}
 .minima-dist{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--agua-light);width:55px;}
 .minima-tiempo{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;flex:1;text-align:center;}
-.minima-na{color:rgba(255,255,255,.3);font-size:12px;font-family:'DM Sans',sans-serif;}
+.minima-na{color:rgba(90,107,125,.6);font-size:12px;font-family:'DM Sans',sans-serif;}
 
 /* TABS */
-.tabs{display:flex;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;margin-bottom:14px;border:1px solid var(--card-border);}
-.tab-btn{flex:1;padding:8px;background:transparent;border:none;border-radius:8px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;}
+.tabs{display:flex;background:rgba(26,26,46,.04);border-radius:10px;padding:3px;margin-bottom:14px;border:1px solid var(--card-border);}
+.tab-btn{flex:1;padding:8px;background:transparent;border:none;border-radius:8px;color:#5a6b7d;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;}
 .tab-btn.active{background:var(--agua);color:#fff;font-weight:600;}
 
 /* RANKING */
-.filter-chip{padding:6px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;color:rgba(255,255,255,.6);font-size:11px;cursor:pointer;transition:all .2s;display:inline-block;margin:0 4px 6px 0;}
+.filter-chip{padding:6px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:20px;color:#3d4a58;font-size:11px;cursor:pointer;transition:all .2s;display:inline-block;margin:0 4px 6px 0;}
 .filter-chip.active{background:var(--agua);border-color:var(--agua);color:#fff;font-weight:600;}
 .ranking-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;margin-bottom:6px;}
-.ranking-pos{font-family:'Bebas Neue',sans-serif;font-size:20px;width:28px;text-align:center;color:rgba(255,255,255,.3);}
+.ranking-pos{font-family:'Bebas Neue',sans-serif;font-size:20px;width:28px;text-align:center;color:rgba(90,107,125,.6);}
 .ranking-pos.gold{color:var(--amarillo);}
 .ranking-pos.silver{color:#c0c0c0;}
 .ranking-pos.bronze{color:#cd7f32;}
 .ranking-info{flex:1;min-width:0;}
-.ranking-nombre{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ranking-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;}
+.ranking-nombre{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ranking-sub{font-size:12px;color:rgba(90,107,125,.8);margin-top:1px;}
 .ranking-tiempo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--agua-light);}
 
 /* NADADOR CARD */
@@ -114,58 +114,58 @@ select.input-field option{background:#023e8a;color:#fff;}
 .nadador-card:hover{border-color:var(--agua-light);}
 .nadador-header{display:flex;align-items:center;gap:10px;}
 .nadador-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--agua),var(--splash));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
-.nadador-nombre{font-weight:600;font-size:13px;}
-.nadador-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;}
+.nadador-nombre{font-weight:600;font-size:15px;}
+.nadador-sub{font-size:12px;color:rgba(90,107,125,.8);margin-top:1px;}
 .nadador-stats{display:flex;gap:8px;margin-top:8px;}
-.nadador-stat{background:rgba(255,255,255,.05);border-radius:8px;padding:6px 10px;flex:1;text-align:center;}
+.nadador-stat{background:rgba(26,26,46,.04);border-radius:8px;padding:6px 10px;flex:1;text-align:center;}
 .nadador-stat-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);}
-.nadador-stat-label{font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.5px;}
+.nadador-stat-label{font-size:9px;color:rgba(90,107,125,.6);text-transform:uppercase;letter-spacing:.5px;}
 
 /* PERFIL */
 .perfil-header{text-align:center;padding:14px 0 20px;}
 .perfil-avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--agua),var(--splash));display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 8px;border:3px solid rgba(144,224,239,.3);}
 .perfil-nombre{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;}
-.perfil-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;}
+.perfil-sub{font-size:11px;color:rgba(90,107,125,.8);margin-top:2px;}
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
 .stat-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:16px;text-align:center;}
 .stat-num{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:var(--agua-light);line-height:1;}
-.stat-label{font-size:10px;color:rgba(255,255,255,.4);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
+.stat-label{font-size:10px;color:rgba(90,107,125,.8);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
 
 /* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(3,4,94,.95);backdrop-filter:blur(20px);border-top:1px solid var(--card-border);display:flex;padding:5px 0 13px;z-index:50;}
-.bottom-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(255,255,255,.4);font-family:'DM Sans',sans-serif;font-size:9px;cursor:pointer;padding:5px 2px;transition:all .2s;}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);border-top:1px solid var(--card-border);box-shadow:0 -2px 12px rgba(26,26,46,.06);display:flex;padding:5px 0 13px;z-index:50;}
+.bottom-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:rgba(90,107,125,.8);font-family:'DM Sans',sans-serif;font-size:10px;cursor:pointer;padding:5px 2px;transition:all .2s;}
 .bottom-btn.active{color:var(--agua-light);}
 .bottom-btn .icon{font-size:18px;}
 
 /* UTILS */
-.empty-state{text-align:center;padding:40px 20px;color:rgba(255,255,255,.3);}
+.empty-state{text-align:center;padding:40px 20px;color:rgba(90,107,125,.6);}
 .empty-icon{font-size:40px;margin-bottom:8px;}
 .empty-text{font-size:12px;}
-.loading{text-align:center;padding:30px;color:rgba(255,255,255,.4);font-size:13px;}
-.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--agua-light);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle;}
+.loading{text-align:center;padding:30px;color:rgba(90,107,125,.8);font-size:13px;}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(26,26,46,.18);border-top-color:var(--agua-light);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .import-box{background:rgba(0,119,182,.1);border:1px solid rgba(0,119,182,.25);border-radius:14px;padding:12px;margin-bottom:12px;}
-.drop-zone{border:2px dashed rgba(255,255,255,.15);border-radius:10px;padding:14px;text-align:center;color:rgba(255,255,255,.3);font-size:11px;transition:all .2s;}
+.drop-zone{border:2px dashed rgba(26,26,46,.15);border-radius:10px;padding:14px;text-align:center;color:rgba(90,107,125,.6);font-size:11px;transition:all .2s;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:flex-end;justify-content:center;}
 .modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
-.modal-box{background:#031a4a;border:1px solid var(--card-border);border-radius:20px 20px 0 0;padding:20px 16px 30px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;}
+.modal-box{background:#ffffff;border:1px solid var(--card-border);border-radius:20px 20px 0 0;padding:20px 16px 30px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 -4px 20px rgba(26,26,46,.15);}
 .modal-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--agua-light);margin-bottom:14px;}
-.modal-close{float:right;background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;}
+.modal-close{float:right;background:none;border:none;color:rgba(90,107,125,.8);font-size:20px;cursor:pointer;}
 .live-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:14px;margin-bottom:8px;cursor:pointer;transition:all .2s;}
 .live-card:hover{border-color:var(--agua-light);}
 .live-status{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
 .live-status.active{background:#06d6a0;box-shadow:0 0 6px #06d6a0;animation:pulse 1.5s infinite;}
 .live-status.recent{background:var(--amarillo);}
-.live-status.upcoming{background:rgba(255,255,255,.3);}
+.live-status.upcoming{background:rgba(90,107,125,.6);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .result-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;margin-bottom:5px;}
-.result-pos{font-family:'Bebas Neue',sans-serif;font-size:18px;width:24px;text-align:center;color:rgba(255,255,255,.4);}
+.result-pos{font-family:'Bebas Neue',sans-serif;font-size:18px;width:24px;text-align:center;color:rgba(90,107,125,.8);}
 .result-pos.gold{color:var(--amarillo);}
 .result-pos.silver{color:#c0c0c0;}
 .result-pos.bronze{color:#cd7f32;}
 .result-nombre{flex:1;min-width:0;}
-.result-nombre-text{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.result-club-text{font-size:10px;color:rgba(255,255,255,.4);}
+.result-nombre-text{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.result-club-text{font-size:12px;color:rgba(90,107,125,.8);}
 .result-tiempo{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--agua-light);}
 .result-minima{font-size:9px;padding:2px 6px;border-radius:10px;margin-left:4px;}
 .mi-club{border-color:var(--agua-light)!important;background:rgba(144,224,239,.06)!important;}
@@ -192,7 +192,7 @@ select.input-field option{background:#023e8a;color:#fff;}
       <div class="input-group"><label>Contraseña</label><input type="password" class="input-field" id="lPass" placeholder="••••••••"></div>
       <div class="auth-error" id="loginError"></div>
       <button class="btn-primary" onclick="doLogin()">Entrar</button>
-      <button style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;width:100%;margin-top:4px;" onclick="entrarDemo()">👀 Ver demo sin registrarse</button>
+      <button style="background:none;border:1px solid rgba(26,26,46,.18);border-radius:12px;padding:12px;color:#5a6b7d;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;width:100%;margin-top:4px;" onclick="entrarDemo()">👀 Ver demo sin registrarse</button>
     </div>
     <div class="auth-form" id="formRegistro" style="display:none;">
       <div class="input-group"><label>Nombre completo</label><input type="text" class="input-field" id="rNombre" placeholder="Nombre y apellidos"></div>
@@ -242,7 +242,7 @@ select.input-field option{background:#023e8a;color:#fff;}
         </div>
       </div>
       <div class="input-group" style="margin-top:4px;">
-        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:11px;color:rgba(255,255,255,.6);text-transform:none;letter-spacing:0;line-height:1.4;">
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:11px;color:#3d4a58;text-transform:none;letter-spacing:0;line-height:1.4;">
           <input type="checkbox" id="rConsentimiento" style="margin-top:2px;flex-shrink:0;">
           Acepto que mi nombre y marcas aparezcan en el ranking visible para otros usuarios de la app
         </label>
@@ -274,7 +274,7 @@ select.input-field option{background:#023e8a;color:#fff;}
       <!-- IMPORTAR DESDE RFEN DIRECTO -->
       <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(0,119,182,.15),rgba(0,180,216,.1));border-color:rgba(0,180,216,.3);">
         <div style="font-weight:600;font-size:13px;color:var(--agua-light);margin-bottom:4px;">⚡ Importar desde RFEN automáticamente</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:10px;">Introduce tu nombre y apellidos como aparecen en la RFEN.</div>
+        <div style="font-size:11px;color:#5a6b7d;margin-bottom:10px;">Introduce tu nombre y apellidos como aparecen en la RFEN.</div>
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
@@ -362,7 +362,7 @@ select.input-field option{background:#023e8a;color:#fff;}
           </select>
         </div>
       </div>
-      <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:rgba(255,255,255,.6);">
+      <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:#3d4a58;">
         👤 <span id="minimasCategoria" style="color:var(--agua-light);font-weight:600;"></span>
       </div>
       <div class="estilos-btns">
@@ -438,10 +438,10 @@ select.input-field option{background:#023e8a;color:#fff;}
       <div id="liveCompeticiones"><div class="loading"><span class="spinner"></span>Cargando competiciones...</div></div>
       <div id="liveResultados" style="display:none;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <button onclick="volverCompeticiones()" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;">← Volver</button>
+          <button onclick="volverCompeticiones()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;">← Volver</button>
           <div id="liveTituloComp" style="font-size:12px;color:var(--agua-light);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
         </div>
-        <div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:8px;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
+        <div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:8px;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
         <div class="tabs" style="margin-bottom:10px;">
           <button class="tab-btn active" id="tabTodos" onclick="filtrarLive('todos',this)">Todos</button>
           <button class="tab-btn" id="tabMiClub" onclick="filtrarLive('club',this)">Mi club</button>
@@ -596,7 +596,7 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   if(m.tiene_minima==='si'){emoji='🏆';bc='badge-si';bt='MÍNIMA ✓';}
   else if(m.tiene_minima==='no'){emoji='💪';bc='badge-no';bt='Sin mínima';}
   else{emoji='⚪';bc='badge-na';bt='N/A';}
-  const posHtml=pos!==null?`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${pos<3?'var(--amarillo)':'rgba(255,255,255,.3)'};width:26px;flex-shrink:0;">${pos+1}</div>`:'';
+  const posHtml=pos!==null?`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${pos<3?'var(--amarillo)':'rgba(90,107,125,.6)'};width:26px;flex-shrink:0;">${pos+1}</div>`:'';
   const nombre=mostrarNombre?`<div class="marca-prueba">${m.nombre_nadador} · ${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`:`<div class="marca-prueba">${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`;
   // Calcular diferencia con mínima
   let difStr='';
@@ -611,7 +611,7 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   const meta=mostrarNombre
     ?`${m.club} · ${getCatLabel(m.ano_nacimiento)} · ${m.fecha||''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`
     :`${m.fecha||''}${m.competicion?' · '+m.competicion:''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`;
-  const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${m.id}')" style="background:none;border:none;color:rgba(255,255,255,.2);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
+  const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${m.id}')" style="background:none;border:none;color:rgba(26,26,46,.18);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
   return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
 }
 
@@ -983,7 +983,7 @@ async function renderPerfil(){
           <div class="marca-badge badge-si">🏆 MÍNIMA</div>
         </div>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
-          ${info.marcas.map(m=>`<div style="font-size:11px;color:rgba(255,255,255,.5);padding:4px 8px;background:rgba(6,214,160,.06);border-radius:6px;">${m.estilo} ${m.distancia}m (${m.piscina}m) — <span style="color:var(--agua-light);font-family:'Bebas Neue',sans-serif;">${m.tiempo_display}</span>${m.fecha?' · '+m.fecha:''}</div>`).join('')}
+          ${info.marcas.map(m=>`<div style="font-size:11px;color:#5a6b7d;padding:4px 8px;background:rgba(6,214,160,.06);border-radius:6px;">${m.estilo} ${m.distancia}m (${m.piscina}m) — <span style="color:var(--agua-light);font-family:'Bebas Neue',sans-serif;">${m.tiempo_display}</span>${m.fecha?' · '+m.fecha:''}</div>`).join('')}
         </div>
       </div>`).join('');
   } else {
@@ -994,7 +994,7 @@ async function renderPerfil(){
 
 // -- IMPORTAR EXCEL ---------------------------------------
 const EMAP={libre:'Libres',libres:'Libres',free:'Libres',espalda:'Espalda',back:'Espalda',braza:'Braza',breast:'Braza',mariposa:'Mariposa',butterfly:'Mariposa',fly:'Mariposa',estilos:'Estilos',medley:'Estilos',im:'Estilos'};
-function onDrop(e){e.preventDefault();document.getElementById('dropZone').style.borderColor='rgba(255,255,255,.15)';if(e.dataTransfer.files[0])procesarArchivo(e.dataTransfer.files[0]);}
+function onDrop(e){e.preventDefault();document.getElementById('dropZone').style.borderColor='rgba(26,26,46,.15)';if(e.dataTransfer.files[0])procesarArchivo(e.dataTransfer.files[0]);}
 function importarExcel(i){if(i.files[0])procesarArchivo(i.files[0]);}
 function procesarArchivo(file){
   const st=document.getElementById('importStatus');st.style.display='block';st.style.color='var(--agua-light)';st.textContent='Leyendo...';
@@ -1092,11 +1092,11 @@ async function cargarCompeticionesESP(){
       return `<div class="live-card" onclick="abrirCompeticion('${m.id}','${m.name.replace(/'/g,"\'")}')">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
           <span class="live-status ${si.clase}"></span>
-          <span style="font-size:10px;color:rgba(255,255,255,.5);">${si.texto}</span>
-          <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.3);">${curso}</span>
+          <span style="font-size:10px;color:#5a6b7d;">${si.texto}</span>
+          <span style="margin-left:auto;font-size:10px;color:rgba(90,107,125,.6);">${curso}</span>
         </div>
         <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${m.name}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.4);">${m.city} · ${fecha}</div>
+        <div style="font-size:11px;color:rgba(90,107,125,.8);">${m.city} · ${fecha}</div>
       </div>`;
     }).join('');
   }catch(e){
@@ -1167,7 +1167,7 @@ function renderVistaSesiones(){
     const numEv=(s.events||[]).filter(e=>!isRelayEvent(e)).length;
     const completadas=(s.events||[]).filter(e=>(typeof e==='object'?e.status:0)>=5).length;
     const enCurso=(s.events||[]).some(e=>(typeof e==='object'?e.status:0)===3);
-    let estadoTxt='⏳ Pendiente', estadoColor='rgba(255,255,255,.3)';
+    let estadoTxt='⏳ Pendiente', estadoColor='rgba(90,107,125,.6)';
     if(completadas===numEv&&numEv>0){estadoTxt='✅ Finalizada';estadoColor='var(--verde)';}
     else if(enCurso||completadas>0){estadoTxt='🔴 En curso';estadoColor='#ff6b81';}
     return `<div class="live-card" onclick="abrirSesion(${idx})">
@@ -1175,7 +1175,7 @@ function renderVistaSesiones(){
         <div style="font-weight:600;font-size:13px;">${s.name||'Sesión '+(idx+1)}</div>
         <span style="font-size:10px;color:${estadoColor};">${estadoTxt}</span>
       </div>
-      <div style="font-size:11px;color:rgba(255,255,255,.4);">${s.date||''}${s.time?' · '+s.time+'h':''} · ${numEv} pruebas</div>
+      <div style="font-size:11px;color:rgba(90,107,125,.8);">${s.date||''}${s.time?' · '+s.time+'h':''} · ${numEv} pruebas</div>
     </div>`;
   }).join('');
 }
@@ -1199,7 +1199,7 @@ function renderVistaPruebas(){
   const evIds=(s.events||[]).map(e=>typeof e==='object'?e.id:e);
   const evs=evIds.map(eid=>liveEventosData.find(e=>String(e.id||e.eid)===String(eid))).filter(e=>e&&!e.isrelay);
 
-  const backBtn=`<button onclick="renderVistaSesiones()" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;margin-bottom:10px;">← Sesiones</button>`;
+  const backBtn=`<button onclick="renderVistaSesiones()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;margin-bottom:10px;">← Sesiones</button>`;
   const titulo=`<div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${s.name||''} ${s.date?' · '+s.date:''}${s.time?' · '+s.time+'h':''}</div>`;
 
   if(!evs.length){
@@ -1212,14 +1212,14 @@ function renderVistaPruebas(){
     const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
     const nombreEv=`${ev.distance} ${mapearEstiloLive(ev.stroke)}`;
     const status=ev.status||0;
-    let estTxt='⏳',estColor='rgba(255,255,255,.3)';
+    let estTxt='⏳',estColor='rgba(90,107,125,.6)';
     if(status>=5){estTxt='✅';estColor='var(--verde)';}
     else if(status>=2){estTxt='🔴';estColor='#ff6b81';}
     return `<div class="live-card" style="padding:11px 13px;" onclick="abrirPrueba('${ev.id||ev.eid}')">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-weight:600;font-size:13px;">${nombreEv}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.4);">${genStr}${agStr?' · '+agStr:''}</div>
+          <div style="font-size:10px;color:rgba(90,107,125,.8);">${genStr}${agStr?' · '+agStr:''}</div>
         </div>
         <span style="font-size:14px;color:${estColor};">${estTxt}</span>
       </div>
@@ -1239,7 +1239,7 @@ async function abrirPrueba(eventId){
 async function renderVistaResultados(){
   const cont=document.getElementById('liveEventos');
   const ev=liveEventoSeleccionado;
-  const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(255,255,255,.08);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
+  const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
   const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':'Mixto';
   const agStr=ev.agegroup&&typeof ev.agegroup==='object'?ev.agegroup.name||'':ev.agegroup||'';
   const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${ev.distance} ${mapearEstiloLive(ev.stroke)} · ${genStr}${agStr?' · '+agStr:''}</div>`;
@@ -1281,7 +1281,7 @@ async function renderVistaResultados(){
       html+=conTiempoF.map((r,i)=>renderResultRow(r,ev,i)).join('');
     }
     if(sinTiempoF.length){
-      html+=`<div style="font-size:10px;color:rgba(255,255,255,.3);margin:12px 0 6px;">Inscritos sin resultado todavía</div>`;
+      html+=`<div style="font-size:10px;color:rgba(90,107,125,.6);margin:12px 0 6px;">Inscritos sin resultado todavía</div>`;
       html+=sinTiempoF.map(r=>renderInscritoRow(r,ev)).join('');
     }
 
@@ -1319,7 +1319,7 @@ function renderResultRow(r,ev,i){
     const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
     if(min){
       if(swimSeg<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
-      else badgeMinima=`<span class="result-minima" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);">+${(swimSeg-min).toFixed(2)}s</span>`;
+      else badgeMinima=`<span class="result-minima" style="background:rgba(26,26,46,.05);color:rgba(90,107,125,.6);border:1px solid rgba(26,26,46,.08);">+${(swimSeg-min).toFixed(2)}s</span>`;
     }
   }
 
@@ -1332,7 +1332,7 @@ function renderResultRow(r,ev,i){
     if(entSeg>0&&swimSeg>0){
       const diff=swimSeg-entSeg;
       const diffStr=diff<=0?`<span style="color:var(--verde);font-size:9px;">▼${Math.abs(diff).toFixed(2)}s</span>`:`<span style="color:#ff6b81;font-size:9px;">▲${diff.toFixed(2)}s</span>`;
-      entryStr=`<div style="font-size:9px;color:rgba(255,255,255,.3);">Ins: ${formatTiempoLive(entSeg*100)} ${diffStr}</div>`;
+      entryStr=`<div style="font-size:9px;color:rgba(90,107,125,.6);">Ins: ${formatTiempoLive(entSeg*100)} ${diffStr}</div>`;
     }
   }
   return `<div class="result-row${esMiClub?' mi-club':''}">
@@ -1371,7 +1371,7 @@ function renderInscritoRow(r,ev){
       <div class="result-nombre-text">${nombre}</div>
       <div class="result-club-text">${club}${r.agetext?' · '+r.agetext:''}</div>
     </div>
-    <div class="result-tiempo" style="color:rgba(255,255,255,.4);">${entryStr}</div>
+    <div class="result-tiempo" style="color:rgba(90,107,125,.8);">${entryStr}</div>
   </div>`;
 }
 
