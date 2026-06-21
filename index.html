@@ -1180,16 +1180,18 @@ async function abrirCompeticion(id, nombre){
     if(mainData.course) liveCompeticionCourse=parseInt(mainData.course)||2;
     liveSesionesData = Array.isArray(sesionesData.sessions)?sesionesData.sessions:[];
 
+    // clubsData puede ser un array directo o {clubs: [...]}
+    const clubsArr = Array.isArray(clubsData) ? clubsData : (clubsData.clubs||[]);
     const clubsMap={};
-    (clubsData.clubs||[]).forEach(cl=>clubsMap[cl.id]=cl.name||cl.shortname||'');
+    clubsArr.forEach(cl=>clubsMap[cl.id]=cl.name||cl.shortname||'');
 
     // Detectar el clubcode del usuario buscando coincidencia de nombre en clubs.json
     liveMiClubCode = null;
-    const miClubUpper=(usuario?.club||'').toUpperCase();
+    const miClubUpper=(usuario?.club||'').toUpperCase().trim();
     if(miClubUpper){
-      const clubMatch = (clubsData.clubs||[]).find(cl=>{
-        const n=(cl.name||cl.shortname||'').toUpperCase();
-        return n.includes(miClubUpper.substring(0,6)) || miClubUpper.includes(n.substring(0,6));
+      const clubMatch = clubsArr.find(cl=>{
+        const n=(cl.name||cl.shortname||'').toUpperCase().trim();
+        return n===miClubUpper || n.includes(miClubUpper.substring(0,6)) || miClubUpper.includes(n.substring(0,6));
       });
       if(clubMatch) liveMiClubCode = clubMatch.id;
     }
