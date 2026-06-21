@@ -1068,6 +1068,7 @@ let liveVistaActual = 'sesiones';
 let liveEventosData = [];
 let liveAtletasData = {};
 let liveFiltro = 'todos';
+let liveMiClubCode = null; // detectado automáticamente al cargar clubs.json
 
 function getLiveStatusInfo(status){
   if(status===3||status===2){return{clase:'active',texto:'🔴 En directo'};}
@@ -1120,13 +1121,12 @@ function renderVistaNadadoresClub(){
   document.getElementById('liveSubHeader').style.display='none';
   document.getElementById('liveTabs').style.display='none';
   const cont=document.getElementById('liveEventos');
-  const miClub=(usuario?.club||'').toUpperCase();
-  if(!miClub){
-    cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se ha detectado tu club</div></div>';
+  if(!liveMiClubCode){
+    cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se ha detectado tu club en esta competición</div></div>';
     return;
   }
   const atletasClub = Object.entries(liveAtletasData)
-    .filter(([id,a])=>(a.club||'').toUpperCase().includes(miClub.substring(0,6)))
+    .filter(([id,a])=>String(a.clubid)===String(liveMiClubCode))
     .map(([id,a])=>({id,...a}))
     .sort((a,b)=>(a.lastname||'').localeCompare(b.lastname||''));
 
@@ -1182,6 +1182,17 @@ async function abrirCompeticion(id, nombre){
 
     const clubsMap={};
     (clubsData.clubs||[]).forEach(cl=>clubsMap[cl.id]=cl.name||cl.shortname||'');
+
+    // Detectar el clubcode del usuario buscando coincidencia de nombre en clubs.json
+    liveMiClubCode = null;
+    const miClubUpper=(usuario?.club||'').toUpperCase();
+    if(miClubUpper){
+      const clubMatch = (clubsData.clubs||[]).find(cl=>{
+        const n=(cl.name||cl.shortname||'').toUpperCase();
+        return n.includes(miClubUpper.substring(0,6)) || miClubUpper.includes(n.substring(0,6));
+      });
+      if(clubMatch) liveMiClubCode = clubMatch.id;
+    }
 
     liveAtletasData={};
     const atletasArr=Array.isArray(atletas)?atletas:(atletas.athletes||[]);
@@ -1337,7 +1348,7 @@ async function renderVistaResultados(){
 
     const miClub=(usuario?.club||'').toUpperCase();
     const filtrarClub=lista=>liveFiltro==='club'
-      ?lista.filter(r=>(r.clubname||'').toUpperCase().includes(miClub.substring(0,6)))
+      ?lista.filter(r=>liveMiClubCode && String(r.clubid)===String(liveMiClubCode))
       :lista;
 
     // Filtrar cada grupo por club si aplica
@@ -1418,7 +1429,7 @@ function renderResultRow(r,ev,i,etiqueta){
   } else { swimSeg=parseFloat(swimRaw)||0; }
   const tiempo=swimSeg>0?formatTiempoLive(swimSeg*100):'--:--.--';
   const miClub=(usuario?.club||'').toUpperCase();
-  const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
+  const esMiClub=liveMiClubCode && String(r.clubid)===String(liveMiClubCode);
   const pos=r.place||r.rank||i+1;
   const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
 
@@ -1473,7 +1484,7 @@ function renderInscritoRow(r,ev){
   const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
   const club=r.clubname||atleta.club||'';
   const miClub=(usuario?.club||'').toUpperCase();
-  const esMiClub=miClub&&club.toUpperCase().includes(miClub.substring(0,6));
+  const esMiClub=liveMiClubCode && String(r.clubid)===String(liveMiClubCode);
   let entryStr='--:--.--';
   if(r.entrytime&&r.entrytime!==''){
     const entRaw=String(r.entrytime).replace(',','.');
