@@ -439,6 +439,10 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
           <button onclick="volverCompeticiones()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:12px;cursor:pointer;">← Volver</button>
           <div id="liveTituloComp" style="font-size:12px;color:var(--agua-light);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
         </div>
+        <div class="tabs" id="liveTabsPrincipal" style="margin-bottom:12px;">
+          <button class="tab-btn active" id="tabPrograma" onclick="cambiarVistaPrincipal('programa',this)">📅 Programa</button>
+          <button class="tab-btn" id="tabNadadoresClub" onclick="cambiarVistaPrincipal('nadadores',this)">👥 Mi club</button>
+        </div>
         <div id="liveSubHeader" style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:8px;display:none;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
         <div class="tabs" id="liveTabs" style="margin-bottom:10px;display:none;">
           <button class="tab-btn active" id="tabTodos" onclick="filtrarLive('todos',this)">Todos</button>
@@ -1102,6 +1106,51 @@ async function cargarCompeticionesESP(){
   }
 }
 
+function cambiarVistaPrincipal(vista, btn){
+  document.querySelectorAll('#liveTabsPrincipal .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(vista==='programa'){
+    renderVistaSesiones();
+  } else {
+    renderVistaNadadoresClub();
+  }
+}
+
+function renderVistaNadadoresClub(){
+  document.getElementById('liveSubHeader').style.display='none';
+  document.getElementById('liveTabs').style.display='none';
+  const cont=document.getElementById('liveEventos');
+  const miClub=(usuario?.club||'').toUpperCase();
+  if(!miClub){
+    cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se ha detectado tu club</div></div>';
+    return;
+  }
+  const atletasClub = Object.entries(liveAtletasData)
+    .filter(([id,a])=>(a.club||'').toUpperCase().includes(miClub.substring(0,6)))
+    .map(([id,a])=>({id,...a}))
+    .sort((a,b)=>(a.lastname||'').localeCompare(b.lastname||''));
+
+  if(!atletasClub.length){
+    cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se encontraron nadadores de tu club inscritos</div></div>';
+    return;
+  }
+
+  cont.innerHTML=`<div style="font-size:11px;color:rgba(90,107,125,.8);margin-bottom:10px;">${atletasClub.length} nadadores de ${usuario.club} inscritos</div>` +
+    atletasClub.map(a=>{
+      const nombre = a.lastname?`${a.lastname}, ${a.firstname}`:(a.fullname||'—');
+      const genStr = a.gender==='1'?'M':a.gender==='2'?'F':'';
+      return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${a.id}')">
+        <div class="nadador-header">
+          <div class="nadador-avatar">🏊</div>
+          <div style="flex:1;">
+            <div class="nadador-nombre">${nombre}</div>
+            <div class="nadador-sub">${a.yob||''}${genStr?' · '+genStr:''}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
 async function abrirCompeticion(id, nombre){
   liveCompeticionActual=id;
   liveCompeticionNombre=nombre;
@@ -1151,6 +1200,11 @@ async function abrirCompeticion(id, nombre){
       });
     }
     document.getElementById('liveTotalResultados').textContent=`${liveSesionesData.length} sesiones`;
+
+    // Resetear pestaña principal a Programa
+    document.querySelectorAll('#liveTabsPrincipal .tab-btn').forEach(b=>b.classList.remove('active'));
+    const tabProgEl=document.getElementById('tabPrograma');
+    if(tabProgEl) tabProgEl.classList.add('active');
 
     renderVistaSesiones();
   }catch(e){
