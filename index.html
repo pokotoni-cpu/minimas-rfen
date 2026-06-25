@@ -570,6 +570,70 @@ add(a,'F','Libres',50,'00:27,00','00:26,10');add(a,'F','Libres',100,'00:59,00','
 add('abs','M','Libres',50,'00:23,85','00:22,70');add('abs','M','Libres',100,'00:51,90','00:50,15');add('abs','M','Libres',200,'01:53,75','01:49,95');add('abs','M','Libres',400,'04:04,50','03:55,85');add('abs','M','Libres',800,'08:28,00','08:15,15');add('abs','M','Libres',1500,'16:19,00','15:52,45');add('abs','M','Espalda',50,'00:27,60','00:25,90');add('abs','M','Espalda',100,'00:58,75','00:55,05');add('abs','M','Espalda',200,'02:09,50','02:02,25');add('abs','M','Braza',50,'00:29,80','00:28,65');add('abs','M','Braza',100,'01:05,00','01:03,15');add('abs','M','Braza',200,'02:24,10','02:18,00');add('abs','M','Mariposa',50,'00:25,10','00:24,05');add('abs','M','Mariposa',100,'00:56,00','00:54,05');add('abs','M','Mariposa',200,'02:08,40','02:04,40');add('abs','M','Estilos',200,'02:09,20','02:03,45');add('abs','M','Estilos',400,'04:38,90','04:30,10');
 add('abs','F','Libres',50,'00:26,85','00:25,95');add('abs','F','Libres',100,'00:58,50','00:56,85');add('abs','F','Libres',200,'02:06,95','02:04,85');add('abs','F','Libres',400,'04:27,30','04:21,60');add('abs','F','Libres',800,'09:05,90','08:57,70');add('abs','F','Libres',1500,'17:30,00','17:16,40');add('abs','F','Espalda',50,'00:30,95','00:29,10');add('abs','F','Espalda',100,'01:05,75','01:02,15');add('abs','F','Espalda',200,'02:22,55','02:16,70');add('abs','F','Braza',50,'00:33,95','00:33,05');add('abs','F','Braza',100,'01:14,50','01:12,50');add('abs','F','Braza',200,'02:41,50','02:35,65');add('abs','F','Mariposa',50,'00:28,40','00:27,50');add('abs','F','Mariposa',100,'01:03,80','01:00,95');add('abs','F','Mariposa',200,'02:21,00','02:18,15');add('abs','F','Estilos',200,'02:24,00','02:18,95');add('abs','F','Estilos',400,'05:03,95','04:53,75');
 
+// Mínimas Autonómicas Comunidad Valenciana P25 - Temporada 25/26 (piscina 25m, cronometraje manual)
+const CV_DB = {};
+function addCV(ano,sx,es,di,tiempo,nivel){
+  const seg=t(tiempo);
+  if(seg===null)return;
+  const key=nivel?`${ano}-${sx}-${es}-${di}-${nivel}`:`${ano}-${sx}-${es}-${di}`;
+  CV_DB[key]=seg;
+}
+addCV('abs','M','Libres',50,'00:24,64',null);addCV(2008,'M','Libres',50,'00:25,63',null);addCV(2009,'M','Libres',50,'00:26,30',null);addCV(2010,'M','Libres',50,'00:27,14',null);addCV(2011,'M','Libres',50,'00:28,19','A');addCV(2011,'M','Libres',50,'00:28.69','B');addCV(2012,'M','Libres',50,'00:30,54','A');addCV(2012,'M','Libres',50,'00:31.04','B');
+addCV(2013,'M','Libres',50,'00:33,69',null);addCV(2014,'M','Libres',50,'00:35,21',null);addCV('abs','M','Libres',100,'00:54,37',null);addCV(2008,'M','Libres',100,'00:56,56',null);addCV(2009,'M','Libres',100,'00:58,02',null);addCV(2010,'M','Libres',100,'00:59,90',null);addCV(2011,'M','Libres',100,'01:02,21','A');addCV(2011,'M','Libres',100,'01:03.71','B');
+addCV(2012,'M','Libres',100,'01:06,63','A');addCV(2012,'M','Libres',100,'01:08.13','B');addCV(2013,'M','Libres',100,'01:12,65',null);addCV(2014,'M','Libres',100,'01:15,87',null);addCV('abs','M','Libres',200,'01:59,53',null);addCV(2008,'M','Libres',200,'02:04,42',null);addCV(2009,'M','Libres',200,'02:07,72',null);addCV(2010,'M','Libres',200,'02:11,95',null);
+addCV(2011,'M','Libres',200,'02:17,19','A');addCV(2011,'M','Libres',200,'02:20,19','B');addCV(2012,'M','Libres',200,'02:26,50','A');addCV(2012,'M','Libres',200,'02:29,50','B');addCV(2013,'M','Libres',200,'02:39,01',null);addCV(2014,'M','Libres',200,'02:46,10',null);addCV('abs','M','Libres',400,'04:16,17',null);addCV(2008,'M','Libres',400,'04:26,33',null);
+addCV(2009,'M','Libres',400,'04:33,06',null);addCV(2010,'M','Libres',400,'04:41,64',null);addCV(2011,'M','Libres',400,'04:52,24','A');addCV(2011,'M','Libres',400,'04:57.24','B');addCV(2012,'M','Libres',400,'05:13,18','A');addCV(2012,'M','Libres',400,'05:18.18','B');addCV(2013,'M','Libres',400,'05:40,52',null);addCV(2014,'M','Libres',400,'05:55,68',null);
+addCV('abs','M','Libres',800,'08:51,38',null);addCV(2008,'M','Libres',800,'09:12,46',null);addCV(2009,'M','Libres',800,'09:26,42',null);addCV(2010,'M','Libres',800,'09:44,22',null);addCV(2011,'M','Libres',800,'10:06,20','A');addCV(2011,'M','Libres',800,'10:13.70','B');addCV(2012,'M','Libres',800,'10:55,00','A');addCV(2012,'M','Libres',800,'11:02,50','B');
+addCV(2013,'M','Libres',800,'11:56,60',null);addCV(2014,'M','Libres',800,'12:06,10',null);addCV('abs','M','Libres',1500,'16:54,39',null);addCV(2008,'M','Libres',1500,'17:34,63',null);addCV(2009,'M','Libres',1500,'18:01,28',null);addCV(2010,'M','Libres',1500,'18:35,26',null);addCV(2011,'M','Libres',1500,'19:17,22','A');addCV(2011,'M','Libres',1500,'19:29,22','B');
+addCV(2012,'M','Libres',1500,'20:39,42','A');addCV(2012,'M','Libres',1500,'20:51,42','B');addCV('abs','M','Espalda',50,'00:27,88',null);addCV(2008,'M','Espalda',50,'00:29,12',null);addCV(2009,'M','Espalda',50,'00:30,10',null);addCV(2010,'M','Espalda',50,'00:31,42',null);addCV(2011,'M','Espalda',50,'00:32,95','A');addCV(2011,'M','Espalda',50,'00:33,45','B');
+addCV(2012,'M','Espalda',50,'00:36,88','A');addCV(2012,'M','Espalda',50,'00:37,38','B');addCV(2013,'M','Espalda',50,'00:41,61',null);addCV(2014,'M','Espalda',50,'00:43,48',null);addCV('abs','M','Espalda',100,'01:00,24',null);addCV(2008,'M','Espalda',100,'01:02,91',null);addCV(2009,'M','Espalda',100,'01:04,78',null);addCV(2010,'M','Espalda',100,'01:07,22',null);
+addCV(2011,'M','Espalda',100,'01:10,26','A');addCV(2011,'M','Espalda',100,'01:11,76','B');addCV(2012,'M','Espalda',100,'01:16,21','A');addCV(2012,'M','Espalda',100,'01:17,71','B');addCV(2013,'M','Espalda',100,'01:23,76',null);addCV(2014,'M','Espalda',100,'01:28,07',null);addCV('abs','M','Espalda',200,'02:11,36',null);addCV(2008,'M','Espalda',200,'02:17,13',null);
+addCV(2009,'M','Espalda',200,'02:21,16',null);addCV(2010,'M','Espalda',200,'02:26,39',null);addCV(2011,'M','Espalda',200,'02:32,93','A');addCV(2011,'M','Espalda',200,'02:35,93','B');addCV(2012,'M','Espalda',200,'02:46,11','A');addCV(2012,'M','Espalda',200,'02:49,11','B');addCV(2013,'M','Espalda',200,'03:02,49',null);addCV(2014,'M','Espalda',200,'03:11,91',null);
+addCV('abs','M','Braza',50,'00:31,00',null);addCV(2008,'M','Braza',50,'00:32,90',null);addCV(2009,'M','Braza',50,'00:33,52',null);addCV(2010,'M','Braza',50,'00:35,39',null);addCV(2011,'M','Braza',50,'00:37,11','A');addCV(2011,'M','Braza',50,'00:37,61','B');addCV(2012,'M','Braza',50,'00:40,25','A');addCV(2012,'M','Braza',50,'00:40,75','B');
+addCV(2013,'M','Braza',50,'00:44,19',null);addCV(2014,'M','Braza',50,'00:46,62',null);addCV('abs','M','Braza',100,'01:08,18',null);addCV(2008,'M','Braza',100,'01:11,28',null);addCV(2009,'M','Braza',100,'01:13,50',null);addCV(2010,'M','Braza',100,'01:16,38',null);addCV(2011,'M','Braza',100,'01:20,00','A');addCV(2011,'M','Braza',100,'01:21,50','B');
+addCV(2012,'M','Braza',100,'01:26,40','A');addCV(2012,'M','Braza',100,'01:27,90','B');addCV(2013,'M','Braza',100,'01:34,40',null);addCV(2014,'M','Braza',100,'01:39,68',null);addCV('abs','M','Braza',200,'02:29,98',null);addCV(2008,'M','Braza',200,'02:36,81',null);addCV(2009,'M','Braza',200,'02:41,68',null);addCV(2010,'M','Braza',200,'02:48,02',null);
+addCV(2011,'M','Braza',200,'02:55,98','A');addCV(2011,'M','Braza',200,'02:58,98','B');addCV(2012,'M','Braza',200,'03:09,09','A');addCV(2012,'M','Braza',200,'03:12,09','B');addCV(2013,'M','Braza',200,'03:25,40',null);addCV(2014,'M','Braza',200,'03:36,98',null);addCV('abs','M','Mariposa',50,'00:26,63',null);addCV(2008,'M','Mariposa',50,'00:27,93',null);
+addCV(2009,'M','Mariposa',50,'00:28,95',null);addCV(2010,'M','Mariposa',50,'00:30,33',null);addCV(2011,'M','Mariposa',50,'00:30,85','A');addCV(2011,'M','Mariposa',50,'00:31,35','B');addCV(2012,'M','Mariposa',50,'00:34,15','A');addCV(2012,'M','Mariposa',50,'00:34,65','B');addCV(2013,'M','Mariposa',50,'00:38,25',null);addCV(2014,'M','Mariposa',50,'00:40,32',null);
+addCV('abs','M','Mariposa',100,'00:59,24',null);addCV(2008,'M','Mariposa',100,'01:02,14',null);addCV(2009,'M','Mariposa',100,'01:04,28',null);addCV(2010,'M','Mariposa',100,'01:07,09',null);addCV(2011,'M','Mariposa',100,'01:10,66','A');addCV(2011,'M','Mariposa',100,'01:12,16','B');addCV(2012,'M','Mariposa',100,'01:17,00','A');addCV(2012,'M','Mariposa',100,'01:18.50','B');
+addCV(2013,'M','Mariposa',100,'01:24,94',null);addCV(2014,'M','Mariposa',100,'01:30,19',null);addCV('abs','M','Mariposa',200,'02:14,71',null);addCV(2008,'M','Mariposa',200,'02:21,52',null);addCV(2009,'M','Mariposa',200,'02:26,61',null);addCV(2010,'M','Mariposa',200,'02:33,32',null);addCV(2011,'M','Mariposa',200,'02:41,87','A');addCV(2011,'M','Mariposa',200,'02:44,87','B');
+addCV(2012,'M','Mariposa',200,'02:55,01','A');addCV(2012,'M','Mariposa',200,'02:58,01','B');addCV(2013,'M','Mariposa',200,'03:11,35',null);addCV(2014,'M','Mariposa',200,'03:23,32',null);addCV('abs','M','Estilos',200,'02:14,26',null);addCV(2008,'M','Estilos',200,'02:19,85',null);addCV(2009,'M','Estilos',200,'02:23,66',null);addCV(2010,'M','Estilos',200,'02:28,54',null);
+addCV(2011,'M','Estilos',200,'02:34,62','A');addCV(2011,'M','Estilos',200,'02:37,62','B');addCV(2012,'M','Estilos',200,'02:46,63','A');addCV(2012,'M','Estilos',200,'02:49,63','B');addCV(2013,'M','Estilos',200,'03:01,84',null);addCV(2014,'M','Estilos',200,'03:10,34',null);addCV('abs','M','Estilos',400,'04:48,89',null);addCV(2008,'M','Estilos',400,'05:00,52',null);
+addCV(2009,'M','Estilos',400,'05:08,29',null);addCV(2010,'M','Estilos',400,'05:18,22',null);addCV(2011,'M','Estilos',400,'05:30,50','A');addCV(2011,'M','Estilos',400,'05:35,50','B');addCV(2012,'M','Estilos',400,'05:57,70','A');addCV(2012,'M','Estilos',400,'06:02,70','B');addCV(2013,'M','Estilos',400,'06:31,30',null);addCV(2014,'M','Estilos',400,'06:49,57',null);
+addCV('abs','F','Libres',50,'00:28,83',null);addCV(2008,'F','Libres',50,'00:29,27',null);addCV(2009,'F','Libres',50,'00:29,71',null);addCV(2010,'F','Libres',50,'00:30,18',null);addCV(2011,'F','Libres',50,'00:30,76','A');addCV(2011,'F','Libres',50,'00:31,26','B');addCV(2012,'F','Libres',50,'00:31,44','A');addCV(2012,'F','Libres',50,'00:31,94','B');
+addCV(2013,'F','Libres',50,'00:34,61',null);addCV(2014,'F','Libres',50,'00:35,83',null);addCV('abs','F','Libres',100,'01:02,97',null);addCV(2008,'F','Libres',100,'01:03,93',null);addCV(2009,'F','Libres',100,'01:04,88',null);addCV(2010,'F','Libres',100,'01:05,93',null);addCV(2011,'F','Libres',100,'01:07,19','A');addCV(2011,'F','Libres',100,'01:08,69','B');
+addCV(2012,'F','Libres',100,'01:08,68','A');addCV(2012,'F','Libres',100,'01:10,18','B');addCV(2013,'F','Libres',100,'01:15,14',null);addCV(2014,'F','Libres',100,'01:18,01',null);addCV('abs','F','Libres',200,'02:17,13',null);addCV(2008,'F','Libres',200,'02:19,17',null);addCV(2009,'F','Libres',200,'02:21,21',null);addCV(2010,'F','Libres',200,'02:23,40',null);
+addCV(2011,'F','Libres',200,'02:26,02','A');addCV(2011,'F','Libres',200,'02:29,02','B');addCV(2012,'F','Libres',200,'02:29,12','A');addCV(2012,'F','Libres',200,'02:32,12','B');addCV(2013,'F','Libres',200,'02:43,58',null);addCV(2014,'F','Libres',200,'02:49,83',null);addCV('abs','F','Libres',400,'04:50,09',null);addCV(2008,'F','Libres',400,'04:54,22',null);
+addCV(2009,'F','Libres',400,'04:58,36',null);addCV(2010,'F','Libres',400,'05:02,62',null);addCV(2011,'F','Libres',400,'05:07,67','A');addCV(2011,'F','Libres',400,'05:12,67','B');addCV(2012,'F','Libres',400,'05:13,56','A');addCV(2012,'F','Libres',400,'05:18,56','B');addCV(2013,'F','Libres',400,'05:39,03',null);addCV(2014,'F','Libres',400,'05:49,84',null);
+addCV('abs','F','Libres',800,'09:56,48',null);addCV(2008,'F','Libres',800,'10:04,54',null);addCV(2009,'F','Libres',800,'10:12,59',null);addCV(2010,'F','Libres',800,'10:20,42',null);addCV(2011,'F','Libres',800,'10:29,55','A');addCV(2011,'F','Libres',800,'10:37,05','B');addCV(2012,'F','Libres',800,'10:40,03','A');addCV(2012,'F','Libres',800,'10:47,53','B');
+addCV(2013,'F','Libres',800,'11:38,65',null);addCV(2014,'F','Libres',800,'12:00,95',null);addCV('abs','F','Libres',1500,'19:04,67',null);addCV(2008,'F','Libres',1500,'19:20,13',null);addCV(2009,'F','Libres',1500,'19:35,59',null);addCV(2010,'F','Libres',1500,'19:50,61',null);addCV(2011,'F','Libres',1500,'20:08,13','A');addCV(2011,'F','Libres',1500,'20:20,13','B');
+addCV(2012,'F','Libres',1500,'20:28,25','A');addCV(2012,'F','Libres',1500,'20:40,25','B');addCV('abs','F','Espalda',50,'00:32,99',null);addCV(2008,'F','Espalda',50,'00:33,33',null);addCV(2009,'F','Espalda',50,'00:33,68',null);addCV(2010,'F','Espalda',50,'00:34,29',null);addCV(2011,'F','Espalda',50,'00:35,02','A');addCV(2011,'F','Espalda',50,'00:35,52','B');
+addCV(2012,'F','Espalda',50,'00:35,95','A');addCV(2012,'F','Espalda',50,'00:36,45','B');addCV(2013,'F','Espalda',50,'00:40,23',null);addCV(2014,'F','Espalda',50,'00:42,11',null);addCV('abs','F','Espalda',100,'01:10,46',null);addCV(2008,'F','Espalda',100,'01:11,57',null);addCV(2009,'F','Espalda',100,'01:12,67',null);addCV(2010,'F','Espalda',100,'01:13,92',null);
+addCV(2011,'F','Espalda',100,'01:15,43','A');addCV(2011,'F','Espalda',100,'01:16,53','B');addCV(2012,'F','Espalda',100,'01:17,24','A');addCV(2012,'F','Espalda',100,'01:18,74','B');addCV(2013,'F','Espalda',100,'01:25,58',null);addCV(2014,'F','Espalda',100,'01:29,31',null);addCV('abs','F','Espalda',200,'02:31,55',null);addCV(2008,'F','Espalda',200,'02:33,73',null);
+addCV(2009,'F','Espalda',200,'02:35,92',null);addCV(2010,'F','Espalda',200,'02:38,19',null);addCV(2011,'F','Espalda',200,'02:40,90','A');addCV(2011,'F','Espalda',200,'02:43,90','B');addCV(2012,'F','Espalda',200,'02:44,06','A');addCV(2012,'F','Espalda',200,'02:47,06','B');addCV(2013,'F','Espalda',200,'03:03,55',null);addCV(2014,'F','Espalda',200,'03:11,56',null);
+addCV('abs','F','Braza',50,'00:36,67',null);addCV(2008,'F','Braza',50,'00:37,33',null);addCV(2009,'F','Braza',50,'00:37,98',null);addCV(2010,'F','Braza',50,'00:38,55',null);addCV(2011,'F','Braza',50,'00:39,47','A');addCV(2011,'F','Braza',50,'00:39,97','B');addCV(2012,'F','Braza',50,'00:40,50','A');addCV(2012,'F','Braza',50,'00:41,00','B');
+addCV(2013,'F','Braza',50,'00:43,45',null);addCV(2014,'F','Braza',50,'00:45,35',null);addCV('abs','F','Braza',100,'01:19,68',null);addCV(2008,'F','Braza',100,'01:20,99',null);addCV(2009,'F','Braza',100,'01:22,30',null);addCV(2010,'F','Braza',100,'01:23,82',null);addCV(2011,'F','Braza',100,'01:25,70','A');addCV(2011,'F','Braza',100,'01:27,20','B');
+addCV(2012,'F','Braza',100,'01:27,95','A');addCV(2012,'F','Braza',100,'01:29,45','B');addCV(2013,'F','Braza',100,'01:38,25',null);addCV(2014,'F','Braza',100,'01:43,21',null);addCV('abs','F','Braza',200,'02:52,40',null);addCV(2008,'F','Braza',200,'02:55,23',null);addCV(2009,'F','Braza',200,'02:58,06',null);addCV(2010,'F','Braza',200,'03:01,36',null);
+addCV(2011,'F','Braza',200,'03:05,42','A');addCV(2011,'F','Braza',200,'03:08,42','B');addCV(2012,'F','Braza',200,'03:10,29','A');addCV(2012,'F','Braza',200,'03:13,29','B');addCV(2013,'F','Braza',200,'03:32,45',null);addCV(2014,'F','Braza',200,'03:37,40',null);addCV('abs','F','Mariposa',50,'00:31,37',null);addCV(2008,'F','Mariposa',50,'00:32,01',null);
+addCV(2009,'F','Mariposa',50,'00:32,65',null);addCV(2010,'F','Mariposa',50,'00:33,48',null);addCV(2011,'F','Mariposa',50,'00:34,60','A');addCV(2011,'F','Mariposa',50,'00:35,10','B');addCV(2012,'F','Mariposa',50,'00:35,35','A');addCV(2012,'F','Mariposa',50,'00:35,85','B');addCV(2013,'F','Mariposa',50,'00:41,20',null);addCV(2014,'F','Mariposa',50,'00:44,15',null);
+addCV('abs','F','Mariposa',100,'01:09,80',null);addCV(2008,'F','Mariposa',100,'01:11,12',null);addCV(2009,'F','Mariposa',100,'01:12,44',null);addCV(2010,'F','Mariposa',100,'01:14,13',null);addCV(2011,'F','Mariposa',100,'01:16,28','A');addCV(2011,'F','Mariposa',100,'01:17,78','B');addCV(2012,'F','Mariposa',100,'01:18,91','A');addCV(2012,'F','Mariposa',100,'01:20,41','B');
+addCV(2013,'F','Mariposa',100,'01:31,73',null);addCV(2014,'F','Mariposa',100,'01:38,27',null);addCV('abs','F','Mariposa',200,'02:37,47',null);addCV(2008,'F','Mariposa',200,'02:40,59',null);addCV(2009,'F','Mariposa',200,'02:43,71',null);addCV(2010,'F','Mariposa',200,'02:47,84',null);addCV(2011,'F','Mariposa',200,'02:53,11','A');addCV(2011,'F','Mariposa',200,'02:56,11','B');
+addCV(2012,'F','Mariposa',200,'02:59,62','A');addCV(2012,'F','Mariposa',200,'03:02,62','B');addCV(2013,'F','Mariposa',200,'03:27,36',null);addCV(2014,'F','Mariposa',200,'03:36,00',null);addCV('abs','F','Estilos',200,'02:35,47',null);addCV(2008,'F','Estilos',200,'02:37,69',null);addCV(2009,'F','Estilos',200,'02:39,90',null);addCV(2010,'F','Estilos',200,'02:42,19',null);
+addCV(2011,'F','Estilos',200,'02:44,89','A');addCV(2011,'F','Estilos',200,'02:47,89','B');addCV(2012,'F','Estilos',200,'02:48,05','A');addCV(2012,'F','Estilos',200,'02:51,05','B');addCV(2013,'F','Estilos',200,'03:11,22',null);addCV(2014,'F','Estilos',200,'03:20,46',null);addCV('abs','F','Estilos',400,'05:29,96',null);addCV(2008,'F','Estilos',400,'05:34,15',null);
+addCV(2009,'F','Estilos',400,'05:38,35',null);addCV(2010,'F','Estilos',400,'05:42,16',null);addCV(2011,'F','Estilos',400,'05:46,49','A');addCV(2011,'F','Estilos',400,'05:51,49','B');addCV(2012,'F','Estilos',400,'05:51,36','A');addCV(2012,'F','Estilos',400,'05:56,36','B');addCV(2013,'F','Estilos',400,'06:45,22',null);addCV(2014,'F','Estilos',400,'06:50,53',null);
+
+function getCVMinima(ano,sexo,estilo,dist,nivel){
+  const k=getAnoKey(ano);
+  const key=nivel?`${k}-${sexo}-${estilo}-${dist}-${nivel}`:`${k}-${sexo}-${estilo}-${dist}`;
+  return CV_DB[key]??null;
+}
+
+// Comunidades cuyo club pertenece a la C.Valenciana (para activar mínima autonómica)
+function esClubComunidadValenciana(club){
+  if(!club)return false;
+  const cvClubs = CLUBES_ESPANA['Comunidad Valenciana']||[];
+  return cvClubs.some(c=>c.toUpperCase()===club.toUpperCase());
+}
+
 const DISTS = {Libres:[50,100,200,400,800,1500],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
 const DISTS_AL = {Libres:[50,100,200,400,800],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
 
@@ -593,6 +657,25 @@ function tdis(seg){
 }
 function penalizar(seg,dist){return cronoTipo==='manual'?seg+(dist===50?0.29:0.19):seg;}
 function showToast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.style.background=err?'#ef233c':'var(--verde)';el.style.color=err?'#fff':'#003d2e';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
+function calcularCVMinima(m){
+  // Solo para piscina 25m, clubes CV, cronometraje manual (mínimas autonómicas son en manual)
+  if(m.piscina!==25&&m.piscina!=='25')return null;
+  if(!esClubComunidadValenciana(m.club))return null;
+  const ano=m.ano_nacimiento;
+  const k=getAnoKey(ano);
+  // Infantil tiene nivel A y B
+  if(k===2011||k===2012){
+    const minA=getCVMinima(ano,m.sexo,m.estilo,m.distancia,'A');
+    const minB=getCVMinima(ano,m.sexo,m.estilo,m.distancia,'B');
+    if(minA&&m.tiempo_seg<=minA) return {nivel:'A',min:minA};
+    if(minB&&m.tiempo_seg<=minB) return {nivel:'B',min:minB};
+    return null;
+  }
+  const min=getCVMinima(ano,m.sexo,m.estilo,m.distancia,null);
+  if(min&&m.tiempo_seg<=min) return {nivel:null,min};
+  return null;
+}
+
 function marcaHtml(m,mostrarNombre=false,pos=null){
   let emoji,bc,bt;
   if(m.tiene_minima==='si'){emoji='🏆';bc='badge-si';bt='MÍNIMA ✓';}
@@ -600,7 +683,7 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   else{emoji='⚪';bc='badge-na';bt='N/A';}
   const posHtml=pos!==null?`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${pos<3?'var(--amarillo)':'rgba(90,107,125,.6)'};width:26px;flex-shrink:0;">${pos+1}</div>`:'';
   const nombre=mostrarNombre?`<div class="marca-prueba">${m.nombre_nadador} · ${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`:`<div class="marca-prueba">${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`;
-  // Calcular diferencia con mínima
+  // Calcular diferencia con mínima nacional
   let difStr='';
   if(m.minima_display){
     const minSeg=getDBMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,m.piscina);
@@ -610,11 +693,18 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
       else difStr=` · le faltan ${dif.toFixed(2)}s`;
     }
   }
+  // Badge mínima autonómica CV
+  let badgeCV='';
+  const cvResult=calcularCVMinima(m);
+  if(cvResult){
+    const labelCV=cvResult.nivel?`CV-MÍN ${cvResult.nivel}`:'CV-MÍN';
+    badgeCV=`<span style="display:inline-block;background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:2px 7px;font-size:9px;font-weight:700;margin-left:4px;">${labelCV}</span>`;
+  }
   const meta=mostrarNombre
     ?`${m.club} · ${getCatLabel(m.ano_nacimiento)} · ${m.fecha||''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`
     :`${m.fecha||''}${m.competicion?' · '+m.competicion:''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`;
   const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${m.id}')" style="background:none;border:none;color:rgba(26,26,46,.18);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
-  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
+  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}${badgeCV}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
 }
 
 // -- AUTH -------------------------------------------------
@@ -875,8 +965,39 @@ function calcularPreview(){
   const penStr=cronoTipo==='manual'?` (+${di===50?'0,29':'0,19'}s manual)`:'';
   prev.classList.add('visible');
   if(min===null){prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='⚪';document.getElementById('prevTexto').textContent='SIN MÍNIMA EN TU CATEGORÍA';document.getElementById('prevDetalle').textContent='Esta prueba no tiene mínima nacional para ti';}
-  else if(tPen<=min){prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='🏆';document.getElementById('prevTexto').textContent='¡MÍNIMA NACIONAL!';document.getElementById('prevDetalle').textContent=`La superas por ${(min-tPen).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;}
-  else{prev.className='resultado-preview visible no';document.getElementById('prevEmoji').textContent='💪';document.getElementById('prevTexto').textContent='TODAVÍA NO, ¡SIGUE!';document.getElementById('prevDetalle').textContent=`Te faltan ${(tPen-min).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;}
+  else if(tPen<=min){
+    // Verificar también si tiene mínima CV (solo 25m y club CV)
+    let cvTxt='';
+    if(pi===25&&esClubComunidadValenciana(usuario?.club)){
+      const k=getAnoKey(usuario.ano);
+      if(k===2011||k===2012){
+        const minCVA=getCVMinima(usuario.ano,usuario.sexo,es,di,'A');
+        const minCVB=getCVMinima(usuario.ano,usuario.sexo,es,di,'B');
+        if(minCVA&&tPen<=minCVA) cvTxt=' + 🟠 CV-MÍN A';
+        else if(minCVB&&tPen<=minCVB) cvTxt=' + 🟠 CV-MÍN B';
+      } else {
+        const minCV=getCVMinima(usuario.ano,usuario.sexo,es,di,null);
+        if(minCV&&tPen<=minCV) cvTxt=' + 🟠 CV-MÍN';
+      }
+    }
+    prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='🏆';document.getElementById('prevTexto').textContent='¡MÍNIMA NACIONAL!'+cvTxt;document.getElementById('prevDetalle').textContent=`La superas por ${(min-tPen).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;
+  } else {
+    // Sin mínima nacional - comprobar CV igualmente
+    let cvTxt='';
+    if(pi===25&&esClubComunidadValenciana(usuario?.club)){
+      const k=getAnoKey(usuario.ano);
+      if(k===2011||k===2012){
+        const minCVA=getCVMinima(usuario.ano,usuario.sexo,es,di,'A');
+        const minCVB=getCVMinima(usuario.ano,usuario.sexo,es,di,'B');
+        if(minCVA&&tPen<=minCVA) cvTxt='🟠 CV-MÍN A conseguida! ';
+        else if(minCVB&&tPen<=minCVB) cvTxt='🟠 CV-MÍN B conseguida! ';
+      } else {
+        const minCV=getCVMinima(usuario.ano,usuario.sexo,es,di,null);
+        if(minCV&&tPen<=minCV) cvTxt='🟠 CV-MÍN conseguida! ';
+      }
+    }
+    prev.className='resultado-preview visible no';document.getElementById('prevEmoji').textContent=cvTxt?'🟠':'💪';document.getElementById('prevTexto').textContent=cvTxt||'TODAVÍA NO, ¡SIGUE!';document.getElementById('prevDetalle').textContent=`Te faltan ${(tPen-min).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;
+  }
 }
 async function guardarMarca(){
   const es=document.getElementById('fEstilo').value;
@@ -960,6 +1081,7 @@ async function cargarRanking(){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
         <div class="ranking-tiempo">${m.tiempo_display}</div>
         ${m.tiene_minima==='si'?'<span class="marca-badge badge-si" style="font-size:8px;">MÍN ✓</span>':''}
+        ${(()=>{if(m.piscina!==25&&m.piscina!=='25')return '';if(!esClubComunidadValenciana(m.club))return '';const k=getAnoKey(m.ano_nacimiento);let cvr=null;if(k===2011||k===2012){const mA=getCVMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,'A');const mB=getCVMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,'B');if(mA&&m.tiempo_seg<=mA)cvr='A';else if(mB&&m.tiempo_seg<=mB)cvr='B';}else{const mC=getCVMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,null);if(mC&&m.tiempo_seg<=mC)cvr='';}if(cvr===null)return '';return `<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:1px 5px;font-size:8px;font-weight:700;">CV${cvr?'-'+cvr:''}</span>`;})()}
       </div>
     </div>`;
   }).join('');
