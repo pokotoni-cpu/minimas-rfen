@@ -278,11 +278,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1710,21 +1710,37 @@ async function abrirPerfilNadadorLive(athleteId){
       const resultados=await Promise.allSettled(
         lote.map(ev=>{
           const eid=ev.id||ev.eid;
+          // Intentar results primero, si no hay datos buscar en heats (inscripciones)
           return fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`)
-            .then(r=>r.json()).then(data=>({ev,data})).catch(()=>null);
+            .then(r=>r.json())
+            .then(async data=>{
+              let todosR=[];
+              if(Array.isArray(data.agegroups)){
+                data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) todosR.push(...ag.results); });
+              } else if(Array.isArray(data.results)){
+                todosR=data.results;
+              } else if(Array.isArray(data)){
+                todosR=data;
+              }
+              // Si no hay resultados, buscar en heats (inscripciones previas)
+              if(!todosR.length){
+                try{
+                  const heatData=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/heats/${eid}.json?t=${Date.now()}`).then(r=>r.json());
+                  const heats=Array.isArray(heatData.heats)?heatData.heats:[];
+                  heats.forEach(h=>{
+                    (h.entries||[]).forEach(e=>{
+                      todosR.push({...e, swimtime:'', place:-1, _soloInscrito:true});
+                    });
+                  });
+                }catch(e2){}
+              }
+              return {ev, todosR};
+            }).catch(()=>null);
         })
       );
       resultados.forEach(res=>{
         if(res.status!=='fulfilled'||!res.value)return;
-        const {ev,data}=res.value;
-        let todosR=[];
-        if(Array.isArray(data.agegroups)){
-          data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) todosR.push(...ag.results); });
-        } else if(Array.isArray(data.results)){
-          todosR=data.results;
-        } else if(Array.isArray(data)){
-          todosR=data;
-        }
+        const {ev,todosR}=res.value;
         const miResultado = todosR.find(r=>String(r.athleteid)===String(athleteId)||String(r.uniqueid)===String(athleteId));
         if(miResultado) pruebasNadador.push({ev, r:miResultado});
       });
@@ -1754,10 +1770,11 @@ async function abrirPerfilNadadorLive(athleteId){
 function renderPruebaNadadorCard(ev,r){
   const nombreEv=getNombreEvento(ev);
   const agStr=getAgegroupStr(ev);
+  const soloInscrito=r._soloInscrito||false;
   const pos=r.place&&r.place>0?r.place:null;
 
   const swimRaw=String(r.swimtime||'').replace(',','.');
-  const tieneTiempo = swimRaw && parseFloat(swimRaw)>0;
+  const tieneTiempo = !soloInscrito && swimRaw && parseFloat(swimRaw)>0;
   const swimSeg=tieneTiempo?parsearTiempoSeg(r.swimtime):0;
   const tiempoFinal=tieneTiempo?formatTiempoLive(swimSeg*100):null;
 
@@ -1796,7 +1813,7 @@ function renderPruebaNadadorCard(ev,r){
 
   const posHtml = pos
     ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${pos===1?'var(--amarillo)':pos===2?'#c0c0c0':pos===3?'#cd7f32':'var(--agua-light)'};">#${pos}</div>`
-    : `<div style="font-size:11px;color:rgba(90,107,125,.6);">Sin resultado</div>`;
+    : `<div style="font-size:11px;color:rgba(90,107,125,.6);">${soloInscrito?'📋 Inscrito':'Sin resultado'}</div>`;
 
   return `<div class="card" style="margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
@@ -1807,9 +1824,10 @@ function renderPruebaNadadorCard(ev,r){
       ${posHtml}
     </div>
     <div style="display:flex;gap:14px;align-items:center;margin-top:6px;">
-      ${entryStr?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">Inscripción</div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${entryStr}</div></div>`:''}
+      ${entryStr?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">${soloInscrito?'Marca inscripción':'Inscripción'}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:${soloInscrito?'18px':'16px'};color:${soloInscrito?'var(--agua-light)':'inherit'};">${entryStr}</div></div>`:''}
       ${tiempoFinal?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">Resultado</div><div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);">${tiempoFinal}</div></div>`:''}
       ${mejoraHtml?`<div style="margin-left:auto;font-size:12px;">${mejoraHtml}</div>`:''}
+      ${soloInscrito&&r.lane?`<div style="margin-left:auto;font-size:11px;color:rgba(90,107,125,.6);">Calle ${r.lane}</div>`:''}
     </div>
     ${parcialesHtml}
   </div>`;
