@@ -1793,6 +1793,40 @@ function renderPruebaNadadorCard(ev,r){
       : `<span style="color:#ff6b81;font-weight:600;">▲ ${diff.toFixed(2)}s peor</span>`;
   }
 
+  // Serie y calle
+  const serieInfo = r.heatinfo?.code ? `Serie ${r.heatinfo.code}${r.lane?' · Calle '+r.lane:''}` : (r.lane?`Calle ${r.lane}`:'');
+
+  // Mínimas si tiene tiempo
+  let badgesMinima='';
+  if(tieneTiempo&&swimSeg>0&&usuario){
+    const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid)||getNombreEvento(ev).split(' ')[1];
+    const piscina=liveCompeticionCourse===1?50:25;
+    const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
+    const distNum=parseInt(distRaw)||0;
+    const anoNad=r.agetext||usuario.ano||'abs';
+    const sexoNad=(r.gender==='2'||r.gender===2)?'F':'M';
+    // Mínima nacional
+    if(distNum>0){
+      const minNac=getDBMinima(anoNad,sexoNad,estiloApp,distNum,piscina);
+      if(minNac&&swimSeg<=minNac){
+        badgesMinima+=`<span style="background:rgba(6,169,110,.15);border:1px solid rgba(6,169,110,.4);color:var(--verde);border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;margin-right:4px;">✓ MÍN NAC</span>`;
+      }
+      // Mínima autonómica CV (solo 25m)
+      if(piscina===25&&usuario&&esClubComunidadValenciana(usuario.club)){
+        const k=getAnoKey(anoNad);
+        if(k===2011||k===2012){
+          const mA=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'A');
+          const mB=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'B');
+          if(mA&&swimSeg<=mA) badgesMinima+=`<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;">🟠 CV-MÍN A</span>`;
+          else if(mB&&swimSeg<=mB) badgesMinima+=`<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;">🟠 CV-MÍN B</span>`;
+        } else {
+          const mCV=getCVMinima(anoNad,sexoNad,estiloApp,distNum,null);
+          if(mCV&&swimSeg<=mCV) badgesMinima+=`<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;">🟠 CV-MÍN</span>`;
+        }
+      }
+    }
+  }
+
   // Parciales
   let parcialesHtml='';
   if(r.splits&&typeof r.splits==='object'){
@@ -1819,10 +1853,11 @@ function renderPruebaNadadorCard(ev,r){
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
       <div>
         <div style="font-weight:700;font-size:14px;">${nombreEv}</div>
-        <div style="font-size:10px;color:rgba(90,107,125,.6);">${agStr}${ev.time?' · '+ev.time+'h':''}${ev.date?' · '+ev.date:''}</div>
+        <div style="font-size:10px;color:rgba(90,107,125,.6);">${agStr}${ev.time?' · '+ev.time+'h':''}${ev.date?' · '+ev.date:''}${serieInfo?' · '+serieInfo:''}</div>
       </div>
       ${posHtml}
     </div>
+    ${badgesMinima?`<div style="margin-bottom:6px;">${badgesMinima}</div>`:''}
     <div style="display:flex;gap:14px;align-items:center;margin-top:6px;">
       ${entryStr?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">${soloInscrito?'Marca inscripción':'Inscripción'}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:${soloInscrito?'18px':'16px'};color:${soloInscrito?'var(--agua-light)':'inherit'};">${entryStr}</div></div>`:''}
       ${tiempoFinal?`<div><div style="font-size:9px;color:rgba(90,107,125,.6);">Resultado</div><div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);">${tiempoFinal}</div></div>`:''}
