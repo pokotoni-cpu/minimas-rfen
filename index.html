@@ -1772,7 +1772,7 @@ async function abrirPerfilNadadorLive(athleteId){
                   const heats=Array.isArray(heatData.heats)?heatData.heats:[];
                   heats.forEach(h=>{
                     (h.entries||[]).forEach(e=>{
-                      todosR.push({...e, swimtime:'', place:-1, _soloInscrito:true});
+                      todosR.push({...e, heatinfo:h.heatinfo, swimtime:'', place:-1, _soloInscrito:true});
                     });
                   });
                 }catch(e2){}
@@ -1906,7 +1906,7 @@ function renderPruebaNadadorCard(ev,r){
       ${entryStr?`<div><div style="font-size:15px;color:rgba(90,107,125,.6);">${soloInscrito?'Marca inscripción':'Inscripción'}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:${soloInscrito?'18px':'16px'};color:${soloInscrito?'var(--agua-light)':'inherit'};">${entryStr}</div></div>`:''}
       ${tiempoFinal?`<div><div style="font-size:15px;color:rgba(90,107,125,.6);">Resultado</div><div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);">${tiempoFinal}</div></div>`:''}
       ${mejoraHtml?`<div style="margin-left:auto;font-size:14px;">${mejoraHtml}</div>`:''}
-      ${soloInscrito&&r.lane?`<div style="margin-left:auto;font-size:15px;color:rgba(90,107,125,.6);">Calle ${r.lane}</div>`:''}
+
     </div>
     ${parcialesHtml}
   </div>`;
