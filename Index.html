@@ -265,6 +265,21 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
     <!-- MARCAS (nadador) / EQUIPO (entrenador) -->
     <div class="screen active" id="screenMarcas">
       <div class="section-title" id="titleMarcas">Mis Marcas</div>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <select class="input-field" id="misMarcasEstilo" onchange="renderMarcas()" style="font-size:14px;">
+          <option value="">Todos los estilos</option>
+          <option>Libres</option><option>Espalda</option><option>Braza</option><option>Mariposa</option><option>Estilos</option>
+        </select>
+        <select class="input-field" id="misMarcasDist" onchange="renderMarcas()" style="font-size:14px;">
+          <option value="">Todas las dist.</option>
+          <option>50</option><option>100</option><option>200</option><option>400</option><option>800</option><option>1500</option>
+        </select>
+        <select class="input-field" id="misMarcasOrden" onchange="renderMarcas()" style="font-size:14px;">
+          <option value="reciente">Más recientes</option>
+          <option value="prueba">Por prueba</option>
+          <option value="minima">Con mínima primero</option>
+        </select>
+      </div>
       <div id="listaMarcas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
     </div>
 
@@ -876,7 +891,34 @@ async function cargarMisMarcase(){
 function renderMarcas(){
   const lista=document.getElementById('listaMarcas');
   if(!misMarcase.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Aún no has registrado ninguna marca.</div></div>';return;}
-  lista.innerHTML=misMarcase.map(m=>marcaHtml(m)).join('');
+
+  const estiloSel=document.getElementById('misMarcasEstilo')?.value||'';
+  const distSel=document.getElementById('misMarcasDist')?.value||'';
+  const ordenSel=document.getElementById('misMarcasOrden')?.value||'reciente';
+
+  let filtradas=misMarcase.filter(m=>{
+    if(estiloSel&&m.estilo!==estiloSel)return false;
+    if(distSel&&String(m.distancia)!==distSel)return false;
+    return true;
+  });
+
+  if(ordenSel==='prueba'){
+    const ordEstilo=['Libres','Espalda','Braza','Mariposa','Estilos'];
+    filtradas.sort((a,b)=>{
+      const ea=ordEstilo.indexOf(a.estilo), eb=ordEstilo.indexOf(b.estilo);
+      if(ea!==eb)return ea-eb;
+      return (a.distancia||0)-(b.distancia||0);
+    });
+  } else if(ordenSel==='minima'){
+    filtradas.sort((a,b)=>{
+      const pa=a.tiene_minima==='si'?0:1, pb=b.tiene_minima==='si'?0:1;
+      return pa-pb;
+    });
+  }
+  // 'reciente' ya viene ordenado de cargarMisMarcase (order by fecha desc)
+
+  if(!filtradas.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin marcas para este filtro</div></div>';return;}
+  lista.innerHTML=filtradas.map(m=>marcaHtml(m)).join('');
 }
 
 // -- MARCAS EQUIPO (entrenador) ----------------------------
