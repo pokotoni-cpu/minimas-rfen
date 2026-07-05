@@ -380,6 +380,10 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:15px;color:#3d4a58;">
         👤 <span id="minimasCategoria" style="color:var(--agua-light);font-weight:600;"></span>
       </div>
+      <div class="tabs" style="margin-bottom:10px;">
+        <button class="tab-btn active" id="tabMiniNac" onclick="setTabMinimas('nac',this)">🇪🇸 Nacional</button>
+        <button class="tab-btn" id="tabMiniCV" onclick="setTabMinimas('cv',this)">🟠 C. Valenciana</button>
+      </div>
       <div class="estilos-btns">
         <button class="estilo-btn active" onclick="filtrarEstilo('Libres',this)">🏊 Libres</button>
         <button class="estilo-btn" onclick="filtrarEstilo('Espalda',this)">🔄 Espalda</button>
@@ -387,7 +391,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="estilo-btn" onclick="filtrarEstilo('Mariposa',this)">🦋 Mariposa</button>
         <button class="estilo-btn" onclick="filtrarEstilo('Estilos',this)">⚡ Estilos</button>
       </div>
-      <div class="piscina-toggle" style="margin-bottom:10px;">
+      <div id="minimasPiscinaWrap" class="piscina-toggle" style="margin-bottom:10px;">
         <button class="piscina-btn active" onclick="filtrarPiscina(50,this)">🏟️ 50m</button>
         <button class="piscina-btn" onclick="filtrarPiscina(25,this)">🏊 25m</button>
       </div>
@@ -1068,6 +1072,17 @@ async function guardarMarca(){
 }
 
 // -- MÍNIMAS ----------------------------------------------
+let tabMinimas = 'nac'; // 'nac' o 'cv'
+
+function setTabMinimas(tab, btn){
+  tabMinimas = tab;
+  document.querySelectorAll('#screenMinimas .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // Solo mostrar selector de piscina en mínimas nacionales
+  document.getElementById('minimasPiscinaWrap').style.display = tab==='nac'?'flex':'none';
+  renderMinimas();
+}
+
 function renderMinimas(){
   if(!usuario)return;
   const lista=document.getElementById('listaMinimas');
@@ -1079,10 +1094,34 @@ function renderMinimas(){
   const esAl=(ano==='2013'||ano==='2014');
   const dists=(esAl?DISTS_AL:DISTS)[filtroEstilo]||[];
   if(!dists.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin mínimas</div></div>';return;}
-  lista.innerHTML=dists.map(d=>{
-    const seg=getDBMinima(ano,sexo,filtroEstilo,d,filtroPiscina);
-    return `<div class="minima-row"><div class="minima-dist">${d}m</div>${seg?`<div class="minima-tiempo">${tdis(seg)}</div>`:`<div class="minima-tiempo minima-na">Sin mínima</div>`}</div>`;
-  }).join('');
+
+  if(tabMinimas==='nac'){
+    // Tabla mínimas nacionales
+    lista.innerHTML=dists.map(d=>{
+      const seg=getDBMinima(ano,sexo,filtroEstilo,d,filtroPiscina);
+      return `<div class="minima-row"><div class="minima-dist">${d}m</div>${seg?`<div class="minima-tiempo">${tdis(seg)}</div>`:`<div class="minima-tiempo minima-na">Sin mínima</div>`}</div>`;
+    }).join('');
+  } else {
+    // Tabla mínimas autonómicas CV - solo 25m, Infantil tiene A y B
+    const k=getAnoKey(ano);
+    const esInfantil=(k===2011||k===2012);
+    lista.innerHTML=`<div style="font-size:13px;color:rgba(90,107,125,.6);margin-bottom:8px;">Piscina 25m · Cronometraje manual · Temporada 25/26</div>` +
+    dists.map(d=>{
+      if(esInfantil){
+        const segA=getCVMinima(ano,sexo,filtroEstilo,d,'A');
+        const segB=getCVMinima(ano,sexo,filtroEstilo,d,'B');
+        if(!segA&&!segB) return `<div class="minima-row"><div class="minima-dist">${d}m</div><div class="minima-tiempo minima-na">Sin mínima</div></div>`;
+        return `<div class="minima-row" style="flex-wrap:wrap;gap:4px;">
+          <div class="minima-dist">${d}m</div>
+          ${segA?`<div style="display:flex;flex-direction:column;align-items:center;gap:1px;"><div class="minima-tiempo">${tdis(segA)}</div><div style="font-size:11px;color:#e08800;font-weight:700;">MÍN A</div></div>`:''}
+          ${segB?`<div style="display:flex;flex-direction:column;align-items:center;gap:1px;"><div class="minima-tiempo" style="color:#3d4a58;">${tdis(segB)}</div><div style="font-size:11px;color:rgba(90,107,125,.6);font-weight:700;">MÍN B</div></div>`:''}
+        </div>`;
+      } else {
+        const seg=getCVMinima(ano,sexo,filtroEstilo,d,null);
+        return `<div class="minima-row"><div class="minima-dist">${d}m</div>${seg?`<div class="minima-tiempo">${tdis(seg)}</div>`:`<div class="minima-tiempo minima-na">Sin mínima</div>`}</div>`;
+      }
+    }).join('');
+  }
 }
 
 // -- RANKING ----------------------------------------------
