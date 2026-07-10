@@ -1439,15 +1439,43 @@ async function cargarPruebasClub(atletas){
           const pos=r.place&&r.place>0?`#${r.place}`:'—';
           const entSeg=parsearTiempoSeg(r.entrytime||'');
           const swimSeg=parsearTiempoSeg(r.swimtime||'');
-          const entStr=entSeg<999999?formatTiempoLive(entSeg*100):'—';
-          const swimStr=r._soloInscrito||!r.swimtime?'—':formatTiempoLive(swimSeg*100);
+          const piscinaIns=(r.entrycourse==='1'||r.entrycourse===1)?'50m':'25m';
+          const piscinaComp=liveCompeticionCourse===1?'50m':'25m';
+          const entStr=entSeg<999999?`${formatTiempoLive(entSeg*100)} <span style="font-size:11px;color:rgba(90,107,125,.5);">(${piscinaIns})</span>`:'—';
+          const swimStr=r._soloInscrito||!r.swimtime?'—':`${formatTiempoLive(swimSeg*100)} <span style="font-size:11px;color:rgba(90,107,125,.5);">(${piscinaComp})</span>`;
           const mejora=(!r._soloInscrito&&swimSeg<999999&&entSeg<999999)?(swimSeg-entSeg):null;
           const mejoraStr=mejora!==null?(mejora<=0?`<span style="color:var(--verde);">▼${Math.abs(mejora).toFixed(2)}s</span>`:`<span style="color:#ff6b81;">▲${mejora.toFixed(2)}s</span>`):'';
+          // Mínimas
+          let minimaStr='';
+          if(!r._soloInscrito&&swimSeg<999999){
+            const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
+            const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
+            const distNum=parseInt(distRaw)||0;
+            const anoNad=r.agetext||'abs';
+            const sexoNad=(r.gender==='2'||r.gender===2)?'F':'M';
+            const piscinaNum=liveCompeticionCourse===1?50:25;
+            if(distNum>0){
+              const minNac=getDBMinima(anoNad,sexoNad,estiloApp,distNum,piscinaNum);
+              if(minNac&&swimSeg<=minNac) minimaStr+='<span style="background:rgba(6,169,110,.15);border:1px solid rgba(6,169,110,.4);color:var(--verde);border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">✓ NAC</span>';
+              if(piscinaNum===25&&usuario&&esClubComunidadValenciana(usuario.club)){
+                const k=getAnoKey(anoNad);
+                if(k===2011||k===2012){
+                  const mA=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'A');
+                  const mB=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'B');
+                  if(mA&&swimSeg<=mA) minimaStr+='<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">CV-A</span>';
+                  else if(mB&&swimSeg<=mB) minimaStr+='<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">CV-B</span>';
+                } else {
+                  const mCV=getCVMinima(anoNad,sexoNad,estiloApp,distNum,null);
+                  if(mCV&&swimSeg<=mCV) minimaStr+='<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">CV</span>';
+                }
+              }
+            }
+          }
           return `<tr style="border-top:1px solid var(--card-border);">
             <td style="padding:5px 6px;font-weight:600;">${nombreEv}</td>
             <td style="padding:5px 6px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:${r.place===1?'var(--amarillo)':r.place===2?'#c0c0c0':r.place===3?'#cd7f32':'var(--agua-light)'};">${pos}</td>
             <td style="padding:5px 6px;text-align:right;color:rgba(90,107,125,.7);">${entStr}</td>
-            <td style="padding:5px 6px;text-align:right;font-weight:600;">${swimStr} ${mejoraStr}</td>
+            <td style="padding:5px 6px;text-align:right;font-weight:600;">${swimStr} ${mejoraStr}${minimaStr}</td>
           </tr>`;
         }).join('')}
       </table>`;
