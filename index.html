@@ -293,11 +293,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1320,6 +1320,8 @@ function cambiarVistaPrincipal(vista, btn){
   }
 }
 
+let clubGeneroFiltro = '1'; // '1'=Masc, '2'=Fem, 'R'=Relevos
+
 function renderVistaNadadoresClub(){
   document.getElementById('liveSubHeader').style.display='none';
   document.getElementById('liveTabs').style.display='none';
@@ -1328,6 +1330,7 @@ function renderVistaNadadoresClub(){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se ha detectado tu club en esta competición</div></div>';
     return;
   }
+
   const atletasClub = Object.entries(liveAtletasData)
     .filter(([id,a])=>String(a.clubid)===String(liveMiClubCode))
     .map(([id,a])=>({id,...a}))
@@ -1338,20 +1341,118 @@ function renderVistaNadadoresClub(){
     return;
   }
 
-  cont.innerHTML=`<div style="font-size:15px;color:rgba(90,107,125,.8);margin-bottom:10px;">${atletasClub.length} nadadores de ${usuario.club} inscritos</div>` +
-    atletasClub.map(a=>{
+  const masc=atletasClub.filter(a=>a.gender==='1');
+  const fem=atletasClub.filter(a=>a.gender==='2');
+
+  // Tabs Masculino / Femenino / Relevos
+  const tabs=`<div class="tabs" style="margin-bottom:12px;">
+    <button class="tab-btn${clubGeneroFiltro==='1'?' active':''}" onclick="setClubGenero('1',this)">♂ Masculino (${masc.length})</button>
+    <button class="tab-btn${clubGeneroFiltro==='2'?' active':''}" onclick="setClubGenero('2',this)">♀ Femenino (${fem.length})</button>
+    <button class="tab-btn${clubGeneroFiltro==='R'?' active':''}" onclick="setClubGenero('R',this)">🔄 Relevos</button>
+  </div>`;
+
+  let contenido='';
+  if(clubGeneroFiltro==='R'){
+    // Mostrar relevos del club de la competición
+    const relevos = liveEventosData.filter(e=>e.isrelay||(e.stylename&&e.stylename.toLowerCase().includes('rele')));
+    if(!relevos.length){
+      contenido='<div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-text">No hay relevos en esta competición</div></div>';
+    } else {
+      contenido=relevos.map(ev=>`<div class="live-card" onclick="abrirPrueba('${ev.id||ev.eid}')">
+        <div style="font-weight:600;font-size:15px;">${getNombreEvento(ev)}</div>
+        <div style="font-size:13px;color:rgba(90,107,125,.6);">${getAgegroupStr(ev)}</div>
+      </div>`).join('');
+    }
+  } else {
+    const lista = clubGeneroFiltro==='1'?masc:fem;
+    // Cargar resultados de todos los eventos para cada nadador del club
+    contenido = lista.map(a=>{
       const nombre = a.lastname?`${a.lastname}, ${a.firstname}`:(a.fullname||'—');
-      const genStr = a.gender==='1'?'M':a.gender==='2'?'F':'';
-      return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${a.id}')">
-        <div class="nadador-header">
-          <div class="nadador-avatar">🏊</div>
-          <div style="flex:1;">
-            <div class="nadador-nombre">${nombre}</div>
-            <div class="nadador-sub">${a.yob||''}${genStr?' · '+genStr:''}</div>
-          </div>
+      // Buscar sus pruebas en liveEventosData (necesitamos hacer la carga async, pero aquí mostramos la tarjeta)
+      return `<div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;" onclick="abrirPerfilNadadorLive('${a.id}')">
+          <div style="font-weight:700;font-size:16px;color:var(--agua-light);">${nombre}</div>
+          <div style="font-size:13px;color:rgba(90,107,125,.6);">${a.yob||''}</div>
         </div>
+        <div id="pruebas_${a.id}"><div style="font-size:13px;color:rgba(90,107,125,.5);">Cargando pruebas...</div></div>
       </div>`;
-    }).join('');
+    }).join('<hr style="border:none;border-top:1px solid var(--card-border);margin:4px 0 12px;">');
+  }
+
+  cont.innerHTML=`<div style="font-size:13px;color:rgba(90,107,125,.6);margin-bottom:10px;">${atletasClub.length} nadadores inscritos</div>${tabs}${contenido}`;
+
+  // Cargar pruebas de cada nadador en paralelo
+  if(clubGeneroFiltro!=='R'){
+    const lista = clubGeneroFiltro==='1'?masc:fem;
+    cargarPruebasClub(lista);
+  }
+}
+
+function setClubGenero(gen, btn){
+  clubGeneroFiltro=gen;
+  renderVistaNadadoresClub();
+}
+
+async function cargarPruebasClub(atletas){
+  // Cargar heats/results de todos los eventos y filtrar por atleta
+  const BATCH=10;
+  const evIds=liveEventosData.filter(e=>!e.isrelay);
+  const resultadosPorAtleta={};
+  atletas.forEach(a=>resultadosPorAtleta[a.id]=[]);
+
+  for(let i=0;i<evIds.length;i+=BATCH){
+    const lote=evIds.slice(i,i+BATCH);
+    await Promise.allSettled(lote.map(async ev=>{
+      const eid=ev.id||ev.eid;
+      try{
+        const data=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`).then(r=>r.json());
+        let todosR=[];
+        if(Array.isArray(data.agegroups)){
+          data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) todosR.push(...ag.results); });
+        }
+        // Si no hay resultados, buscar en heats
+        if(!todosR.length){
+          const hData=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/heats/${eid}.json?t=${Date.now()}`).then(r=>r.json()).catch(()=>({heats:[]}));
+          (hData.heats||[]).forEach(h=>(h.entries||[]).forEach(e=>todosR.push({...e,heatinfo:h.heatinfo,swimtime:'',_soloInscrito:true})));
+        }
+        atletas.forEach(a=>{
+          const r=todosR.find(x=>String(x.athleteid)===String(a.id)||String(x.uniqueid)===String(a.id));
+          if(r) resultadosPorAtleta[a.id].push({ev,r});
+        });
+      }catch(e){}
+    }));
+    // Actualizar UI parcialmente después de cada lote
+    atletas.forEach(a=>{
+      const el=document.getElementById(`pruebas_${a.id}`);
+      if(!el)return;
+      const pruebas=resultadosPorAtleta[a.id];
+      if(!pruebas.length){el.innerHTML=`<div style="font-size:13px;color:rgba(90,107,125,.4);">Sin pruebas encontradas aún...</div>`;return;}
+      el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tr style="color:rgba(90,107,125,.6);font-size:12px;">
+          <td style="padding:3px 6px;">Prueba</td>
+          <td style="padding:3px 6px;text-align:center;">Pos.</td>
+          <td style="padding:3px 6px;text-align:right;">Inscripción</td>
+          <td style="padding:3px 6px;text-align:right;">Resultado</td>
+        </tr>
+        ${pruebas.map(({ev,r})=>{
+          const nombreEv=getNombreEvento(ev);
+          const pos=r.place&&r.place>0?`#${r.place}`:'—';
+          const entSeg=parsearTiempoSeg(r.entrytime||'');
+          const swimSeg=parsearTiempoSeg(r.swimtime||'');
+          const entStr=entSeg<999999?formatTiempoLive(entSeg*100):'—';
+          const swimStr=r._soloInscrito||!r.swimtime?'—':formatTiempoLive(swimSeg*100);
+          const mejora=(!r._soloInscrito&&swimSeg<999999&&entSeg<999999)?(swimSeg-entSeg):null;
+          const mejoraStr=mejora!==null?(mejora<=0?`<span style="color:var(--verde);">▼${Math.abs(mejora).toFixed(2)}s</span>`:`<span style="color:#ff6b81;">▲${mejora.toFixed(2)}s</span>`):'';
+          return `<tr style="border-top:1px solid var(--card-border);">
+            <td style="padding:5px 6px;font-weight:600;">${nombreEv}</td>
+            <td style="padding:5px 6px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:${r.place===1?'var(--amarillo)':r.place===2?'#c0c0c0':r.place===3?'#cd7f32':'var(--agua-light)'};">${pos}</td>
+            <td style="padding:5px 6px;text-align:right;color:rgba(90,107,125,.7);">${entStr}</td>
+            <td style="padding:5px 6px;text-align:right;font-weight:600;">${swimStr} ${mejoraStr}</td>
+          </tr>`;
+        }).join('')}
+      </table>`;
+    });
+  }
 }
 
 async function abrirCompeticion(id, nombre){
