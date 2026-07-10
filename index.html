@@ -662,8 +662,51 @@ let filtroEstilo='Libres', filtroPiscina=50, cronoTipo='electronico';
 let rankingScope='todos', equipoScope='club';
 
 // -- HELPERS ----------------------------------------------
-function getAnoKey(ano){const a=parseInt(ano);if(!a||a<=2005||ano==='abs')return 'abs';return a;}
-function getCatLabel(ano){const a=parseInt(ano);if(ano==='abs'||a<=2005)return 'Absoluto';if(a===2006||a===2007)return `Sub20 (${ano})`;if(a>=2008&&a<=2010)return `Junior ${ano}`;if(a>=2011&&a<=2012)return `Infantil ${ano}`;if(a>=2013&&a<=2014)return `Alevín ${ano}`;return ano;}
+// Temporada activa: se calcula automáticamente (oct-ago)
+// En septiembre u octubre ya es la nueva temporada
+function getTemporadaActual(){
+  const hoy=new Date();
+  const mes=hoy.getMonth()+1; // 1-12
+  const anyo=hoy.getFullYear();
+  // Temporada empieza en septiembre: sep-dic del año X y ene-ago del año X+1
+  return mes>=9 ? anyo : anyo-1;
+}
+
+// Devuelve el rango de años de nacimiento para cada categoría en la temporada actual
+function getRangosCategoria(){
+  const t=getTemporadaActual(); // ej: 2026 para temporada 26/27
+  return {
+    abs:    {hasta: t-21},          // nacidos hasta año t-21 (≥21 años)
+    sub20:  {desde: t-19, hasta: t-18}, // 18-19 años
+    junior: {desde: t-17, hasta: t-15}, // 15-17 años
+    infantil:{desde: t-14, hasta: t-13},// 13-14 años
+    alevin: {desde: t-12, hasta: t-11}, // 11-12 años
+    benjamin:{desde: t-10, hasta: t-9}, // 9-10 años
+  };
+}
+
+function getAnoKey(ano){
+  const a=parseInt(ano);
+  if(!a||ano==='abs')return 'abs';
+  const r=getRangosCategoria();
+  // Mantenemos la clave por año de nacimiento para la DB de mínimas
+  // Solo mapeamos a 'abs' si es mayor de absoluto
+  if(a<=r.abs.hasta)return 'abs';
+  return a;
+}
+
+function getCatLabel(ano){
+  const a=parseInt(ano);
+  if(isNaN(a)||ano==='abs')return 'Absoluto';
+  const r=getRangosCategoria();
+  if(a<=r.abs.hasta)return 'Absoluto';
+  if(a>=r.sub20.desde&&a<=r.sub20.hasta)return `Sub20 (${ano})`;
+  if(a>=r.junior.desde&&a<=r.junior.hasta)return `Junior ${ano}`;
+  if(a>=r.infantil.desde&&a<=r.infantil.hasta)return `Infantil ${ano}`;
+  if(a>=r.alevin.desde&&a<=r.alevin.hasta)return `Alevín ${ano}`;
+  if(a>=r.benjamin.desde&&a<=r.benjamin.hasta)return `Benjamín ${ano}`;
+  return `${ano}`;
+}
 function getDBMinima(ano,sexo,estilo,dist,piscina){const k=getAnoKey(ano);return DB[`${k}-${sexo}-${estilo}-${dist}-${piscina}`]??null;}
 function getMinima(estilo,dist,piscina){if(!usuario)return null;return getDBMinima(usuario.ano,usuario.sexo,estilo,dist,piscina);}
 function tdis(seg){
