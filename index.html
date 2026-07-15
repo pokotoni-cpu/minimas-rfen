@@ -1495,7 +1495,7 @@ async function cargarPruebasClub(atletas){
             const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
             const distNum=parseInt(distRaw)||0;
             const anoNad=r.agetext||'abs';
-            const sexoNad=(r.gender==='2'||r.gender===2)?'F':'M';
+            const sexoNad=parseGenero(r.gender)==='Femenino'?'F':'M';
             const piscinaNum=liveCompeticionCourse===1?50:25;
             if(distNum>0){
               const minNac=getDBMinima(anoNad,sexoNad,estiloApp,distNum,piscinaNum);
@@ -1657,7 +1657,7 @@ function renderVistaPruebas(){
   }
 
   const filas=evs.map((ev,i)=>{
-    const genStr=ev.gender==='1'||ev.gender===1?'Masc.':ev.gender==='2'||ev.gender===2?'Fem.':ev.gender==='3'||ev.gender===3?'Mixto':'';
+    const genStr=parseGenero(ev.gender,true);
     const agStr=getAgegroupStr(ev);
     const nombreEv=getNombreEvento(ev);
     const status=ev.status||0;
@@ -1691,7 +1691,7 @@ async function renderVistaResultados(){
   const cont=document.getElementById('liveEventos');
   const ev=liveEventoSeleccionado;
   const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:14px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
-  const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':ev.gender==='3'||ev.gender===3?'Mixto':'';
+  const genStr=parseGenero(ev.gender);
   const agStr=getAgegroupStr(ev);
   const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${getNombreEvento(ev)}${genStr?' · '+genStr:''}${agStr?' · '+agStr:''}</div>`;
 
@@ -1817,7 +1817,7 @@ function renderResultRow(r,ev,i,etiqueta){
     const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
     const distNum=parseInt(distRaw)||0;
     const anoNadador=r.agetext||'abs';
-    const sexoNadador=(r.gender==='2'||r.gender===2)?'F':'M';
+    const sexoNadador=parseGenero(r.gender)==='Femenino'?'F':'M';
     const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
     if(min){
       if(swimSeg<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
@@ -1897,10 +1897,20 @@ function parsearTiempoSeg(swimtime){
 function getAgegroupNombreFromResults(results){
   if(!results||!results.length)return '';
   const r=results[0];
-  const genStr=r.gender==='1'||r.gender===1?'Masculino':r.gender==='2'||r.gender===2?'Femenino':'';
+  const genStr=parseGenero(r.gender);
   const ano=r.agetext||'';
   if(ano) return `${ano}${genStr?' · '+genStr:''}`;
   return genStr;
+}
+
+function parseGenero(g, corto=false){
+  if(!g)return '';
+  const s=String(g).toUpperCase();
+  const esMasc = s==='1'||s==='M'||s==='MALE'||s==='MASC'||s==='MASCULINO';
+  const esFem  = s==='2'||s==='F'||s==='FEMALE'||s==='FEM'||s==='FEMENINO';
+  const esMix  = s==='3'||s==='X'||s==='MX'||s==='MIXED'||s==='MIXTO';
+  if(corto) return esMasc?'Masc.':esFem?'Fem.':esMix?'Mixto':'';
+  return esMasc?'Masculino':esFem?'Femenino':esMix?'Mixto':'';
 }
 
 function getNombreEvento(ev){
@@ -2060,7 +2070,7 @@ function renderPruebaNadadorCard(ev,r){
     const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
     const distNum=parseInt(distRaw)||0;
     const anoNad=r.agetext||usuario.ano||'abs';
-    const sexoNad=(r.gender==='2'||r.gender===2)?'F':'M';
+    const sexoNad=parseGenero(r.gender)==='Femenino'?'F':'M';
     // Mínima nacional
     if(distNum>0){
       const minNac=getDBMinima(anoNad,sexoNad,estiloApp,distNum,piscina);
