@@ -1657,8 +1657,12 @@ function renderVistaPruebas(){
   }
 
   const filas=evs.map((ev,i)=>{
+    // gender puede ser '1'/'2', 'M'/'F', o incluso estar en el nombre del agegroup
     const genStr=parseGenero(ev.gender,true);
     const agStr=getAgegroupStr(ev);
+    // Si genStr está vacío, intentar inferir del nombre del agegroup
+    const agLower=(agStr||'').toLowerCase();
+    const genFinal = genStr || (agLower.includes('fem')||agLower.includes('mujer')?'Fem.':agLower.includes('masc')||agLower.includes('male')||agLower.includes('hombre')?'Masc.':'');
     const nombreEv=getNombreEvento(ev);
     const status=ev.status||0;
     let estTxt='⏳',estColor='rgba(90,107,125,.6)';
@@ -1668,7 +1672,7 @@ function renderVistaPruebas(){
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-weight:600;font-size:15px;">${nombreEv}</div>
-          <div style="font-size:14px;color:rgba(90,107,125,.8);">${genStr}${agStr?' · '+agStr:''}</div>
+          <div style="font-size:14px;color:rgba(90,107,125,.8);">${genFinal?genFinal+' · ':''}${agStr||''}</div>
         </div>
         <span style="font-size:14px;color:${estColor};">${estTxt}</span>
       </div>
