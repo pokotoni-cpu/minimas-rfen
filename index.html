@@ -293,11 +293,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1909,9 +1909,9 @@ function getAgegroupNombreFromResults(results){
 
 function parseGenero(g, corto=false){
   if(!g)return '';
-  const s=String(g).toUpperCase();
-  const esMasc = s==='1'||s==='M'||s==='MALE'||s==='MASC'||s==='MASCULINO';
-  const esFem  = s==='2'||s==='F'||s==='FEMALE'||s==='FEM'||s==='FEMENINO';
+  const s=String(g).toUpperCase().trim();
+  const esMasc = s==='1'||s==='11'||s==='M'||s==='MALE'||s==='MASC'||s==='MASCULINO';
+  const esFem  = s==='2'||s==='12'||s==='F'||s==='FEMALE'||s==='FEM'||s==='FEMENINO';
   const esMix  = s==='3'||s==='X'||s==='MX'||s==='MIXED'||s==='MIXTO';
   if(corto) return esMasc?'Masc.':esFem?'Fem.':esMix?'Mixto':'';
   return esMasc?'Masculino':esFem?'Femenino':esMix?'Mixto':'';
