@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mínimas Natación RFEN 2026</title>
+<title id="tituloApp">Mínimas Natación RFEN 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -181,8 +181,8 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
 <div id="authScreen" style="position:relative;z-index:1;min-height:100vh;">
   <div class="auth-wrap">
     <div class="auth-icon">🏊</div>
-    <div class="auth-title">MÍNIMAS<br><span style="color:var(--amarillo)">RFEN 26</span></div>
-    <div class="auth-sub">Campeonatos de España · Temporada 2025-2026</div>
+    <div class="auth-title">MÍNIMAS<br><span id="authTemporada" style="color:var(--amarillo)">RFEN 26</span></div>
+    <div class="auth-sub" id="authSub">Campeonatos de España · Temporada 2025-2026</div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="setAuthTab('login',this)">Entrar</button>
       <button class="auth-tab" onclick="setAuthTab('registro',this)">Registro</button>
@@ -293,11 +293,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -551,7 +551,7 @@ const sb = supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrbGFzeWx2dXJuZW1vcnRpdGFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkxODMsImV4cCI6MjA5MTQwNTE4M30.EQQ2S6RGj3aAClwA6DJNxLiHr6jjgI2TTM12bPeZKxs'
 );
 
-﻿/* ══════════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════════════
    MÍNIMAS POR TEMPORADA
    ──────────────────────────────────────────────────────────────────────────
    La categoría de un nadador NO es un dato suyo: es el resultado de
@@ -976,8 +976,21 @@ function fechaISO(txt){
   return null;
 }
 
+// La cabecera, el subtítulo y el <title> también siguen la temporada:
+// el 1 de septiembre pasan solos de "2026/2027" a "2027/2028".
+function pintarTemporada(){
+  const ini = inicioTemporadaDe(new Date());
+  const temp = etiquetaTemporada(ini);
+  const marca = document.getElementById('authTemporada');
+  if(marca) marca.textContent = `RFEN ${String(ini).slice(-2)}`;
+  const sub = document.getElementById('authSub');
+  if(sub) sub.textContent = `Campeonatos de España · Temporada ${temp}`;
+  if(typeof document.title === 'string') document.title = `Mínimas Natación RFEN ${temp}`;
+}
+
 // Selectores de año que antes estaban escritos a mano en el HTML
 function inicializarSelectoresTemporada(){
+  pintarTemporada();
   const ini = inicioTemporadaDe(new Date());
   const selAno = document.getElementById('rAno');
   if(selAno){
