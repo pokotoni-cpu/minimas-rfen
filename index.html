@@ -293,11 +293,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -380,10 +380,6 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:15px;color:#3d4a58;">
         👤 <span id="minimasCategoria" style="color:var(--agua-light);font-weight:600;"></span>
       </div>
-      <div class="tabs" style="margin-bottom:10px;">
-        <button class="tab-btn active" id="tabMiniNac" onclick="setTabMinimas('nac',this)">🇪🇸 Nacional</button>
-        <button class="tab-btn" id="tabMiniCV" onclick="setTabMinimas('cv',this)">🟠 C. Valenciana</button>
-      </div>
       <div class="estilos-btns">
         <button class="estilo-btn active" onclick="filtrarEstilo('Libres',this)">🏊 Libres</button>
         <button class="estilo-btn" onclick="filtrarEstilo('Espalda',this)">🔄 Espalda</button>
@@ -391,7 +387,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="estilo-btn" onclick="filtrarEstilo('Mariposa',this)">🦋 Mariposa</button>
         <button class="estilo-btn" onclick="filtrarEstilo('Estilos',this)">⚡ Estilos</button>
       </div>
-      <div id="minimasPiscinaWrap" class="piscina-toggle" style="margin-bottom:10px;">
+      <div class="piscina-toggle" style="margin-bottom:10px;">
         <button class="piscina-btn active" onclick="filtrarPiscina(50,this)">🏟️ 50m</button>
         <button class="piscina-btn" onclick="filtrarPiscina(25,this)">🏊 25m</button>
       </div>
@@ -555,103 +551,466 @@ const sb = supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrbGFzeWx2dXJuZW1vcnRpdGFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkxODMsImV4cCI6MjA5MTQwNTE4M30.EQQ2S6RGj3aAClwA6DJNxLiHr6jjgI2TTM12bPeZKxs'
 );
 
-// -- BASE DE DATOS MÍNIMAS --------------------------------
-const DB = {};
-function t(s){if(!s||s==='-')return null;const r=s.replace(',','.').trim();const p=r.split(':');if(p.length===2)return parseInt(p[0])*60+parseFloat(p[1]);if(p.length===3)return parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]);return parseFloat(r);}
-function add(ano,sx,es,di,p50,p25){if(p50!==null)DB[`${ano}-${sx}-${es}-${di}-50`]=t(p50);if(p25!==null)DB[`${ano}-${sx}-${es}-${di}-25`]=t(p25);}
+﻿/* ══════════════════════════════════════════════════════════════════════════
+   MÍNIMAS POR TEMPORADA
+   ──────────────────────────────────────────────────────────────────────────
+   La categoría de un nadador NO es un dato suyo: es el resultado de
+   (año de nacimiento + temporada). Por eso aquí no se guarda "Infantil 2012"
+   en ninguna parte, se calcula. Cuando llega septiembre, todos suben solos.
 
-// ALEVÍN M
-add(2013,'M','Libres',50,'00:28,10','00:26,75');add(2013,'M','Libres',100,'01:02,00','00:59,95');add(2013,'M','Libres',200,'02:16,00','02:11,55');add(2013,'M','Libres',400,'04:50,00','04:39,70');add(2013,'M','Libres',800,'09:57,00','09:41,75');add(2013,'M','Espalda',50,'00:33,15','00:31,15');add(2013,'M','Espalda',100,'01:11,15','01:06,70');add(2013,'M','Espalda',200,'02:34,75','02:25,95');add(2013,'M','Braza',50,'00:36,25','00:34,90');add(2013,'M','Braza',100,'01:20,00','01:17,80');add(2013,'M','Braza',200,'02:53,95','02:46,65');add(2013,'M','Mariposa',50,'00:30,90','00:29,60');add(2013,'M','Mariposa',100,'01:09,85','01:07,45');add(2013,'M','Mariposa',200,'02:37,90','02:32,95');add(2013,'M','Estilos',200,'02:35,00','02:28,15');add(2013,'M','Estilos',400,'05:32,70','05:22,25');
-add(2014,'M','Libres',50,'00:30,15','00:28,70');add(2014,'M','Libres',100,'01:06,45','01:04,25');add(2014,'M','Libres',200,'02:25,70','02:20,85');add(2014,'M','Libres',400,'05:08,00','04:57,30');add(2014,'M','Libres',800,'10:40,00','10:23,85');add(2014,'M','Espalda',50,'00:35,90','00:33,75');add(2014,'M','Espalda',100,'01:16,90','01:12,05');add(2014,'M','Espalda',200,'02:45,00','02:35,75');add(2014,'M','Braza',50,'00:39,35','00:37,90');add(2014,'M','Braza',100,'01:26,00','01:23,60');add(2014,'M','Braza',200,'03:06,00','02:55,30');add(2014,'M','Mariposa',50,'00:33,70','00:32,30');add(2014,'M','Mariposa',100,'01:15,20','01:12,60');add(2014,'M','Mariposa',200,'02:50,00','02:44,70');add(2014,'M','Estilos',200,'02:45,00','02:37,75');add(2014,'M','Estilos',400,'05:52,50','05:41,55');
-// ALEVÍN F
-add(2013,'F','Libres',50,'00:29,30','00:28,35');add(2013,'F','Libres',100,'01:03,90','01:02,15');add(2013,'F','Libres',200,'02:20,00','02:17,65');add(2013,'F','Libres',400,'04:54,35','04:48,00');add(2013,'F','Libres',800,'10:07,45','09:58,35');add(2013,'F','Espalda',50,'00:33,95','00:31,90');add(2013,'F','Espalda',100,'01:13,30','01:09,35');add(2013,'F','Espalda',200,'02:37,15','02:30,65');add(2013,'F','Braza',50,'00:37,25','00:36,25');add(2013,'F','Braza',100,'01:21,95','01:19,70');add(2013,'F','Braza',200,'02:58,00','02:51,50');add(2013,'F','Mariposa',50,'00:31,75','00:31,15');add(2013,'F','Mariposa',100,'01:12,00','01:08,80');add(2013,'F','Mariposa',200,'02:41,40','02:38,20');add(2013,'F','Estilos',200,'02:39,00','02:33,35');add(2013,'F','Estilos',400,'05:38,10','05:26,75');
-add(2014,'F','Libres',50,'00:30,85','00:29,85');add(2014,'F','Libres',100,'01:07,60','01:05,70');add(2014,'F','Libres',200,'02:27,00','02:24,50');add(2014,'F','Libres',400,'05:11,00','05:04,35');add(2014,'F','Libres',800,'10:47,00','10:37,50');add(2014,'F','Espalda',50,'00:36,55','00:34,35');add(2014,'F','Espalda',100,'01:17,50','01:13,30');add(2014,'F','Espalda',200,'02:47,80','02:40,90');add(2014,'F','Braza',50,'00:39,60','00:38,35');add(2014,'F','Braza',100,'01:26,70','01:24,35');add(2014,'F','Braza',200,'03:08,00','03:01,20');add(2014,'F','Mariposa',50,'00:33,85','00:33,20');add(2014,'F','Mariposa',100,'01:16,50','01:13,10');add(2014,'F','Mariposa',200,'02:53,00','02:49,45');add(2014,'F','Estilos',200,'02:48,00','02:42,05');add(2014,'F','Estilos',400,'05:58,00','05:46,15');
-// INFANTIL M
-add(2011,'M','Libres',50,'00:26,25','00:25,00');add(2011,'M','Libres',100,'00:57,20','00:55,30');add(2011,'M','Libres',200,'02:06,00','02:01,85');add(2011,'M','Libres',400,'04:30,95','04:21,45');add(2011,'M','Libres',800,'09:18,00','09:03,95');add(2011,'M','Libres',1500,'17:41,00','17:12,40');add(2011,'M','Espalda',50,'00:30,75','00:28,85');add(2011,'M','Espalda',100,'01:05,00','01:00,90');add(2011,'M','Espalda',200,'02:20,10','02:12,30');add(2011,'M','Braza',50,'00:33,45','00:32,20');add(2011,'M','Braza',100,'01:13,00','01:10,95');add(2011,'M','Braza',200,'02:39,10','02:32,45');add(2011,'M','Mariposa',50,'00:28,35','00:27,15');add(2011,'M','Mariposa',100,'01:03,00','01:00,80');add(2011,'M','Mariposa',200,'02:22,50','02:18,00');add(2011,'M','Estilos',200,'02:22,60','02:16,30');add(2011,'M','Estilos',400,'05:05,10','04:55,45');
-add(2012,'M','Libres',50,'00:27,10','00:25,80');add(2012,'M','Libres',100,'00:59,15','00:57,20');add(2012,'M','Libres',200,'02:10,00','02:05,70');add(2012,'M','Libres',400,'04:37,00','04:27,25');add(2012,'M','Libres',800,'09:31,90','09:17,20');add(2012,'M','Libres',1500,'18:15,00','17:45,60');add(2012,'M','Espalda',50,'00:31,50','00:29,60');add(2012,'M','Espalda',100,'01:07,20','01:03,00');add(2012,'M','Espalda',200,'02:26,00','02:17,85');add(2012,'M','Braza',50,'00:34,90','00:33,55');add(2012,'M','Braza',100,'01:16,20','01:14,10');add(2012,'M','Braza',200,'02:45,80','02:38,85');add(2012,'M','Mariposa',50,'00:29,50','00:28,25');add(2012,'M','Mariposa',100,'01:05,50','01:03,20');add(2012,'M','Mariposa',200,'02:29,75','02:25,00');add(2012,'M','Estilos',200,'02:27,00','02:20,45');add(2012,'M','Estilos',400,'05:16,00','05:06,20');
-// INFANTIL F
-add(2011,'F','Libres',50,'00:28,25','00:27,35');add(2011,'F','Libres',100,'01:01,25','00:59,55');add(2011,'F','Libres',200,'02:13,90','02:11,65');add(2011,'F','Libres',400,'04:42,00','04:35,95');add(2011,'F','Libres',800,'09:42,50','09:33,80');add(2011,'F','Libres',1500,'18:24,00','18:09,70');add(2011,'F','Espalda',50,'00:32,85','00:30,85');add(2011,'F','Espalda',100,'01:09,50','01:05,75');add(2011,'F','Espalda',200,'02:28,45','02:22,35');add(2011,'F','Braza',50,'00:36,30','00:35,35');add(2011,'F','Braza',100,'01:18,10','01:15,95');add(2011,'F','Braza',200,'02:50,50','02:44,25');add(2011,'F','Mariposa',50,'00:30,45','00:29,85');add(2011,'F','Mariposa',100,'01:08,00','01:04,95');add(2011,'F','Mariposa',200,'02:32,55','02:29,45');add(2011,'F','Estilos',200,'02:32,85','02:27,50');add(2011,'F','Estilos',400,'05:23,45','05:12,60');
-add(2012,'F','Libres',50,'00:28,75','00:27,80');add(2012,'F','Libres',100,'01:02,10','01:00,35');add(2012,'F','Libres',200,'02:15,00','02:12,75');add(2012,'F','Libres',400,'04:48,00','04:41,90');add(2012,'F','Libres',800,'09:51,00','09:42,35');add(2012,'F','Libres',1500,'18:51,00','18:36,00');add(2012,'F','Espalda',50,'00:33,35','00:31,35');add(2012,'F','Espalda',100,'01:10,90','01:07,05');add(2012,'F','Espalda',200,'02:32,10','02:25,85');add(2012,'F','Braza',50,'00:36,95','00:35,95');add(2012,'F','Braza',100,'01:20,10','01:17,90');add(2012,'F','Braza',200,'02:52,90','02:46,60');add(2012,'F','Mariposa',50,'00:31,00','00:30,40');add(2012,'F','Mariposa',100,'01:09,70','01:06,60');add(2012,'F','Mariposa',200,'02:36,05','02:32,95');add(2012,'F','Estilos',200,'02:35,00','02:29,55');add(2012,'F','Estilos',400,'05:29,00','05:18,10');
-// JUNIOR M
-add(2010,'M','Libres',50,'00:25,45','00:24,25');add(2010,'M','Libres',100,'00:55,40','00:53,55');add(2010,'M','Libres',200,'02:01,90','01:57,90');add(2010,'M','Libres',400,'04:19,70','04:10,55');add(2010,'M','Libres',800,'08:57,60','08:44,00');add(2010,'M','Libres',1500,'17:12,00','16:44,10');add(2010,'M','Espalda',50,'00:29,70','00:27,90');add(2010,'M','Espalda',100,'01:02,90','00:58,90');add(2010,'M','Espalda',200,'02:16,75','02:09,10');add(2010,'M','Braza',50,'00:32,40','00:31,20');add(2010,'M','Braza',100,'01:10,60','01:08,65');add(2010,'M','Braza',200,'02:34,00','02:27,55');add(2010,'M','Mariposa',50,'00:27,55','00:26,40');add(2010,'M','Mariposa',100,'01:01,05','00:58,90');add(2010,'M','Mariposa',200,'02:18,30','02:14,00');add(2010,'M','Estilos',200,'02:17,15','02:11,00');add(2010,'M','Estilos',400,'04:57,00','04:47,65');
-add(2009,'M','Libres',50,'00:25,00','00:23,80');add(2009,'M','Libres',100,'00:54,35','00:52,55');add(2009,'M','Libres',200,'02:00,10','01:56,15');add(2009,'M','Libres',400,'04:14,95','04:05,90');add(2009,'M','Libres',800,'08:50,40','08:36,80');add(2009,'M','Libres',1500,'16:56,25','16:28,95');add(2009,'M','Espalda',50,'00:29,15','00:27,35');add(2009,'M','Espalda',100,'01:01,60','00:57,70');add(2009,'M','Espalda',200,'02:14,95','02:07,40');add(2009,'M','Braza',50,'00:31,65','00:30,45');add(2009,'M','Braza',100,'01:09,00','01:07,05');add(2009,'M','Braza',200,'02:30,90','02:24,60');add(2009,'M','Mariposa',50,'00:27,00','00:25,85');add(2009,'M','Mariposa',100,'00:59,25','00:57,20');add(2009,'M','Mariposa',200,'02:13,60','02:09,40');add(2009,'M','Estilos',200,'02:15,00','02:08,95');add(2009,'M','Estilos',400,'04:51,00','04:41,90');
-add(2008,'M','Libres',50,'00:24,60','00:23,40');add(2008,'M','Libres',100,'00:53,80','00:52,00');add(2008,'M','Libres',200,'01:58,00','01:54,15');add(2008,'M','Libres',400,'04:10,30','04:01,50');add(2008,'M','Libres',800,'08:45,25','08:31,90');add(2008,'M','Libres',1500,'16:40,35','16:13,20');add(2008,'M','Espalda',50,'00:28,40','00:26,70');add(2008,'M','Espalda',100,'01:00,55','00:56,75');add(2008,'M','Espalda',200,'02:12,50','02:05,10');add(2008,'M','Braza',50,'00:31,10','00:29,90');add(2008,'M','Braza',100,'01:07,95','01:06,05');add(2008,'M','Braza',200,'02:28,70','02:22,45');add(2008,'M','Mariposa',50,'00:26,60','00:25,55');add(2008,'M','Mariposa',100,'00:58,50','00:56,45');add(2008,'M','Mariposa',200,'02:11,90','02:07,75');add(2008,'M','Estilos',200,'02:12,60','02:06,70');add(2008,'M','Estilos',400,'04:46,70','04:37,65');
-// JUNIOR F
-add(2010,'F','Libres',50,'00:27,95','00:27,05');add(2010,'F','Libres',100,'01:00,85','00:59,15');add(2010,'F','Libres',200,'02:10,90','02:08,70');add(2010,'F','Libres',400,'04:35,00','04:29,00');add(2010,'F','Libres',800,'09:26,90','09:18,40');add(2010,'F','Libres',1500,'18:08,00','17:45,70');add(2010,'F','Espalda',50,'00:31,95','00:30,00');add(2010,'F','Espalda',100,'01:08,35','01:04,65');add(2010,'F','Espalda',200,'02:27,90','02:21,80');add(2010,'F','Braza',50,'00:35,35','00:34,40');add(2010,'F','Braza',100,'01:16,80','01:14,70');add(2010,'F','Braza',200,'02:46,00','02:40,00');add(2010,'F','Mariposa',50,'00:30,05','00:29,45');add(2010,'F','Mariposa',100,'01:06,70','01:03,75');add(2010,'F','Mariposa',200,'02:28,75','02:25,70');add(2010,'F','Estilos',200,'02:29,85','02:24,55');add(2010,'F','Estilos',400,'05:16,15','05:05,65');
-add(2009,'F','Libres',50,'00:27,70','00:26,80');add(2009,'F','Libres',100,'01:00,10','00:58,45');add(2009,'F','Libres',200,'02:09,50','02:07,35');add(2009,'F','Libres',400,'04:32,00','04:26,10');add(2009,'F','Libres',800,'09:15,10','09:06,70');add(2009,'F','Libres',1500,'17:53,00','17:38,90');add(2009,'F','Espalda',50,'00:31,55','00:29,65');add(2009,'F','Espalda',100,'01:07,70','01:04,05');add(2009,'F','Espalda',200,'02:25,50','02:19,50');add(2009,'F','Braza',50,'00:35,00','00:34,10');add(2009,'F','Braza',100,'01:16,10','01:14,00');add(2009,'F','Braza',200,'02:44,50','02:38,50');add(2009,'F','Mariposa',50,'00:29,65','00:29,10');add(2009,'F','Mariposa',100,'01:05,70','01:02,75');add(2009,'F','Mariposa',200,'02:25,75','02:22,85');add(2009,'F','Estilos',200,'02:28,00','02:22,80');add(2009,'F','Estilos',400,'05:13,20','05:02,75');
-add(2008,'F','Libres',50,'00:27,35','00:26,45');add(2008,'F','Libres',100,'00:59,50','00:57,85');add(2008,'F','Libres',200,'02:08,25','02:06,05');add(2008,'F','Libres',400,'04:29,90','04:24,00');add(2008,'F','Libres',800,'09:11,00','09:02,65');add(2008,'F','Libres',1500,'17:42,00','17:27,95');add(2008,'F','Espalda',50,'00:31,35','00:29,45');add(2008,'F','Espalda',100,'01:06,95','01:03,30');add(2008,'F','Espalda',200,'02:24,20','02:18,30');add(2008,'F','Braza',50,'00:34,65','00:33,70');add(2008,'F','Braza',100,'01:15,55','01:13,50');add(2008,'F','Braza',200,'02:43,85','02:37,90');add(2008,'F','Mariposa',50,'00:29,30','00:28,70');add(2008,'F','Mariposa',100,'01:05,15','01:02,25');add(2008,'F','Mariposa',200,'02:23,50','02:20,60');add(2008,'F','Estilos',200,'02:26,35','02:21,10');add(2008,'F','Estilos',400,'05:08,00','04:57,70');
-// SUB20
-[2006,2007].forEach(a=>{
-add(a,'M','Libres',50,'00:24,25','00:23,10');add(a,'M','Libres',100,'00:52,95','00:51,20');add(a,'M','Libres',200,'01:56,50','01:52,65');add(a,'M','Libres',400,'04:08,70','03:59,95');add(a,'M','Libres',800,'08:37,60','08:24,35');add(a,'M','Libres',1500,'16:28,00','16:01,20');add(a,'M','Espalda',50,'00:27,95','00:26,25');add(a,'M','Espalda',100,'00:59,50','00:55,75');add(a,'M','Espalda',200,'02:11,00','02:03,70');add(a,'M','Braza',50,'00:30,70','00:29,55');add(a,'M','Braza',100,'01:06,65','01:04,80');add(a,'M','Braza',200,'02:26,90','02:20,70');add(a,'M','Mariposa',50,'00:25,95','00:24,85');add(a,'M','Mariposa',100,'00:57,00','00:55,00');add(a,'M','Mariposa',200,'02:10,50','02:06,40');add(a,'M','Estilos',200,'02:10,85','02:05,00');add(a,'M','Estilos',400,'04:43,90','04:34,95');
-add(a,'F','Libres',50,'00:27,00','00:26,10');add(a,'F','Libres',100,'00:59,00','00:57,35');add(a,'F','Libres',200,'02:07,50','02:05,30');add(a,'F','Libres',400,'04:28,25','04:22,50');add(a,'F','Libres',800,'09:07,00','08:58,70');add(a,'F','Libres',1500,'17:34,00','17:20,00');add(a,'F','Espalda',50,'00:31,15','00:29,25');add(a,'F','Espalda',100,'01:06,25','01:02,65');add(a,'F','Espalda',200,'02:23,10','02:17,20');add(a,'F','Braza',50,'00:34,15','00:33,25');add(a,'F','Braza',100,'01:14,95','01:12,90');add(a,'F','Braza',200,'02:42,75','02:36,85');add(a,'F','Mariposa',50,'00:28,85','00:28,25');add(a,'F','Mariposa',100,'01:04,60','01:01,70');add(a,'F','Mariposa',200,'02:21,80','02:18,95');add(a,'F','Estilos',200,'02:24,80','02:19,70');add(a,'F','Estilos',400,'05:05,00','04:54,80');
-});
-// ABSOLUTO
-add('abs','M','Libres',50,'00:23,85','00:22,70');add('abs','M','Libres',100,'00:51,90','00:50,15');add('abs','M','Libres',200,'01:53,75','01:49,95');add('abs','M','Libres',400,'04:04,50','03:55,85');add('abs','M','Libres',800,'08:28,00','08:15,15');add('abs','M','Libres',1500,'16:19,00','15:52,45');add('abs','M','Espalda',50,'00:27,60','00:25,90');add('abs','M','Espalda',100,'00:58,75','00:55,05');add('abs','M','Espalda',200,'02:09,50','02:02,25');add('abs','M','Braza',50,'00:29,80','00:28,65');add('abs','M','Braza',100,'01:05,00','01:03,15');add('abs','M','Braza',200,'02:24,10','02:18,00');add('abs','M','Mariposa',50,'00:25,10','00:24,05');add('abs','M','Mariposa',100,'00:56,00','00:54,05');add('abs','M','Mariposa',200,'02:08,40','02:04,40');add('abs','M','Estilos',200,'02:09,20','02:03,45');add('abs','M','Estilos',400,'04:38,90','04:30,10');
-add('abs','F','Libres',50,'00:26,85','00:25,95');add('abs','F','Libres',100,'00:58,50','00:56,85');add('abs','F','Libres',200,'02:06,95','02:04,85');add('abs','F','Libres',400,'04:27,30','04:21,60');add('abs','F','Libres',800,'09:05,90','08:57,70');add('abs','F','Libres',1500,'17:30,00','17:16,40');add('abs','F','Espalda',50,'00:30,95','00:29,10');add('abs','F','Espalda',100,'01:05,75','01:02,15');add('abs','F','Espalda',200,'02:22,55','02:16,70');add('abs','F','Braza',50,'00:33,95','00:33,05');add('abs','F','Braza',100,'01:14,50','01:12,50');add('abs','F','Braza',200,'02:41,50','02:35,65');add('abs','F','Mariposa',50,'00:28,40','00:27,50');add('abs','F','Mariposa',100,'01:03,80','01:00,95');add('abs','F','Mariposa',200,'02:21,00','02:18,15');add('abs','F','Estilos',200,'02:24,00','02:18,95');add('abs','F','Estilos',400,'05:03,95','04:53,75');
+   Regla (la misma que hay en SQL y en el extractor):
+       temporada = septiembre → agosto
+       edad = año_inicio_temporada − año_nacimiento
+       11-12 → Alevín (1º, 2º)   13-14 → Infantil (1º, 2º)
+       15-17 → Junior (1º, 2º, 3º)   18-19 → Sub20 (1º, 2º)   ≥20 → Absoluto
 
-// Mínimas Autonómicas Comunidad Valenciana P25 - Temporada 25/26 (piscina 25m, cronometraje manual)
-const CV_DB = {};
-function addCV(ano,sx,es,di,tiempo,nivel){
-  const seg=t(tiempo);
-  if(seg===null)return;
-  const key=nivel?`${ano}-${sx}-${es}-${di}-${nivel}`:`${ano}-${sx}-${es}-${di}`;
-  CV_DB[key]=seg;
-}
-addCV('abs','M','Libres',50,'00:24,64',null);addCV(2008,'M','Libres',50,'00:25,63',null);addCV(2009,'M','Libres',50,'00:26,30',null);addCV(2010,'M','Libres',50,'00:27,14',null);addCV(2011,'M','Libres',50,'00:28,19','A');addCV(2011,'M','Libres',50,'00:28.69','B');addCV(2012,'M','Libres',50,'00:30,54','A');addCV(2012,'M','Libres',50,'00:31.04','B');
-addCV(2013,'M','Libres',50,'00:33,69',null);addCV(2014,'M','Libres',50,'00:35,21',null);addCV('abs','M','Libres',100,'00:54,37',null);addCV(2008,'M','Libres',100,'00:56,56',null);addCV(2009,'M','Libres',100,'00:58,02',null);addCV(2010,'M','Libres',100,'00:59,90',null);addCV(2011,'M','Libres',100,'01:02,21','A');addCV(2011,'M','Libres',100,'01:03.71','B');
-addCV(2012,'M','Libres',100,'01:06,63','A');addCV(2012,'M','Libres',100,'01:08.13','B');addCV(2013,'M','Libres',100,'01:12,65',null);addCV(2014,'M','Libres',100,'01:15,87',null);addCV('abs','M','Libres',200,'01:59,53',null);addCV(2008,'M','Libres',200,'02:04,42',null);addCV(2009,'M','Libres',200,'02:07,72',null);addCV(2010,'M','Libres',200,'02:11,95',null);
-addCV(2011,'M','Libres',200,'02:17,19','A');addCV(2011,'M','Libres',200,'02:20,19','B');addCV(2012,'M','Libres',200,'02:26,50','A');addCV(2012,'M','Libres',200,'02:29,50','B');addCV(2013,'M','Libres',200,'02:39,01',null);addCV(2014,'M','Libres',200,'02:46,10',null);addCV('abs','M','Libres',400,'04:16,17',null);addCV(2008,'M','Libres',400,'04:26,33',null);
-addCV(2009,'M','Libres',400,'04:33,06',null);addCV(2010,'M','Libres',400,'04:41,64',null);addCV(2011,'M','Libres',400,'04:52,24','A');addCV(2011,'M','Libres',400,'04:57.24','B');addCV(2012,'M','Libres',400,'05:13,18','A');addCV(2012,'M','Libres',400,'05:18.18','B');addCV(2013,'M','Libres',400,'05:40,52',null);addCV(2014,'M','Libres',400,'05:55,68',null);
-addCV('abs','M','Libres',800,'08:51,38',null);addCV(2008,'M','Libres',800,'09:12,46',null);addCV(2009,'M','Libres',800,'09:26,42',null);addCV(2010,'M','Libres',800,'09:44,22',null);addCV(2011,'M','Libres',800,'10:06,20','A');addCV(2011,'M','Libres',800,'10:13.70','B');addCV(2012,'M','Libres',800,'10:55,00','A');addCV(2012,'M','Libres',800,'11:02,50','B');
-addCV(2013,'M','Libres',800,'11:56,60',null);addCV(2014,'M','Libres',800,'12:06,10',null);addCV('abs','M','Libres',1500,'16:54,39',null);addCV(2008,'M','Libres',1500,'17:34,63',null);addCV(2009,'M','Libres',1500,'18:01,28',null);addCV(2010,'M','Libres',1500,'18:35,26',null);addCV(2011,'M','Libres',1500,'19:17,22','A');addCV(2011,'M','Libres',1500,'19:29,22','B');
-addCV(2012,'M','Libres',1500,'20:39,42','A');addCV(2012,'M','Libres',1500,'20:51,42','B');addCV('abs','M','Espalda',50,'00:27,88',null);addCV(2008,'M','Espalda',50,'00:29,12',null);addCV(2009,'M','Espalda',50,'00:30,10',null);addCV(2010,'M','Espalda',50,'00:31,42',null);addCV(2011,'M','Espalda',50,'00:32,95','A');addCV(2011,'M','Espalda',50,'00:33,45','B');
-addCV(2012,'M','Espalda',50,'00:36,88','A');addCV(2012,'M','Espalda',50,'00:37,38','B');addCV(2013,'M','Espalda',50,'00:41,61',null);addCV(2014,'M','Espalda',50,'00:43,48',null);addCV('abs','M','Espalda',100,'01:00,24',null);addCV(2008,'M','Espalda',100,'01:02,91',null);addCV(2009,'M','Espalda',100,'01:04,78',null);addCV(2010,'M','Espalda',100,'01:07,22',null);
-addCV(2011,'M','Espalda',100,'01:10,26','A');addCV(2011,'M','Espalda',100,'01:11,76','B');addCV(2012,'M','Espalda',100,'01:16,21','A');addCV(2012,'M','Espalda',100,'01:17,71','B');addCV(2013,'M','Espalda',100,'01:23,76',null);addCV(2014,'M','Espalda',100,'01:28,07',null);addCV('abs','M','Espalda',200,'02:11,36',null);addCV(2008,'M','Espalda',200,'02:17,13',null);
-addCV(2009,'M','Espalda',200,'02:21,16',null);addCV(2010,'M','Espalda',200,'02:26,39',null);addCV(2011,'M','Espalda',200,'02:32,93','A');addCV(2011,'M','Espalda',200,'02:35,93','B');addCV(2012,'M','Espalda',200,'02:46,11','A');addCV(2012,'M','Espalda',200,'02:49,11','B');addCV(2013,'M','Espalda',200,'03:02,49',null);addCV(2014,'M','Espalda',200,'03:11,91',null);
-addCV('abs','M','Braza',50,'00:31,00',null);addCV(2008,'M','Braza',50,'00:32,90',null);addCV(2009,'M','Braza',50,'00:33,52',null);addCV(2010,'M','Braza',50,'00:35,39',null);addCV(2011,'M','Braza',50,'00:37,11','A');addCV(2011,'M','Braza',50,'00:37,61','B');addCV(2012,'M','Braza',50,'00:40,25','A');addCV(2012,'M','Braza',50,'00:40,75','B');
-addCV(2013,'M','Braza',50,'00:44,19',null);addCV(2014,'M','Braza',50,'00:46,62',null);addCV('abs','M','Braza',100,'01:08,18',null);addCV(2008,'M','Braza',100,'01:11,28',null);addCV(2009,'M','Braza',100,'01:13,50',null);addCV(2010,'M','Braza',100,'01:16,38',null);addCV(2011,'M','Braza',100,'01:20,00','A');addCV(2011,'M','Braza',100,'01:21,50','B');
-addCV(2012,'M','Braza',100,'01:26,40','A');addCV(2012,'M','Braza',100,'01:27,90','B');addCV(2013,'M','Braza',100,'01:34,40',null);addCV(2014,'M','Braza',100,'01:39,68',null);addCV('abs','M','Braza',200,'02:29,98',null);addCV(2008,'M','Braza',200,'02:36,81',null);addCV(2009,'M','Braza',200,'02:41,68',null);addCV(2010,'M','Braza',200,'02:48,02',null);
-addCV(2011,'M','Braza',200,'02:55,98','A');addCV(2011,'M','Braza',200,'02:58,98','B');addCV(2012,'M','Braza',200,'03:09,09','A');addCV(2012,'M','Braza',200,'03:12,09','B');addCV(2013,'M','Braza',200,'03:25,40',null);addCV(2014,'M','Braza',200,'03:36,98',null);addCV('abs','M','Mariposa',50,'00:26,63',null);addCV(2008,'M','Mariposa',50,'00:27,93',null);
-addCV(2009,'M','Mariposa',50,'00:28,95',null);addCV(2010,'M','Mariposa',50,'00:30,33',null);addCV(2011,'M','Mariposa',50,'00:30,85','A');addCV(2011,'M','Mariposa',50,'00:31,35','B');addCV(2012,'M','Mariposa',50,'00:34,15','A');addCV(2012,'M','Mariposa',50,'00:34,65','B');addCV(2013,'M','Mariposa',50,'00:38,25',null);addCV(2014,'M','Mariposa',50,'00:40,32',null);
-addCV('abs','M','Mariposa',100,'00:59,24',null);addCV(2008,'M','Mariposa',100,'01:02,14',null);addCV(2009,'M','Mariposa',100,'01:04,28',null);addCV(2010,'M','Mariposa',100,'01:07,09',null);addCV(2011,'M','Mariposa',100,'01:10,66','A');addCV(2011,'M','Mariposa',100,'01:12,16','B');addCV(2012,'M','Mariposa',100,'01:17,00','A');addCV(2012,'M','Mariposa',100,'01:18.50','B');
-addCV(2013,'M','Mariposa',100,'01:24,94',null);addCV(2014,'M','Mariposa',100,'01:30,19',null);addCV('abs','M','Mariposa',200,'02:14,71',null);addCV(2008,'M','Mariposa',200,'02:21,52',null);addCV(2009,'M','Mariposa',200,'02:26,61',null);addCV(2010,'M','Mariposa',200,'02:33,32',null);addCV(2011,'M','Mariposa',200,'02:41,87','A');addCV(2011,'M','Mariposa',200,'02:44,87','B');
-addCV(2012,'M','Mariposa',200,'02:55,01','A');addCV(2012,'M','Mariposa',200,'02:58,01','B');addCV(2013,'M','Mariposa',200,'03:11,35',null);addCV(2014,'M','Mariposa',200,'03:23,32',null);addCV('abs','M','Estilos',200,'02:14,26',null);addCV(2008,'M','Estilos',200,'02:19,85',null);addCV(2009,'M','Estilos',200,'02:23,66',null);addCV(2010,'M','Estilos',200,'02:28,54',null);
-addCV(2011,'M','Estilos',200,'02:34,62','A');addCV(2011,'M','Estilos',200,'02:37,62','B');addCV(2012,'M','Estilos',200,'02:46,63','A');addCV(2012,'M','Estilos',200,'02:49,63','B');addCV(2013,'M','Estilos',200,'03:01,84',null);addCV(2014,'M','Estilos',200,'03:10,34',null);addCV('abs','M','Estilos',400,'04:48,89',null);addCV(2008,'M','Estilos',400,'05:00,52',null);
-addCV(2009,'M','Estilos',400,'05:08,29',null);addCV(2010,'M','Estilos',400,'05:18,22',null);addCV(2011,'M','Estilos',400,'05:30,50','A');addCV(2011,'M','Estilos',400,'05:35,50','B');addCV(2012,'M','Estilos',400,'05:57,70','A');addCV(2012,'M','Estilos',400,'06:02,70','B');addCV(2013,'M','Estilos',400,'06:31,30',null);addCV(2014,'M','Estilos',400,'06:49,57',null);
-addCV('abs','F','Libres',50,'00:28,83',null);addCV(2008,'F','Libres',50,'00:29,27',null);addCV(2009,'F','Libres',50,'00:29,71',null);addCV(2010,'F','Libres',50,'00:30,18',null);addCV(2011,'F','Libres',50,'00:30,76','A');addCV(2011,'F','Libres',50,'00:31,26','B');addCV(2012,'F','Libres',50,'00:31,44','A');addCV(2012,'F','Libres',50,'00:31,94','B');
-addCV(2013,'F','Libres',50,'00:34,61',null);addCV(2014,'F','Libres',50,'00:35,83',null);addCV('abs','F','Libres',100,'01:02,97',null);addCV(2008,'F','Libres',100,'01:03,93',null);addCV(2009,'F','Libres',100,'01:04,88',null);addCV(2010,'F','Libres',100,'01:05,93',null);addCV(2011,'F','Libres',100,'01:07,19','A');addCV(2011,'F','Libres',100,'01:08,69','B');
-addCV(2012,'F','Libres',100,'01:08,68','A');addCV(2012,'F','Libres',100,'01:10,18','B');addCV(2013,'F','Libres',100,'01:15,14',null);addCV(2014,'F','Libres',100,'01:18,01',null);addCV('abs','F','Libres',200,'02:17,13',null);addCV(2008,'F','Libres',200,'02:19,17',null);addCV(2009,'F','Libres',200,'02:21,21',null);addCV(2010,'F','Libres',200,'02:23,40',null);
-addCV(2011,'F','Libres',200,'02:26,02','A');addCV(2011,'F','Libres',200,'02:29,02','B');addCV(2012,'F','Libres',200,'02:29,12','A');addCV(2012,'F','Libres',200,'02:32,12','B');addCV(2013,'F','Libres',200,'02:43,58',null);addCV(2014,'F','Libres',200,'02:49,83',null);addCV('abs','F','Libres',400,'04:50,09',null);addCV(2008,'F','Libres',400,'04:54,22',null);
-addCV(2009,'F','Libres',400,'04:58,36',null);addCV(2010,'F','Libres',400,'05:02,62',null);addCV(2011,'F','Libres',400,'05:07,67','A');addCV(2011,'F','Libres',400,'05:12,67','B');addCV(2012,'F','Libres',400,'05:13,56','A');addCV(2012,'F','Libres',400,'05:18,56','B');addCV(2013,'F','Libres',400,'05:39,03',null);addCV(2014,'F','Libres',400,'05:49,84',null);
-addCV('abs','F','Libres',800,'09:56,48',null);addCV(2008,'F','Libres',800,'10:04,54',null);addCV(2009,'F','Libres',800,'10:12,59',null);addCV(2010,'F','Libres',800,'10:20,42',null);addCV(2011,'F','Libres',800,'10:29,55','A');addCV(2011,'F','Libres',800,'10:37,05','B');addCV(2012,'F','Libres',800,'10:40,03','A');addCV(2012,'F','Libres',800,'10:47,53','B');
-addCV(2013,'F','Libres',800,'11:38,65',null);addCV(2014,'F','Libres',800,'12:00,95',null);addCV('abs','F','Libres',1500,'19:04,67',null);addCV(2008,'F','Libres',1500,'19:20,13',null);addCV(2009,'F','Libres',1500,'19:35,59',null);addCV(2010,'F','Libres',1500,'19:50,61',null);addCV(2011,'F','Libres',1500,'20:08,13','A');addCV(2011,'F','Libres',1500,'20:20,13','B');
-addCV(2012,'F','Libres',1500,'20:28,25','A');addCV(2012,'F','Libres',1500,'20:40,25','B');addCV('abs','F','Espalda',50,'00:32,99',null);addCV(2008,'F','Espalda',50,'00:33,33',null);addCV(2009,'F','Espalda',50,'00:33,68',null);addCV(2010,'F','Espalda',50,'00:34,29',null);addCV(2011,'F','Espalda',50,'00:35,02','A');addCV(2011,'F','Espalda',50,'00:35,52','B');
-addCV(2012,'F','Espalda',50,'00:35,95','A');addCV(2012,'F','Espalda',50,'00:36,45','B');addCV(2013,'F','Espalda',50,'00:40,23',null);addCV(2014,'F','Espalda',50,'00:42,11',null);addCV('abs','F','Espalda',100,'01:10,46',null);addCV(2008,'F','Espalda',100,'01:11,57',null);addCV(2009,'F','Espalda',100,'01:12,67',null);addCV(2010,'F','Espalda',100,'01:13,92',null);
-addCV(2011,'F','Espalda',100,'01:15,43','A');addCV(2011,'F','Espalda',100,'01:16,53','B');addCV(2012,'F','Espalda',100,'01:17,24','A');addCV(2012,'F','Espalda',100,'01:18,74','B');addCV(2013,'F','Espalda',100,'01:25,58',null);addCV(2014,'F','Espalda',100,'01:29,31',null);addCV('abs','F','Espalda',200,'02:31,55',null);addCV(2008,'F','Espalda',200,'02:33,73',null);
-addCV(2009,'F','Espalda',200,'02:35,92',null);addCV(2010,'F','Espalda',200,'02:38,19',null);addCV(2011,'F','Espalda',200,'02:40,90','A');addCV(2011,'F','Espalda',200,'02:43,90','B');addCV(2012,'F','Espalda',200,'02:44,06','A');addCV(2012,'F','Espalda',200,'02:47,06','B');addCV(2013,'F','Espalda',200,'03:03,55',null);addCV(2014,'F','Espalda',200,'03:11,56',null);
-addCV('abs','F','Braza',50,'00:36,67',null);addCV(2008,'F','Braza',50,'00:37,33',null);addCV(2009,'F','Braza',50,'00:37,98',null);addCV(2010,'F','Braza',50,'00:38,55',null);addCV(2011,'F','Braza',50,'00:39,47','A');addCV(2011,'F','Braza',50,'00:39,97','B');addCV(2012,'F','Braza',50,'00:40,50','A');addCV(2012,'F','Braza',50,'00:41,00','B');
-addCV(2013,'F','Braza',50,'00:43,45',null);addCV(2014,'F','Braza',50,'00:45,35',null);addCV('abs','F','Braza',100,'01:19,68',null);addCV(2008,'F','Braza',100,'01:20,99',null);addCV(2009,'F','Braza',100,'01:22,30',null);addCV(2010,'F','Braza',100,'01:23,82',null);addCV(2011,'F','Braza',100,'01:25,70','A');addCV(2011,'F','Braza',100,'01:27,20','B');
-addCV(2012,'F','Braza',100,'01:27,95','A');addCV(2012,'F','Braza',100,'01:29,45','B');addCV(2013,'F','Braza',100,'01:38,25',null);addCV(2014,'F','Braza',100,'01:43,21',null);addCV('abs','F','Braza',200,'02:52,40',null);addCV(2008,'F','Braza',200,'02:55,23',null);addCV(2009,'F','Braza',200,'02:58,06',null);addCV(2010,'F','Braza',200,'03:01,36',null);
-addCV(2011,'F','Braza',200,'03:05,42','A');addCV(2011,'F','Braza',200,'03:08,42','B');addCV(2012,'F','Braza',200,'03:10,29','A');addCV(2012,'F','Braza',200,'03:13,29','B');addCV(2013,'F','Braza',200,'03:32,45',null);addCV(2014,'F','Braza',200,'03:37,40',null);addCV('abs','F','Mariposa',50,'00:31,37',null);addCV(2008,'F','Mariposa',50,'00:32,01',null);
-addCV(2009,'F','Mariposa',50,'00:32,65',null);addCV(2010,'F','Mariposa',50,'00:33,48',null);addCV(2011,'F','Mariposa',50,'00:34,60','A');addCV(2011,'F','Mariposa',50,'00:35,10','B');addCV(2012,'F','Mariposa',50,'00:35,35','A');addCV(2012,'F','Mariposa',50,'00:35,85','B');addCV(2013,'F','Mariposa',50,'00:41,20',null);addCV(2014,'F','Mariposa',50,'00:44,15',null);
-addCV('abs','F','Mariposa',100,'01:09,80',null);addCV(2008,'F','Mariposa',100,'01:11,12',null);addCV(2009,'F','Mariposa',100,'01:12,44',null);addCV(2010,'F','Mariposa',100,'01:14,13',null);addCV(2011,'F','Mariposa',100,'01:16,28','A');addCV(2011,'F','Mariposa',100,'01:17,78','B');addCV(2012,'F','Mariposa',100,'01:18,91','A');addCV(2012,'F','Mariposa',100,'01:20,41','B');
-addCV(2013,'F','Mariposa',100,'01:31,73',null);addCV(2014,'F','Mariposa',100,'01:38,27',null);addCV('abs','F','Mariposa',200,'02:37,47',null);addCV(2008,'F','Mariposa',200,'02:40,59',null);addCV(2009,'F','Mariposa',200,'02:43,71',null);addCV(2010,'F','Mariposa',200,'02:47,84',null);addCV(2011,'F','Mariposa',200,'02:53,11','A');addCV(2011,'F','Mariposa',200,'02:56,11','B');
-addCV(2012,'F','Mariposa',200,'02:59,62','A');addCV(2012,'F','Mariposa',200,'03:02,62','B');addCV(2013,'F','Mariposa',200,'03:27,36',null);addCV(2014,'F','Mariposa',200,'03:36,00',null);addCV('abs','F','Estilos',200,'02:35,47',null);addCV(2008,'F','Estilos',200,'02:37,69',null);addCV(2009,'F','Estilos',200,'02:39,90',null);addCV(2010,'F','Estilos',200,'02:42,19',null);
-addCV(2011,'F','Estilos',200,'02:44,89','A');addCV(2011,'F','Estilos',200,'02:47,89','B');addCV(2012,'F','Estilos',200,'02:48,05','A');addCV(2012,'F','Estilos',200,'02:51,05','B');addCV(2013,'F','Estilos',200,'03:11,22',null);addCV(2014,'F','Estilos',200,'03:20,46',null);addCV('abs','F','Estilos',400,'05:29,96',null);addCV(2008,'F','Estilos',400,'05:34,15',null);
-addCV(2009,'F','Estilos',400,'05:38,35',null);addCV(2010,'F','Estilos',400,'05:42,16',null);addCV(2011,'F','Estilos',400,'05:46,49','A');addCV(2011,'F','Estilos',400,'05:51,49','B');addCV(2012,'F','Estilos',400,'05:51,36','A');addCV(2012,'F','Estilos',400,'05:56,36','B');addCV(2013,'F','Estilos',400,'06:45,22',null);addCV(2014,'F','Estilos',400,'06:50,53',null);
+   Y la mínima tampoco se guarda por año de nacimiento: se busca por
+   (categoría, año de categoría). Así el ciclo nacional de 4 años y la tabla
+   autonómica de una temporada conviven en la misma tabla sin duplicar nada.
+   ══════════════════════════════════════════════════════════════════════════ */
 
-function getCVMinima(ano,sexo,estilo,dist,nivel){
-  const k=getAnoKey(ano);
-  const key=nivel?`${k}-${sexo}-${estilo}-${dist}-${nivel}`:`${k}-${sexo}-${estilo}-${dist}`;
-  return CV_DB[key]??null;
+const CFG_TEMPORADA = {
+  mesInicio: 9,          // la temporada empieza en septiembre
+  tolerancia: 1e-6,      // para comparar centésimas sin sustos de coma flotante
+  tramos: [              // de mayor a menor edad
+    { categoria: 'Sub20',    edadMin: 18 },
+    { categoria: 'Junior',   edadMin: 15 },
+    { categoria: 'Infantil', edadMin: 13 },
+    { categoria: 'Alevín',   edadMin: 11 }
+  ]
+};
+
+// Penalización por cronometraje manual (la que ya usabas)
+function penalizacionDist(dist){ return parseInt(dist) === 50 ? 0.29 : 0.19; }
+
+// Formato mm:ss,cc. Aritmética de centésimas enteras: con floats salía "00:59,100"
+function tdis(seg){
+  if(seg === null || seg === undefined || !isFinite(seg)) return '—';
+  let cent = Math.round(seg * 100);
+  const h = Math.floor(cent / 360000); cent -= h * 360000;
+  const m = Math.floor(cent / 6000);   cent -= m * 6000;
+  const s = Math.floor(cent / 100);    cent -= s * 100;
+  const dos = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${dos(m)}:${dos(s)},${dos(cent)}` : `${dos(m)}:${dos(s)},${dos(cent)}`;
 }
 
-// Comunidades cuyo club pertenece a la C.Valenciana (para activar mínima autonómica)
-function esClubComunidadValenciana(club){
-  if(!club)return false;
-  const cvClubs = CLUBES_ESPANA['Comunidad Valenciana']||[];
-  return cvClubs.some(c=>c.toUpperCase()===club.toUpperCase());
+// ── Temporada ──────────────────────────────────────────────────────────────
+function inicioTemporadaDe(fecha){
+  const f = (fecha instanceof Date) ? fecha : new Date(fecha === undefined ? Date.now() : fecha);
+  if(isNaN(f.getTime())) return inicioTemporadaDe(new Date());
+  return (f.getMonth() + 1) >= CFG_TEMPORADA.mesInicio ? f.getFullYear() : f.getFullYear() - 1;
 }
+function etiquetaTemporada(inicio){ return `${inicio}/${inicio + 1}`; }
+function temporadaActual(){ return etiquetaTemporada(inicioTemporadaDe(new Date())); }
+
+// ── Categoría ──────────────────────────────────────────────────────────────
+function categoriaDe(anoNacimiento, inicio){
+  const ini = inicio || inicioTemporadaDe();
+  const ano = parseInt(anoNacimiento);
+  if(!ano || anoNacimiento === 'abs' || anoNacimiento === 'entrenador'){
+    return { categoria: 'Absoluto', anioCat: 0, edad: null, etiqueta: 'Absoluto', sinCategoria: false };
+  }
+  const edad = ini - ano;
+  if(edad >= 20) return { categoria: 'Absoluto', anioCat: 0, edad, etiqueta: 'Absoluto', sinCategoria: false };
+  for(const t of CFG_TEMPORADA.tramos){
+    if(edad >= t.edadMin){
+      const anioCat = edad - t.edadMin + 1;
+      return { categoria: t.categoria, anioCat, edad, etiqueta: `${t.categoria} ${anioCat}º año`, sinCategoria: false };
+    }
+  }
+  // Por debajo de alevín (benjamines): existen, pero no hay mínima de campeonato
+  return { categoria: 'Benjamín', anioCat: 0, edad, etiqueta: `Benjamín (${ano})`, sinCategoria: true };
+}
+
+// "Alevín" / "Infantil Masculino" → categoría; y de ahí a un año representativo
+function categoriaDesdeTexto(texto){
+  const t = String(texto || '').toLowerCase();
+  if(t.includes('benjam')) return 'Benjamín';
+  if(t.includes('alev'))   return 'Alevín';
+  if(t.includes('infant')) return 'Infantil';
+  if(t.includes('junior') || t.includes('júnior')) return 'Junior';
+  if(t.includes('sub20') || t.includes('sub-20') || t.includes('sub 20')) return 'Sub20';
+  if(t.includes('absolut')) return 'Absoluto';
+  return null;
+}
+function anoDeCategoria(texto, inicio){
+  const cat = categoriaDesdeTexto(texto);
+  const ini = inicio || inicioTemporadaDe();
+  if(!cat || cat === 'Absoluto') return null;
+  const tramo = CFG_TEMPORADA.tramos.find(t => t.categoria === cat);
+  return tramo ? ini - tramo.edadMin : null;   // primer año de esa categoría
+}
+
+// Etiqueta corta para listas: "Infantil 2º (2012)"
+function getCatLabel(anoNacimiento, fecha){
+  const { categoria, anioCat, edad, sinCategoria } = categoriaDe(anoNacimiento, inicioTemporadaDe(fecha));
+  if(categoria === 'Absoluto') return 'Absoluto';
+  if(sinCategoria) return categoria;
+  return `${categoria} ${anioCat}º (${edad !== null ? parseInt(anoNacimiento) : '—'})`;
+}
+
+// ── Territorio (antes: "esClubComunidadValenciana") ────────────────────────
+const TERRITORIOS = {
+  ESP:'España', AND:'Andalucía', ARA:'Aragón', AST:'Asturias', BAL:'Baleares',
+  CAN:'Canarias', CNT:'Cantabria', CYL:'Castilla y León', CLM:'Castilla-La Mancha',
+  CAT:'Cataluña', CEU:'Ceuta', MAD:'Comunidad de Madrid', CVA:'Comunidad Valenciana',
+  EXT:'Extremadura', GAL:'Galicia', RIO:'La Rioja', MEL:'Melilla', MUR:'Murcia',
+  NAV:'Navarra', PVA:'País Vasco'
+};
+function codigoTerritorio(nombre){
+  if(!nombre) return null;
+  const n = String(nombre).trim();
+  if(TERRITORIOS[n]) return n;
+  const upper = n.toUpperCase();
+  const hit = Object.keys(TERRITORIOS).find(k => TERRITORIOS[k].toUpperCase() === upper);
+  return hit || null;
+}
+function territorioDeClub(club){
+  if(!club) return null;
+  const buscado = String(club).toUpperCase().trim();
+  const com = Object.keys(CLUBES_ESPANA).find(k =>
+    (CLUBES_ESPANA[k] || []).some(c => c.toUpperCase() === buscado)
+  );
+  return com ? codigoTerritorio(com) : null;
+}
+function territorioDe(perfil){
+  if(!perfil) return null;
+  return perfil.territorio || codigoTerritorio(perfil.comunidad) || territorioDeClub(perfil.club);
+}
+
+// ── Almacén de mínimas ─────────────────────────────────────────────────────
+// Se cargan una vez de Supabase y se cachean; si la red falla, se usa la caché.
+const MINIMAS = { filas: [], cargada: false, cargando: null, error: null, actualizado: 0 };
+const MINIMAS_CACHE_KEY = 'minimas.v3';
+const MINIMAS_CACHE_MS = 6 * 60 * 60 * 1000;   // 6 horas
+
+let _idxNacional = new Map();     // clave -> [filas]
+let _idxTerritorial = new Map();  // clave -> [filas]
+
+function _fechaMs(valor){
+  if(!valor) return null;
+  const d = (valor instanceof Date) ? valor : new Date(String(valor).slice(0, 10) + 'T00:00:00');
+  return isNaN(d.getTime()) ? null : d.getTime();
+}
+
+function indexarMinimas(filas){
+  _idxNacional = new Map();
+  _idxTerritorial = new Map();
+  (filas || []).forEach(f => {
+    const fila = {
+      seg: parseFloat(f.tiempo_seg),
+      crono: f.crono || 'electronico',
+      nivel: f.nivel || '',
+      territorio: f.territorio || 'ESP',
+      fuente: f.fuente || '',
+      _desde: _fechaMs(f.vigencia_desde) || 0,
+      _hasta: _fechaMs(f.vigencia_hasta)
+    };
+    if(!isFinite(fila.seg)) return;
+    const base = [f.categoria, Number(f.anio_cat) || 0, f.sexo, f.estilo, parseInt(f.distancia), parseInt(f.piscina)];
+    if(f.ambito === 'nacional'){
+      const k = base.join('|');
+      if(!_idxNacional.has(k)) _idxNacional.set(k, []);
+      _idxNacional.get(k).push(fila);
+    } else {
+      const k = [f.territorio, ...base].join('|');
+      if(!_idxTerritorial.has(k)) _idxTerritorial.set(k, []);
+      _idxTerritorial.get(k).push(fila);
+    }
+  });
+  MINIMAS.filas = filas || [];
+  MINIMAS.actualizado = Date.now();
+}
+
+function _vigente(lista, fecha){
+  if(!lista || !lista.length) return null;
+  const t = _fechaMs(fecha) || Date.now();
+  let mejor = null;
+  for(const f of lista){
+    if(f._desde <= t && (f._hasta === null || t < f._hasta)){
+      if(!mejor || f._desde > mejor._desde) mejor = f;
+    }
+  }
+  return mejor;
+}
+
+function _leerCache(){
+  try{
+    const raw = localStorage.getItem(MINIMAS_CACHE_KEY);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || !Array.isArray(obj.filas)) return null;
+    if(Date.now() - (obj.ts || 0) > MINIMAS_CACHE_MS) return null;
+    return obj.filas;
+  }catch(e){ return null; }
+}
+function _guardarCache(filas){
+  try{ localStorage.setItem(MINIMAS_CACHE_KEY, JSON.stringify({ ts: Date.now(), filas })); }catch(e){}
+}
+
+async function cargarMinimas(forzar){
+  if(MINIMAS.cargando) return MINIMAS.cargando;
+  MINIMAS.cargando = (async () => {
+    try{
+      if(!forzar){
+        const cache = _leerCache();
+        if(cache){ indexarMinimas(cache); MINIMAS.cargada = true; }
+      }
+      const { data, error } = await sb.from('minimas_temporada')
+        .select('ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,tiempo_seg,vigencia_desde,vigencia_hasta,fuente')
+        .eq('estado', 'publicada');
+      if(error) throw error;
+      indexarMinimas(data || []);
+      MINIMAS.cargada = true;
+      MINIMAS.error = null;
+      _guardarCache(data || []);
+    }catch(e){
+      MINIMAS.error = e.message || String(e);
+      if(!MINIMAS.cargada){
+        const cache = _leerCache();
+        if(cache){ indexarMinimas(cache); MINIMAS.cargada = true; MINIMAS.error += ' (usando copia local)'; }
+      }
+    }finally{
+      MINIMAS.cargando = null;
+    }
+  })();
+  return MINIMAS.cargando;
+}
+
+// ── Consulta ───────────────────────────────────────────────────────────────
+function minimaNacional(ctx){
+  const inicio = inicioTemporadaDe(ctx.fecha);
+  const { categoria, anioCat, etiqueta, sinCategoria } = categoriaDe(ctx.anoNacimiento, inicio);
+  if(sinCategoria) return null;
+  const k = [categoria, anioCat, ctx.sexo, ctx.estilo, parseInt(ctx.distancia), parseInt(ctx.piscina)].join('|');
+  const f = _vigente(_idxNacional.get(k), ctx.fecha);
+  return f ? { seg: f.seg, crono: f.crono, categoria, anioCat, etiqueta, territorio: 'ESP' } : null;
+}
+
+function minimasTerritoriales(ctx){
+  const terr = ctx.territorio || territorioDe(usuario);
+  if(!terr) return [];
+  const inicio = inicioTemporadaDe(ctx.fecha);
+  const { categoria, anioCat, sinCategoria } = categoriaDe(ctx.anoNacimiento, inicio);
+  if(sinCategoria) return [];
+  const k = [terr, categoria, anioCat, ctx.sexo, ctx.estilo, parseInt(ctx.distancia), parseInt(ctx.piscina)].join('|');
+  const lista = (_idxTerritorial.get(k) || []).filter(f => {
+    const t = _fechaMs(ctx.fecha) || Date.now();
+    return f._desde <= t && (f._hasta === null || t < f._hasta);
+  });
+  return lista.sort((a, b) => a.seg - b.seg);
+}
+
+// ¿Con qué número se compara esta marca contra esta mínima?
+// Una marca manual se convierte a equivalente electrónico (+0,19 / +0,29) salvo
+// que la propia mínima ya esté expresada en manual, en cuyo caso se compara tal cual.
+function tiempoComparable(seg, cronoMarca, minimaCrono, distancia){
+  if(cronoMarca === 'manual' && (minimaCrono || 'electronico') !== 'manual'){
+    return seg + penalizacionDist(distancia);
+  }
+  return seg;
+}
+
+function evaluarMarca(p){
+  const fecha = p.fecha ? new Date(p.fecha) : new Date();
+  const distancia = parseInt(p.distancia) || 0;
+  const piscina = parseInt(p.piscina) || 50;
+  const ctx = {
+    anoNacimiento: p.anoNacimiento, sexo: p.sexo, territorio: p.territorio,
+    estilo: p.estilo, distancia, piscina, fecha
+  };
+  const cat = categoriaDe(p.anoNacimiento, inicioTemporadaDe(fecha));
+  const seg = parseFloat(p.seg) || 0;
+
+  const nac = minimaNacional(ctx);
+  const terLista = minimasTerritoriales(ctx);
+
+  const res = {
+    categoria: cat.categoria, anioCat: cat.anioCat, etiqueta: cat.etiqueta,
+    temporada: etiquetaTemporada(inicioTemporadaDe(fecha)),
+    nacional: null, territorial: null, territorialLista: terLista
+  };
+
+  if(nac){
+    const t = tiempoComparable(seg, p.crono, nac.crono, distancia);
+    res.nacional = {
+      seg: nac.seg, crono: nac.crono,
+      alcanzada: t <= nac.seg + CFG_TEMPORADA.tolerancia,
+      diferencia: t - nac.seg,
+      margen: nac.seg - t
+    };
+  }
+
+  if(terLista.length){
+    // La más exigente que cumple: como están ordenadas de menor a mayor tiempo,
+    // la primera que el nadador alcanza es la de nivel más alto.
+    let elegida = null;
+    for(const f of terLista){
+      const t = tiempoComparable(seg, p.crono, f.crono, distancia);
+      if(t <= f.seg + CFG_TEMPORADA.tolerancia){ elegida = { f, t }; break; }
+    }
+    const ref = elegida ? elegida.f : terLista[0];
+    const tRef = tiempoComparable(seg, p.crono, ref.crono, distancia);
+    res.territorial = {
+      seg: ref.seg, nivel: elegida ? ref.nivel : '', crono: ref.crono,
+      territorio: (ctx.territorio || territorioDe(usuario)),
+      alcanzada: !!elegida,
+      diferencia: tRef - ref.seg,
+      margen: ref.seg - tRef,
+      niveles: terLista.length > 1
+    };
+  }
+  return res;
+}
+
+function etiquetaNivelMinima(ev){
+  if(!ev || !ev.territorial) return '';
+  const cod = ev.territorial.territorio || 'AUT';
+  return `${cod}-MÍN${ev.territorial.nivel ? ' ' + ev.territorial.nivel : ''}`;
+}
+
+function paramsDeMarca(m){
+  return {
+    anoNacimiento: m.ano_nacimiento,
+    sexo: m.sexo,
+    territorio: m.territorio || territorioDe(usuario),
+    estilo: m.estilo,
+    distancia: m.distancia,
+    piscina: m.piscina,
+    crono: m.crono || 'electronico',
+    seg: parseFloat(m.tiempo_seg),
+    fecha: fechaDeMarca(m)
+  };
+}
+
+function fechaDeMarca(m){
+  if(m.fecha_real) return new Date(String(m.fecha_real).slice(0, 10) + 'T12:00:00');
+  if(m.temporada){
+    const ini = parseInt(String(m.temporada));
+    if(ini) return new Date(ini + 1, 0, 15);        // mitad de esa temporada
+  }
+  const f = String(m.fecha || '');
+  const mm = f.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(mm) return new Date(+mm[3], +mm[2] - 1, +mm[1], 12);
+  return new Date();
+}
+
+// ── Compatibilidad con el resto de la app ──────────────────────────────────
+// Las funciones de antes siguen existiendo con la misma firma, pero ahora
+// resuelven por temporada. Así no hay que tocar las 40 llamadas del HTML.
+function getDBMinima(ano, sexo, estilo, dist, piscina, fecha){
+  const r = minimaNacional({ anoNacimiento: ano, sexo, estilo, distancia: dist, piscina, fecha });
+  return r ? r.seg : null;
+}
+function getMinima(estilo, dist, piscina){
+  if(!usuario) return null;
+  return getDBMinima(usuario.ano, usuario.sexo, estilo, dist, piscina, new Date());
+}
+function getCVMinima(ano, sexo, estilo, dist, nivel, fecha){
+  const lista = minimasTerritoriales({
+    anoNacimiento: ano, sexo, estilo, distancia: dist, piscina: 25, territorio: territorioDe(usuario), fecha
+  });
+  if(!lista.length) return null;
+  if(nivel) return (lista.find(f => (f.nivel || '') === nivel) || {}).seg ?? null;
+  return lista[lista.length - 1].seg;   // sin nivel: la más asequible
+}
+function esClubComunidadValenciana(club){ return territorioDeClub(club) === 'CVA'; }
+function penalizar(seg, dist){ return cronoTipo === 'manual' ? seg + penalizacionDist(dist) : seg; }
+
+function calcularCVMinima(m){
+  const ev = evaluarMarca(paramsDeMarca(m));
+  if(!ev.territorial || !ev.territorial.alcanzada) return null;
+  return { nivel: ev.territorial.nivel || null, min: ev.territorial.seg };
+}
+
+// Badge "CVA-MÍN A" para una fila de la tabla marcas
+function badgeTerritorialFila(m){
+  const ev = evaluarMarca(paramsDeMarca(m));
+  if(!ev.territorial || !ev.territorial.alcanzada) return '';
+  const texto = etiquetaNivelMinima(ev);
+  return `<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:1px 5px;font-size:8px;font-weight:700;">${texto}</span>`;
+}
+
+// Badges de nacional + autonómica dentro del módulo Live
+function badgesParaLive(ev, r, swimSeg){
+  if(!usuario || !(swimSeg > 0)) return '';
+  if(ev && ev.isrelay) return '';
+  const estiloApp = mapearEstiloLive(ev.stroke !== undefined ? ev.stroke : ev.styleid);
+  const piscina = (typeof liveCompeticionCourse !== 'undefined' && liveCompeticionCourse === 1) ? 50 : 25;
+  const distTxt = String(ev.distance || '');
+  const distNum = parseInt((distTxt.split('x').pop() || '').replace(/[^0-9]/g, '')) || 0;
+  if(!distNum) return '';
+  const atleta = (typeof liveAtletasData !== 'undefined' && (liveAtletasData[r.athleteid] || liveAtletasData[r.uniqueid])) || {};
+  const ano = atleta.yob || anoDeCategoria(r.agetext) || usuario.ano;
+  const sexo = (r.gender === '2' || r.gender === 2) ? 'F' : ((r.gender === '1' || r.gender === 1) ? 'M' : usuario.sexo);
+  const e = evaluarMarca({
+    anoNacimiento: ano, sexo, territorio: territorioDe(usuario), estilo: estiloApp,
+    distancia: distNum, piscina, crono: 'electronico', seg: swimSeg, fecha: new Date()
+  });
+  let html = '';
+  if(e.nacional){
+    html += e.nacional.alcanzada
+      ? '<span class="result-minima badge-si">✓ MÍN</span>'
+      : `<span class="result-minima" style="background:rgba(26,26,46,.05);color:rgba(90,107,125,.6);border:1px solid rgba(26,26,46,.08);">+${e.nacional.diferencia.toFixed(2)}s</span>`;
+  }
+  if(e.territorial && e.territorial.alcanzada){
+    html += `<span class="result-minima" style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;">${etiquetaNivelMinima(e)}</span>`;
+  }
+  return html;
+}
+
+// De un texto de fecha ("15/01/2026", "2026-01-15") a temporada y a ISO
+function temporadaDeTexto(txt){
+  const s = String(txt || '');
+  const es = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if(es) return etiquetaTemporada((+es[2]) >= 9 ? +es[3] : +es[3] - 1);
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso) return etiquetaTemporada((+iso[2]) >= 9 ? +iso[1] : +iso[1] - 1);
+  return temporadaActual();
+}
+function fechaISO(txt){
+  const s = String(txt || '');
+  const es = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if(es) return `${es[3]}-${es[2].padStart(2,'0')}-${es[1].padStart(2,'0')}`;
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return null;
+}
+
+// Selectores de año que antes estaban escritos a mano en el HTML
+function inicializarSelectoresTemporada(){
+  const ini = inicioTemporadaDe(new Date());
+  const selAno = document.getElementById('rAno');
+  if(selAno){
+    const actual = selAno.value;
+    const opciones = ['<option value="">Selecciona tu año</option>'];
+    for(let edad = 11; edad <= 19; edad++){
+      const ano = ini - edad;
+      const cat = categoriaDe(ano, ini);
+      opciones.push(`<option value="${ano}">${ano} · ${cat.categoria} ${cat.anioCat}º año</option>`);
+    }
+    opciones.push(`<option value="abs">${ini - 20} o anterior (Absoluto)</option>`);
+    selAno.innerHTML = opciones.join('');
+    if(actual) selAno.value = actual;
+  }
+  const selMin = document.getElementById('minimasAno');
+  if(selMin){
+    const actual = selMin.value;
+    selMin.innerHTML = '';
+    for(let edad = 11; edad <= 19; edad++){
+      const ano = ini - edad;
+      const cat = categoriaDe(ano, ini);
+      const o = document.createElement('option');
+      o.value = ano;
+      o.textContent = `${cat.categoria} ${cat.anioCat}º · ${ano}`;
+      selMin.appendChild(o);
+    }
+    const oAbs = document.createElement('option');
+    oAbs.value = 'abs'; oAbs.textContent = 'Absoluto';
+    selMin.appendChild(oAbs);
+    if(actual) selMin.value = actual;
+  }
+}
+
 
 const DISTS = {Libres:[50,100,200,400,800,1500],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
 const DISTS_AL = {Libres:[50,100,200,400,800],Espalda:[50,100,200],Braza:[50,100,200],Mariposa:[50,100,200],Estilos:[200,400]};
@@ -662,82 +1021,7 @@ let filtroEstilo='Libres', filtroPiscina=50, cronoTipo='electronico';
 let rankingScope='todos', equipoScope='club';
 
 // -- HELPERS ----------------------------------------------
-// Temporada activa: se calcula automáticamente (oct-ago)
-// En septiembre u octubre ya es la nueva temporada
-function getTemporadaActual(){
-  const hoy=new Date();
-  const mes=hoy.getMonth()+1; // 1-12
-  const anyo=hoy.getFullYear();
-  // Temporada empieza en septiembre: sep-dic del año X y ene-ago del año X+1
-  return mes>=9 ? anyo : anyo-1;
-}
-
-// Devuelve el rango de años de nacimiento para cada categoría en la temporada actual
-function getRangosCategoria(){
-  const t=getTemporadaActual(); // ej: 2026 para temporada 26/27
-  return {
-    abs:    {hasta: t-21},          // nacidos hasta año t-21 (≥21 años)
-    sub20:  {desde: t-19, hasta: t-18}, // 18-19 años
-    junior: {desde: t-17, hasta: t-15}, // 15-17 años
-    infantil:{desde: t-14, hasta: t-13},// 13-14 años
-    alevin: {desde: t-12, hasta: t-11}, // 11-12 años
-    benjamin:{desde: t-10, hasta: t-9}, // 9-10 años
-  };
-}
-
-function getAnoKey(ano){
-  const a=parseInt(ano);
-  if(!a||ano==='abs')return 'abs';
-  const r=getRangosCategoria();
-  // Mantenemos la clave por año de nacimiento para la DB de mínimas
-  // Solo mapeamos a 'abs' si es mayor de absoluto
-  if(a<=r.abs.hasta)return 'abs';
-  return a;
-}
-
-function getCatLabel(ano){
-  const a=parseInt(ano);
-  if(isNaN(a)||ano==='abs')return 'Absoluto';
-  const r=getRangosCategoria();
-  if(a<=r.abs.hasta)return 'Absoluto';
-  if(a>=r.sub20.desde&&a<=r.sub20.hasta)return `Sub20 (${ano})`;
-  if(a>=r.junior.desde&&a<=r.junior.hasta)return `Junior ${ano}`;
-  if(a>=r.infantil.desde&&a<=r.infantil.hasta)return `Infantil ${ano}`;
-  if(a>=r.alevin.desde&&a<=r.alevin.hasta)return `Alevín ${ano}`;
-  if(a>=r.benjamin.desde&&a<=r.benjamin.hasta)return `Benjamín ${ano}`;
-  return `${ano}`;
-}
-function getDBMinima(ano,sexo,estilo,dist,piscina){const k=getAnoKey(ano);return DB[`${k}-${sexo}-${estilo}-${dist}-${piscina}`]??null;}
-function getMinima(estilo,dist,piscina){if(!usuario)return null;return getDBMinima(usuario.ano,usuario.sexo,estilo,dist,piscina);}
-function tdis(seg){
-  const h=Math.floor(seg/3600);
-  const min=Math.floor((seg%3600)/60);
-  const s=Math.floor(seg%60);
-  const c=Math.round((seg-Math.floor(seg))*100);
-  if(h>0) return `${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(2,'0')}`;
-  return `${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(2,'0')}`;
-}
-function penalizar(seg,dist){return cronoTipo==='manual'?seg+(dist===50?0.29:0.19):seg;}
 function showToast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.style.background=err?'#ef233c':'var(--verde)';el.style.color=err?'#fff':'#003d2e';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
-function calcularCVMinima(m){
-  // Solo para piscina 25m, clubes CV, cronometraje manual (mínimas autonómicas son en manual)
-  if(m.piscina!==25&&m.piscina!=='25')return null;
-  if(!esClubComunidadValenciana(m.club))return null;
-  const ano=m.ano_nacimiento;
-  const k=getAnoKey(ano);
-  // Infantil tiene nivel A y B
-  if(k===2011||k===2012){
-    const minA=getCVMinima(ano,m.sexo,m.estilo,m.distancia,'A');
-    const minB=getCVMinima(ano,m.sexo,m.estilo,m.distancia,'B');
-    if(minA&&m.tiempo_seg<=minA) return {nivel:'A',min:minA};
-    if(minB&&m.tiempo_seg<=minB) return {nivel:'B',min:minB};
-    return null;
-  }
-  const min=getCVMinima(ano,m.sexo,m.estilo,m.distancia,null);
-  if(min&&m.tiempo_seg<=min) return {nivel:null,min};
-  return null;
-}
-
 function marcaHtml(m,mostrarNombre=false,pos=null){
   let emoji,bc,bt;
   if(m.tiene_minima==='si'){emoji='🏆';bc='badge-si';bt='MÍNIMA ✓';}
@@ -835,15 +1119,21 @@ async function doRegistro(){
   if(!esE&&(!ano||!sexo)){err.textContent='Selecciona año de nacimiento y sexo';err.style.display='block';return;}
   if(pass.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres';err.style.display='block';return;}
   const consentimiento=document.getElementById('rConsentimiento').checked;
+  const comunidad=document.getElementById('rComunidad').value;
+  const territorio=codigoTerritorio(comunidad)||territorioDeClub(club);
   const{data,error}=await sb.auth.signUp({
     email,
     password:pass,
     options:{
-      data:{nombre,club,ano,sexo,rol,consentimiento}
+      data:{nombre,club,ano,sexo,rol,consentimiento,territorio}
     }
   });
   if(error){err.textContent=error.message;err.style.display='block';return;}
-  await sb.from('perfiles').upsert({id:data.user.id,nombre,club,ano,sexo,rol,email,consentimiento});
+  const{error:errPerfil}=await sb.from('perfiles').upsert(
+    {id:data.user.id,nombre,club,ano,sexo,rol,email,consentimiento,territorio},
+    {ignoreDuplicates:true}
+  );
+  if(errPerfil){err.textContent='Cuenta creada, pero no se guardó el perfil: '+errPerfil.message;err.style.display='block';return;}
   showToast('Cuenta creada. Ahora entra con tu email y contrasena.');
   setAuthTab('login',document.querySelector('.auth-tab'));
 }
@@ -859,10 +1149,11 @@ async function cargarPerfil(uid){
 }
 
 // -- INICIAR APP ------------------------------------------
-function iniciarApp(){
+async function iniciarApp(){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('appMain').style.display='flex';
   document.getElementById('bottomNav').style.display='flex';
+  await cargarMinimas();
   const esE=usuario.rol==='entrenador';
   document.getElementById('headerNombre').textContent=usuario.nombre.split(' ')[0];
   document.getElementById('perfilNombre').textContent=usuario.nombre;
@@ -911,8 +1202,9 @@ function iniciarApp(){
 
 window.addEventListener('load',async()=>{
   inicializarSelectorComunidades();
+  inicializarSelectoresTemporada();
   const{data:{session}}=await sb.auth.getSession();
-  if(session){sesion=session;await cargarPerfil(session.user.id);iniciarApp();}
+  if(session){sesion=session;await cargarPerfil(session.user.id);await cargarMinimas();iniciarApp();}
 });
 
 // -- NAVEGACIÓN -------------------------------------------
@@ -1033,7 +1325,7 @@ function actualizarDistancias(){
   const es=document.getElementById('fEstilo').value;
   const sel=document.getElementById('fDistancia');
   sel.innerHTML='<option value="">Selecciona distancia</option>';
-  const esAl=(usuario?.ano==='2013'||usuario?.ano==='2014');
+  const esAl=categoriaDe(usuario?.ano).categoria==='Alevín';
   const d=(esAl?DISTS_AL:DISTS)[es]||[];
   d.forEach(v=>sel.innerHTML+=`<option value="${v}">${v}m</option>`);
   calcularPreview();
@@ -1049,45 +1341,41 @@ function calcularPreview(){
   const cn=parseFloat(document.getElementById('fCen').value)||0;
   const prev=document.getElementById('resultadoPreview');
   if(!es||!di||(!mn&&!sg&&!cn)){prev.classList.remove('visible');return;}
-  const tPen=penalizar(mn*60+sg+cn/100,di);
-  const min=getMinima(es,di,pi);
-  const penStr=cronoTipo==='manual'?` (+${di===50?'0,29':'0,19'}s manual)`:'';
+  const seg=mn*60+sg+cn/100;
+  const ev=evaluarMarca({anoNacimiento:usuario?.ano,sexo:usuario?.sexo,territorio:territorioDe(usuario),estilo:es,distancia:di,piscina:pi,crono:cronoTipo,seg,fecha:new Date()});
+  const penStr=cronoTipo==='manual'?` (+${penalizacionDist(di)} s manual)`:'';
+  const emoji=document.getElementById('prevEmoji'),txt=document.getElementById('prevTexto'),det=document.getElementById('prevDetalle');
   prev.classList.add('visible');
-  if(min===null){prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='⚪';document.getElementById('prevTexto').textContent='SIN MÍNIMA EN TU CATEGORÍA';document.getElementById('prevDetalle').textContent='Esta prueba no tiene mínima nacional para ti';}
-  else if(tPen<=min){
-    // Verificar también si tiene mínima CV (solo 25m y club CV)
-    let cvTxt='';
-    if(pi===25&&esClubComunidadValenciana(usuario?.club)){
-      const k=getAnoKey(usuario.ano);
-      if(k===2011||k===2012){
-        const minCVA=getCVMinima(usuario.ano,usuario.sexo,es,di,'A');
-        const minCVB=getCVMinima(usuario.ano,usuario.sexo,es,di,'B');
-        if(minCVA&&tPen<=minCVA) cvTxt=' + 🟠 CV-MÍN A';
-        else if(minCVB&&tPen<=minCVB) cvTxt=' + 🟠 CV-MÍN B';
-      } else {
-        const minCV=getCVMinima(usuario.ano,usuario.sexo,es,di,null);
-        if(minCV&&tPen<=minCV) cvTxt=' + 🟠 CV-MÍN';
-      }
-    }
-    prev.className='resultado-preview visible';document.getElementById('prevEmoji').textContent='🏆';document.getElementById('prevTexto').textContent='¡MÍNIMA NACIONAL!'+cvTxt;document.getElementById('prevDetalle').textContent=`La superas por ${(min-tPen).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;
-  } else {
-    // Sin mínima nacional - comprobar CV igualmente
-    let cvTxt='';
-    if(pi===25&&esClubComunidadValenciana(usuario?.club)){
-      const k=getAnoKey(usuario.ano);
-      if(k===2011||k===2012){
-        const minCVA=getCVMinima(usuario.ano,usuario.sexo,es,di,'A');
-        const minCVB=getCVMinima(usuario.ano,usuario.sexo,es,di,'B');
-        if(minCVA&&tPen<=minCVA) cvTxt='🟠 CV-MÍN A conseguida! ';
-        else if(minCVB&&tPen<=minCVB) cvTxt='🟠 CV-MÍN B conseguida! ';
-      } else {
-        const minCV=getCVMinima(usuario.ano,usuario.sexo,es,di,null);
-        if(minCV&&tPen<=minCV) cvTxt='🟠 CV-MÍN conseguida! ';
-      }
-    }
-    prev.className='resultado-preview visible no';document.getElementById('prevEmoji').textContent=cvTxt?'🟠':'💪';document.getElementById('prevTexto').textContent=cvTxt||'TODAVÍA NO, ¡SIGUE!';document.getElementById('prevDetalle').textContent=`Te faltan ${(tPen-min).toFixed(2)}s${penStr}. Mínima: ${tdis(min)}`;
+  if(!ev.nacional&&!ev.territorial){
+    prev.className='resultado-preview visible';
+    emoji.textContent='⚪';
+    txt.textContent='SIN MÍNIMA PARA TU CATEGORÍA';
+    det.textContent=`No hay mínima publicada para ${ev.etiqueta} en ${es} ${di}m (${pi}m)`;
+    return;
   }
+  const nivelTer=ev.territorial?etiquetaNivelMinima(ev):'';
+  if(ev.nacional&&ev.nacional.alcanzada){
+    prev.className='resultado-preview visible';
+    emoji.textContent='🏆';
+    txt.textContent='¡MÍNIMA NACIONAL!'+(ev.territorial&&ev.territorial.alcanzada?` + ${nivelTer}`:'');
+    det.textContent=`Te sobran ${ev.nacional.margen.toFixed(2)} s${penStr}. Mínima ${ev.etiqueta}: ${tdis(ev.nacional.seg)}`;
+    return;
+  }
+  if(ev.territorial&&ev.territorial.alcanzada){
+    prev.className='resultado-preview visible';
+    emoji.textContent='🟠';
+    txt.textContent=nivelTer+' CONSEGUIDA';
+    det.textContent=`Autonómica ${tdis(ev.territorial.seg)}. Te faltan ${Math.abs(ev.nacional?ev.nacional.diferencia:0).toFixed(2)} s para la nacional${penStr}`;
+    return;
+  }
+  prev.className='resultado-preview visible no';
+  emoji.textContent='💪';
+  txt.textContent='TODAVÍA NO, ¡SIGUE!';
+  det.textContent = ev.nacional
+    ? `Te faltan ${ev.nacional.diferencia.toFixed(2)} s${penStr}. Mínima ${ev.etiqueta}: ${tdis(ev.nacional.seg)}`
+    : `Te faltan ${ev.territorial.diferencia.toFixed(2)} s para la autonómica`;
 }
+
 async function guardarMarca(){
   const es=document.getElementById('fEstilo').value;
   const di=parseInt(document.getElementById('fDistancia').value);
@@ -1099,12 +1387,38 @@ async function guardarMarca(){
   if(!es){showToast('Selecciona un estilo',true);return;}
   if(!di){showToast('Selecciona una distancia',true);return;}
   if(!mn&&!sg&&!cn){showToast('Introduce el tiempo',true);return;}
-  const tPen=penalizar(mn*60+sg+cn/100,di);
-  const min=getMinima(es,di,pi);
-  let tm='sin_minima';if(min!==null&&min>0)tm=tPen<=min?'si':'no';
+  if(sg>=60||cn>=100){showToast('Segundos 0-59 y centésimas 0-99',true);return;}
+  const seg=mn*60+sg+cn/100;
+  // Ojo: se guarda el tiempo tal cual se nadó. La penalización por manual se
+  // aplica al comparar con la mínima, no antes de guardar (si no, se queda
+  // grabada para siempre y el ranking miente).
+  const ev=evaluarMarca({anoNacimiento:usuario?.ano,sexo:usuario?.sexo,territorio:territorioDe(usuario),estilo:es,distancia:di,piscina:pi,crono:cronoTipo,seg,fecha:new Date()});
+  const min=ev.nacional?ev.nacional.seg:null;
+  let tm='sin_minima';
+  if(min!==null) tm=ev.nacional.alcanzada?'si':'no';
   if(sesion?.user?.id==='demo'){showToast('Modo demo — no se pueden guardar marcas',true);return;}
-  const{error}=await sb.from('marcas').insert({user_id:sesion.user.id,nombre_nadador:usuario.nombre,club:usuario.club,ano_nacimiento:usuario.ano,sexo:usuario.sexo,consentimiento_ranking:usuario.consentimiento||false,estilo:es,distancia:di,piscina:pi,tiempo_seg:tPen,tiempo_display:tdis(tPen),minima_display:min?tdis(min):null,tiene_minima:tm,competicion:comp,crono:cronoTipo,fecha:new Date().toLocaleDateString('es-ES')});
-  if(error){showToast('Error al guardar',true);return;}
+  const hoy=new Date();
+  const{error}=await sb.from('marcas').insert({
+    user_id:sesion.user.id,
+    nombre_nadador:usuario.nombre,
+    club:usuario.club,
+    ano_nacimiento:usuario.ano,
+    sexo:usuario.sexo,
+    consentimiento_ranking:usuario.consentimiento||false,
+    estilo:es,
+    distancia:di,
+    piscina:pi,
+    tiempo_seg:seg,
+    tiempo_display:tdis(seg),
+    minima_display:min?tdis(min):null,
+    tiene_minima:tm,
+    competicion:comp,
+    crono:cronoTipo,
+    temporada:temporadaActual(),
+    fecha_real:hoy.toISOString().slice(0,10),
+    fecha:hoy.toLocaleDateString('es-ES')
+  });
+  if(error){showToast('Error al guardar: '+error.message,true);return;}
   ['fEstilo','fCompeticion'].forEach(id=>document.getElementById(id).value='');
   ['fMin','fSeg','fCen'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fDistancia').innerHTML='<option value="">— estilo primero —</option>';
@@ -1115,56 +1429,39 @@ async function guardarMarca(){
 }
 
 // -- MÍNIMAS ----------------------------------------------
-let tabMinimas = 'nac'; // 'nac' o 'cv'
-
-function setTabMinimas(tab, btn){
-  tabMinimas = tab;
-  document.querySelectorAll('#screenMinimas .tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  // Solo mostrar selector de piscina en mínimas nacionales
-  document.getElementById('minimasPiscinaWrap').style.display = tab==='nac'?'flex':'none';
-  renderMinimas();
-}
-
 function renderMinimas(){
   if(!usuario)return;
   const lista=document.getElementById('listaMinimas');
-  // Usar siempre el selector (para nadadores ya está inicializado con su año/sexo)
-  const ano=document.getElementById('minimasAno')?.value||usuario.ano||'2011';
+  const ano=document.getElementById('minimasAno')?.value||usuario.ano||'';
   const sexo=document.getElementById('minimasSexo')?.value||usuario.sexo||'F';
   const sx=sexo==='F'?'Femenino':'Masculino';
-  document.getElementById('minimasCategoria').textContent=`${getCatLabel(ano)} · ${sx}`;
-  const esAl=(ano==='2013'||ano==='2014');
-  const dists=(esAl?DISTS_AL:DISTS)[filtroEstilo]||[];
-  if(!dists.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin mínimas</div></div>';return;}
-
-  if(tabMinimas==='nac'){
-    // Tabla mínimas nacionales
-    lista.innerHTML=dists.map(d=>{
-      const seg=getDBMinima(ano,sexo,filtroEstilo,d,filtroPiscina);
-      return `<div class="minima-row"><div class="minima-dist">${d}m</div>${seg?`<div class="minima-tiempo">${tdis(seg)}</div>`:`<div class="minima-tiempo minima-na">Sin mínima</div>`}</div>`;
-    }).join('');
-  } else {
-    // Tabla mínimas autonómicas CV - solo 25m, Infantil tiene A y B
-    const k=getAnoKey(ano);
-    const esInfantil=(k===2011||k===2012);
-    lista.innerHTML=`<div style="font-size:13px;color:rgba(90,107,125,.6);margin-bottom:8px;">Piscina 25m · Cronometraje manual · Temporada 25/26</div>` +
-    dists.map(d=>{
-      if(esInfantil){
-        const segA=getCVMinima(ano,sexo,filtroEstilo,d,'A');
-        const segB=getCVMinima(ano,sexo,filtroEstilo,d,'B');
-        if(!segA&&!segB) return `<div class="minima-row"><div class="minima-dist">${d}m</div><div class="minima-tiempo minima-na">Sin mínima</div></div>`;
-        return `<div class="minima-row" style="flex-wrap:wrap;gap:4px;">
-          <div class="minima-dist">${d}m</div>
-          ${segA?`<div style="display:flex;flex-direction:column;align-items:center;gap:1px;"><div class="minima-tiempo">${tdis(segA)}</div><div style="font-size:11px;color:#e08800;font-weight:700;">MÍN A</div></div>`:''}
-          ${segB?`<div style="display:flex;flex-direction:column;align-items:center;gap:1px;"><div class="minima-tiempo" style="color:#3d4a58;">${tdis(segB)}</div><div style="font-size:11px;color:rgba(90,107,125,.6);font-weight:700;">MÍN B</div></div>`:''}
-        </div>`;
-      } else {
-        const seg=getCVMinima(ano,sexo,filtroEstilo,d,null);
-        return `<div class="minima-row"><div class="minima-dist">${d}m</div>${seg?`<div class="minima-tiempo">${tdis(seg)}</div>`:`<div class="minima-tiempo minima-na">Sin mínima</div>`}</div>`;
-      }
-    }).join('');
+  const cat=categoriaDe(ano);
+  document.getElementById('minimasCategoria').textContent=`${getCatLabel(ano)} · ${sx} · temporada ${temporadaActual()}`;
+  if(!MINIMAS.cargada){
+    lista.innerHTML=MINIMAS.error
+      ? `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">No se pudieron cargar las mínimas.<br>${MINIMAS.error}</div></div>`
+      : `<div class="loading"><span class="spinner"></span>Cargando mínimas...</div>`;
+    return;
   }
+  if(cat.sinCategoria){
+    lista.innerHTML='<div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-text">Benjamines: todavía no hay mínima de campeonato</div></div>';
+    return;
+  }
+  const dists=(cat.categoria==='Alevín'?DISTS_AL:DISTS)[filtroEstilo]||[];
+  if(!dists.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin mínimas</div></div>';return;}
+  const terr=territorioDe(usuario);
+  lista.innerHTML=dists.map(d=>{
+    const seg=getDBMinima(ano,sexo,filtroEstilo,d,filtroPiscina);
+    const ter=terr?minimasTerritoriales({anoNacimiento:ano,sexo,estilo:filtroEstilo,distancia:d,piscina:filtroPiscina,territorio:terr,fecha:new Date()}):[];
+    const terTxt=ter.length
+      ? `<div style="font-size:13px;color:#e08800;margin-top:2px;">${terr}-MÍN${ter[0].nivel?' '+ter[0].nivel:''} ${tdis(ter[0].seg)}</div>`
+      : '';
+    return `<div class="minima-row"><div class="minima-dist">${d}m</div>
+      <div style="flex:1;text-align:center;">
+        <div class="minima-tiempo" style="text-align:center;">${seg?tdis(seg):'<span class="minima-na">Sin mínima</span>'}</div>
+        ${terTxt}
+      </div></div>`;
+  }).join('');
 }
 
 // -- RANKING ----------------------------------------------
@@ -1205,7 +1502,7 @@ async function cargarRanking(){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
         <div class="ranking-tiempo">${m.tiempo_display}</div>
         ${m.tiene_minima==='si'?'<span class="marca-badge badge-si" style="font-size:8px;">MÍN ✓</span>':''}
-        ${(()=>{if(m.piscina!==25&&m.piscina!=='25')return '';if(!esClubComunidadValenciana(m.club))return '';const k=getAnoKey(m.ano_nacimiento);let cvr=null;if(k===2011||k===2012){const mA=getCVMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,'A');const mB=getCVMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,'B');if(mA&&m.tiempo_seg<=mA)cvr='A';else if(mB&&m.tiempo_seg<=mB)cvr='B';}else{const mC=getCVMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,null);if(mC&&m.tiempo_seg<=mC)cvr='';}if(cvr===null)return '';return `<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:1px 5px;font-size:8px;font-weight:700;">CV${cvr?'-'+cvr:''}</span>`;})()}
+        ${badgeTerritorialFila(m)}
       </div>
     </div>`;
   }).join('');
@@ -1363,8 +1660,6 @@ function cambiarVistaPrincipal(vista, btn){
   }
 }
 
-let clubGeneroFiltro = '1'; // '1'=Masc, '2'=Fem, 'R'=Relevos
-
 function renderVistaNadadoresClub(){
   document.getElementById('liveSubHeader').style.display='none';
   document.getElementById('liveTabs').style.display='none';
@@ -1373,7 +1668,6 @@ function renderVistaNadadoresClub(){
     cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se ha detectado tu club en esta competición</div></div>';
     return;
   }
-
   const atletasClub = Object.entries(liveAtletasData)
     .filter(([id,a])=>String(a.clubid)===String(liveMiClubCode))
     .map(([id,a])=>({id,...a}))
@@ -1384,146 +1678,20 @@ function renderVistaNadadoresClub(){
     return;
   }
 
-  const masc=atletasClub.filter(a=>a.gender==='1');
-  const fem=atletasClub.filter(a=>a.gender==='2');
-
-  // Tabs Masculino / Femenino / Relevos
-  const tabs=`<div class="tabs" style="margin-bottom:12px;">
-    <button class="tab-btn${clubGeneroFiltro==='1'?' active':''}" onclick="setClubGenero('1',this)">♂ Masculino (${masc.length})</button>
-    <button class="tab-btn${clubGeneroFiltro==='2'?' active':''}" onclick="setClubGenero('2',this)">♀ Femenino (${fem.length})</button>
-    <button class="tab-btn${clubGeneroFiltro==='R'?' active':''}" onclick="setClubGenero('R',this)">🔄 Relevos</button>
-  </div>`;
-
-  let contenido='';
-  if(clubGeneroFiltro==='R'){
-    // Mostrar relevos del club de la competición
-    const relevos = liveEventosData.filter(e=>e.isrelay||(e.stylename&&e.stylename.toLowerCase().includes('rele')));
-    if(!relevos.length){
-      contenido='<div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-text">No hay relevos en esta competición</div></div>';
-    } else {
-      contenido=relevos.map(ev=>`<div class="live-card" onclick="abrirPrueba('${ev.id||ev.eid}')">
-        <div style="font-weight:600;font-size:15px;">${getNombreEvento(ev)}</div>
-        <div style="font-size:13px;color:rgba(90,107,125,.6);">${getAgegroupStr(ev)}</div>
-      </div>`).join('');
-    }
-  } else {
-    const lista = clubGeneroFiltro==='1'?masc:fem;
-    // Cargar resultados de todos los eventos para cada nadador del club
-    contenido = lista.map(a=>{
+  cont.innerHTML=`<div style="font-size:15px;color:rgba(90,107,125,.8);margin-bottom:10px;">${atletasClub.length} nadadores de ${usuario.club} inscritos</div>` +
+    atletasClub.map(a=>{
       const nombre = a.lastname?`${a.lastname}, ${a.firstname}`:(a.fullname||'—');
-      // Buscar sus pruebas en liveEventosData (necesitamos hacer la carga async, pero aquí mostramos la tarjeta)
-      return `<div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;" onclick="abrirPerfilNadadorLive('${a.id}')">
-          <div style="font-weight:700;font-size:16px;color:var(--agua-light);">${nombre}</div>
-          <div style="font-size:13px;color:rgba(90,107,125,.6);">${a.yob||''}</div>
+      const genStr = a.gender==='1'?'M':a.gender==='2'?'F':'';
+      return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${a.id}')">
+        <div class="nadador-header">
+          <div class="nadador-avatar">🏊</div>
+          <div style="flex:1;">
+            <div class="nadador-nombre">${nombre}</div>
+            <div class="nadador-sub">${a.yob||''}${genStr?' · '+genStr:''}</div>
+          </div>
         </div>
-        <div id="pruebas_${a.id}"><div style="font-size:13px;color:rgba(90,107,125,.5);">Cargando pruebas...</div></div>
       </div>`;
-    }).join('<hr style="border:none;border-top:1px solid var(--card-border);margin:4px 0 12px;">');
-  }
-
-  cont.innerHTML=`<div style="font-size:13px;color:rgba(90,107,125,.6);margin-bottom:10px;">${atletasClub.length} nadadores inscritos</div>${tabs}${contenido}`;
-
-  // Cargar pruebas de cada nadador en paralelo
-  if(clubGeneroFiltro!=='R'){
-    const lista = clubGeneroFiltro==='1'?masc:fem;
-    cargarPruebasClub(lista);
-  }
-}
-
-function setClubGenero(gen, btn){
-  clubGeneroFiltro=gen;
-  renderVistaNadadoresClub();
-}
-
-async function cargarPruebasClub(atletas){
-  // Cargar heats/results de todos los eventos y filtrar por atleta
-  const BATCH=10;
-  const evIds=liveEventosData.filter(e=>!e.isrelay);
-  const resultadosPorAtleta={};
-  atletas.forEach(a=>resultadosPorAtleta[a.id]=[]);
-
-  for(let i=0;i<evIds.length;i+=BATCH){
-    const lote=evIds.slice(i,i+BATCH);
-    await Promise.allSettled(lote.map(async ev=>{
-      const eid=ev.id||ev.eid;
-      try{
-        const data=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/results/${eid}.json?t=${Date.now()}`).then(r=>r.json());
-        let todosR=[];
-        if(Array.isArray(data.agegroups)){
-          data.agegroups.forEach(ag=>{ if(Array.isArray(ag.results)) todosR.push(...ag.results); });
-        }
-        // Si no hay resultados, buscar en heats
-        if(!todosR.length){
-          const hData=await fetch(`${LIVE_BASE}/meets/${liveCompeticionActual}/heats/${eid}.json?t=${Date.now()}`).then(r=>r.json()).catch(()=>({heats:[]}));
-          (hData.heats||[]).forEach(h=>(h.entries||[]).forEach(e=>todosR.push({...e,heatinfo:h.heatinfo,swimtime:'',_soloInscrito:true})));
-        }
-        atletas.forEach(a=>{
-          const r=todosR.find(x=>String(x.athleteid)===String(a.id)||String(x.uniqueid)===String(a.id));
-          if(r) resultadosPorAtleta[a.id].push({ev,r});
-        });
-      }catch(e){}
-    }));
-    // Actualizar UI parcialmente después de cada lote
-    atletas.forEach(a=>{
-      const el=document.getElementById(`pruebas_${a.id}`);
-      if(!el)return;
-      const pruebas=resultadosPorAtleta[a.id];
-      if(!pruebas.length){el.innerHTML=`<div style="font-size:13px;color:rgba(90,107,125,.4);">Sin pruebas encontradas aún...</div>`;return;}
-      el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <tr style="color:rgba(90,107,125,.6);font-size:12px;">
-          <td style="padding:3px 6px;">Prueba</td>
-          <td style="padding:3px 6px;text-align:center;">Pos.</td>
-          <td style="padding:3px 6px;text-align:right;">Inscripción</td>
-          <td style="padding:3px 6px;text-align:right;">Resultado</td>
-        </tr>
-        ${pruebas.map(({ev,r})=>{
-          const nombreEv=getNombreEvento(ev);
-          const pos=r.place&&r.place>0?`#${r.place}`:'—';
-          const entSeg=parsearTiempoSeg(r.entrytime||'');
-          const swimSeg=parsearTiempoSeg(r.swimtime||'');
-          const piscinaIns=(r.entrycourse==='1'||r.entrycourse===1)?'50m':'25m';
-          const piscinaComp=liveCompeticionCourse===1?'50m':'25m';
-          const entStr=entSeg<999999?`${formatTiempoLive(entSeg*100)} <span style="font-size:11px;color:rgba(90,107,125,.5);">(${piscinaIns})</span>`:'—';
-          const swimStr=r._soloInscrito||!r.swimtime?'—':`${formatTiempoLive(swimSeg*100)} <span style="font-size:11px;color:rgba(90,107,125,.5);">(${piscinaComp})</span>`;
-          const mejora=(!r._soloInscrito&&swimSeg<999999&&entSeg<999999)?(swimSeg-entSeg):null;
-          const mejoraStr=mejora!==null?(mejora<=0?`<span style="color:var(--verde);">▼${Math.abs(mejora).toFixed(2)}s</span>`:`<span style="color:#ff6b81;">▲${mejora.toFixed(2)}s</span>`):'';
-          // Mínimas
-          let minimaStr='';
-          if(!r._soloInscrito&&swimSeg<999999){
-            const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
-            const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
-            const distNum=parseInt(distRaw)||0;
-            const anoNad=r.agetext||'abs';
-            const sexoNad=parseGenero(r.gender)==='Femenino'?'F':'M';
-            const piscinaNum=liveCompeticionCourse===1?50:25;
-            if(distNum>0){
-              const minNac=getDBMinima(anoNad,sexoNad,estiloApp,distNum,piscinaNum);
-              if(minNac&&swimSeg<=minNac) minimaStr+='<span style="background:rgba(6,169,110,.15);border:1px solid rgba(6,169,110,.4);color:var(--verde);border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">✓ NAC</span>';
-              if(piscinaNum===25&&usuario&&esClubComunidadValenciana(usuario.club)){
-                const k=getAnoKey(anoNad);
-                if(k===2011||k===2012){
-                  const mA=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'A');
-                  const mB=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'B');
-                  if(mA&&swimSeg<=mA) minimaStr+='<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">CV-A</span>';
-                  else if(mB&&swimSeg<=mB) minimaStr+='<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">CV-B</span>';
-                } else {
-                  const mCV=getCVMinima(anoNad,sexoNad,estiloApp,distNum,null);
-                  if(mCV&&swimSeg<=mCV) minimaStr+='<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:6px;padding:1px 5px;font-size:11px;font-weight:700;margin-left:3px;">CV</span>';
-                }
-              }
-            }
-          }
-          return `<tr style="border-top:1px solid var(--card-border);">
-            <td style="padding:5px 6px;font-weight:600;">${nombreEv}</td>
-            <td style="padding:5px 6px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:16px;color:${r.place===1?'var(--amarillo)':r.place===2?'#c0c0c0':r.place===3?'#cd7f32':'var(--agua-light)'};">${pos}</td>
-            <td style="padding:5px 6px;text-align:right;color:rgba(90,107,125,.7);">${entStr}</td>
-            <td style="padding:5px 6px;text-align:right;font-weight:600;">${swimStr} ${mejoraStr}${minimaStr}</td>
-          </tr>`;
-        }).join('')}
-      </table>`;
-    });
-  }
+    }).join('');
 }
 
 async function abrirCompeticion(id, nombre){
@@ -1657,12 +1825,8 @@ function renderVistaPruebas(){
   }
 
   const filas=evs.map((ev,i)=>{
-    // gender puede ser '1'/'2', 'M'/'F', o incluso estar en el nombre del agegroup
-    const genStr=parseGenero(ev.gender,true);
+    const genStr=ev.gender==='1'||ev.gender===1?'Masc.':ev.gender==='2'||ev.gender===2?'Fem.':ev.gender==='3'||ev.gender===3?'Mixto':'';
     const agStr=getAgegroupStr(ev);
-    // Si genStr está vacío, intentar inferir del nombre del agegroup
-    const agLower=(agStr||'').toLowerCase();
-    const genFinal = genStr || (agLower.includes('fem')||agLower.includes('mujer')?'Fem.':agLower.includes('masc')||agLower.includes('male')||agLower.includes('hombre')?'Masc.':'');
     const nombreEv=getNombreEvento(ev);
     const status=ev.status||0;
     let estTxt='⏳',estColor='rgba(90,107,125,.6)';
@@ -1672,7 +1836,7 @@ function renderVistaPruebas(){
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-weight:600;font-size:15px;">${nombreEv}</div>
-          <div style="font-size:14px;color:rgba(90,107,125,.8);">${genFinal?genFinal+' · ':''}${agStr||''}</div>
+          <div style="font-size:14px;color:rgba(90,107,125,.8);">${genStr}${agStr?' · '+agStr:''}</div>
         </div>
         <span style="font-size:14px;color:${estColor};">${estTxt}</span>
       </div>
@@ -1695,7 +1859,7 @@ async function renderVistaResultados(){
   const cont=document.getElementById('liveEventos');
   const ev=liveEventoSeleccionado;
   const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:14px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
-  const genStr=parseGenero(ev.gender);
+  const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':ev.gender==='3'||ev.gender===3?'Mixto':'';
   const agStr=getAgegroupStr(ev);
   const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${getNombreEvento(ev)}${genStr?' · '+genStr:''}${agStr?' · '+agStr:''}</div>`;
 
@@ -1814,21 +1978,7 @@ function renderResultRow(r,ev,i,etiqueta){
   const pos=r.place||r.rank||i+1;
   const posClass=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
 
-  let badgeMinima='';
-  if(usuario&&swimSeg>0){
-    const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid);
-    const piscina=liveCompeticionCourse===1?50:25;
-    const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
-    const distNum=parseInt(distRaw)||0;
-    const anoNadador=r.agetext||'abs';
-    const sexoNadador=parseGenero(r.gender)==='Femenino'?'F':'M';
-    const min=distNum>0?getDBMinima(anoNadador,sexoNadador,estiloApp,distNum,piscina):null;
-    if(min){
-      if(swimSeg<=min)badgeMinima='<span class="result-minima badge-si">✓ MÍN</span>';
-      else badgeMinima=`<span class="result-minima" style="background:rgba(26,26,46,.05);color:rgba(90,107,125,.6);border:1px solid rgba(26,26,46,.08);">+${(swimSeg-min).toFixed(2)}s</span>`;
-    }
-  }
-
+  const badgeMinima = badgesParaLive(ev, r, swimSeg);
   let entryStr='';
   if(r.entrytime&&r.entrytime!==''){
     const entRaw=String(r.entrytime).replace(',','.');
@@ -1854,7 +2004,6 @@ function renderResultRow(r,ev,i,etiqueta){
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
       <div style="display:flex;align-items:center;gap:4px;">
         <div class="result-tiempo">${tiempo}</div>
-        <div style="font-size:11px;color:rgba(90,107,125,.6);">${liveCompeticionCourse===1?'50m':'25m'}</div>
         ${badgeMinima}
       </div>
       ${entryStr}
@@ -1901,20 +2050,10 @@ function parsearTiempoSeg(swimtime){
 function getAgegroupNombreFromResults(results){
   if(!results||!results.length)return '';
   const r=results[0];
-  const genStr=parseGenero(r.gender);
+  const genStr=r.gender==='1'||r.gender===1?'Masculino':r.gender==='2'||r.gender===2?'Femenino':'';
   const ano=r.agetext||'';
   if(ano) return `${ano}${genStr?' · '+genStr:''}`;
   return genStr;
-}
-
-function parseGenero(g, corto=false){
-  if(!g)return '';
-  const s=String(g).toUpperCase().trim();
-  const esMasc = s==='1'||s==='11'||s==='M'||s==='MALE'||s==='MASC'||s==='MASCULINO';
-  const esFem  = s==='2'||s==='12'||s==='F'||s==='FEMALE'||s==='FEM'||s==='FEMENINO';
-  const esMix  = s==='3'||s==='X'||s==='MX'||s==='MIXED'||s==='MIXTO';
-  if(corto) return esMasc?'Masc.':esFem?'Fem.':esMix?'Mixto':'';
-  return esMasc?'Masculino':esFem?'Femenino':esMix?'Mixto':'';
 }
 
 function getNombreEvento(ev){
@@ -1998,7 +2137,7 @@ async function abrirPerfilNadadorLive(athleteId){
                   const heats=Array.isArray(heatData.heats)?heatData.heats:[];
                   heats.forEach(h=>{
                     (h.entries||[]).forEach(e=>{
-                      todosR.push({...e, heatinfo:h.heatinfo, swimtime:'', place:-1, _soloInscrito:true});
+                      todosR.push({...e, swimtime:'', place:-1, _soloInscrito:true});
                     });
                   });
                 }catch(e2){}
@@ -2067,35 +2206,7 @@ function renderPruebaNadadorCard(ev,r){
   const serieInfo = r.heatinfo?.code ? `Serie ${r.heatinfo.code}${r.lane?' · Calle '+r.lane:''}` : (r.lane?`Calle ${r.lane}`:'');
 
   // Mínimas si tiene tiempo
-  let badgesMinima='';
-  if(tieneTiempo&&swimSeg>0&&usuario){
-    const estiloApp=mapearEstiloLive(ev.stroke||ev.styleid)||getNombreEvento(ev).split(' ')[1];
-    const piscina=liveCompeticionCourse===1?50:25;
-    const distRaw=(ev.distance||'').replace('m','').replace('x','').replace('4 ','').trim();
-    const distNum=parseInt(distRaw)||0;
-    const anoNad=r.agetext||usuario.ano||'abs';
-    const sexoNad=parseGenero(r.gender)==='Femenino'?'F':'M';
-    // Mínima nacional
-    if(distNum>0){
-      const minNac=getDBMinima(anoNad,sexoNad,estiloApp,distNum,piscina);
-      if(minNac&&swimSeg<=minNac){
-        badgesMinima+=`<span style="background:rgba(6,169,110,.15);border:1px solid rgba(6,169,110,.4);color:var(--verde);border-radius:8px;padding:3px 8px;font-size:14px;font-weight:700;margin-right:4px;">✓ MÍN NAC</span>`;
-      }
-      // Mínima autonómica CV (solo 25m)
-      if(piscina===25&&usuario&&esClubComunidadValenciana(usuario.club)){
-        const k=getAnoKey(anoNad);
-        if(k===2011||k===2012){
-          const mA=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'A');
-          const mB=getCVMinima(anoNad,sexoNad,estiloApp,distNum,'B');
-          if(mA&&swimSeg<=mA) badgesMinima+=`<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:3px 8px;font-size:14px;font-weight:700;">🟠 CV-MÍN A</span>`;
-          else if(mB&&swimSeg<=mB) badgesMinima+=`<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:3px 8px;font-size:14px;font-weight:700;">🟠 CV-MÍN B</span>`;
-        } else {
-          const mCV=getCVMinima(anoNad,sexoNad,estiloApp,distNum,null);
-          if(mCV&&swimSeg<=mCV) badgesMinima+=`<span style="background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:3px 8px;font-size:14px;font-weight:700;">🟠 CV-MÍN</span>`;
-        }
-      }
-    }
-  }
+  const badgesMinima = (tieneTiempo && swimSeg>0 && usuario) ? badgesParaLive(ev, r, swimSeg) : '';
 
   // Parciales
   let parcialesHtml='';
@@ -2132,7 +2243,7 @@ function renderPruebaNadadorCard(ev,r){
       ${entryStr?`<div><div style="font-size:15px;color:rgba(90,107,125,.6);">${soloInscrito?'Marca inscripción':'Inscripción'}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:${soloInscrito?'18px':'16px'};color:${soloInscrito?'var(--agua-light)':'inherit'};">${entryStr}</div></div>`:''}
       ${tiempoFinal?`<div><div style="font-size:15px;color:rgba(90,107,125,.6);">Resultado</div><div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--agua-light);">${tiempoFinal}</div></div>`:''}
       ${mejoraHtml?`<div style="margin-left:auto;font-size:14px;">${mejoraHtml}</div>`:''}
-
+      ${soloInscrito&&r.lane?`<div style="margin-left:auto;font-size:15px;color:rgba(90,107,125,.6);">Calle ${r.lane}</div>`:''}
     </div>
     ${parcialesHtml}
   </div>`;
