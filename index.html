@@ -439,6 +439,47 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <div id="listaRanking"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
     </div>
 
+    <!-- ADMIN MÍNIMAS -->
+    <div class="screen" id="screenAdmin">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button onclick="showScreen('Perfil')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Perfil</button>
+        <div class="section-title" style="margin:0;">Mínimas</div>
+      </div>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <select class="input-field" id="admTemporada" onchange="renderAdmin(true)" style="font-size:14px;"></select>
+        <select class="input-field" id="admPiscina" onchange="renderAdmin(true)" style="font-size:14px;">
+          <option value="25">25 m</option><option value="50">50 m</option>
+        </select>
+        <select class="input-field" id="admCrono" onchange="renderAdmin(true)" style="font-size:14px;">
+          <option value="manual">Manual</option><option value="electronico">Electrónico</option>
+        </select>
+        <select class="input-field" id="admSexo" onchange="renderAdmin(true)" style="font-size:14px;">
+          <option value="M">Masculino</option><option value="F">Femenino</option>
+        </select>
+        <select class="input-field" id="admCat" onchange="renderAdmin(true)" style="font-size:14px;"></select>
+        <select class="input-field" id="admNivel" onchange="renderAdmin(true)" style="font-size:14px;">
+          <option value="">Sin nivel</option><option value="A">Nivel A</option><option value="B">Nivel B</option>
+        </select>
+        <div class="full">
+          <select class="input-field" id="admTerritorio" onchange="renderAdmin(true)" style="font-size:14px;display:none;"></select>
+        </div>
+      </div>
+      <div id="admEstado" style="font-size:13px;color:#5a6b7d;margin-bottom:10px;line-height:1.4;"></div>
+      <div id="admLista"></div>
+      <button class="btn-primary" style="margin-top:12px;" onclick="guardarAdmin()">Publicar cambios</button>
+      <details style="margin-top:18px;">
+        <summary style="cursor:pointer;font-size:14px;color:var(--agua-light);">Pegar filas desde Excel</summary>
+        <div style="font-size:12px;color:#5a6b7d;margin:8px 0;line-height:1.6;">
+          Una fila por mínima, columnas separadas por <code>;</code> o tabulador:<br>
+          <code>categoria;anio_cat;sexo;estilo;distancia;piscina;nivel;crono;tiempo</code><br>
+          Ejemplo: <code>Infantil;2;M;Libres;50;25;A;manual;28,19</code>
+        </div>
+        <textarea id="admCsv" rows="5" placeholder="Pega aquí las filas" style="width:100%;background:rgba(26,26,46,.05);border:1px solid var(--card-border);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:12px;color:inherit;outline:none;"></textarea>
+        <button class="btn-primary" style="margin-top:8px;" onclick="importarCsvAdmin()">Importar y publicar</button>
+        <div id="admCsvEstado" style="font-size:13px;margin-top:8px;line-height:1.4;"></div>
+      </details>
+    </div>
+
     <!-- PERFIL -->
     <div class="screen" id="screenPerfil">
       <div class="perfil-header">
@@ -461,7 +502,10 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div id="listaConMinima"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
       </div>
       <div style="margin-top:14px;">
-        <button class="btn-danger" onclick="doLogout()">Cerrar sesión</button>
+      <div id="adminAcceso" style="display:none;margin-bottom:10px;">
+        <button class="btn-primary" onclick="showScreen('Admin')">⚙️ Administrar mínimas</button>
+      </div>
+      <button class="btn-danger" onclick="doLogout()">Cerrar sesión</button>
       </div>
     </div>
 
@@ -832,11 +876,17 @@ function minimasTerritoriales(ctx){
   const inicio = inicioTemporadaDe(ctx.fecha);
   const { categoria, anioCat, sinCategoria } = categoriaDe(ctx.anoNacimiento, inicio);
   if(sinCategoria) return [];
-  const k = [terr, categoria, anioCat, ctx.sexo, ctx.estilo, parseInt(ctx.distancia), parseInt(ctx.piscina)].join('|');
-  const lista = (_idxTerritorial.get(k) || []).filter(f => {
+  const clave = (cat, anio) => [terr, cat, anio, ctx.sexo, ctx.estilo, parseInt(ctx.distancia), parseInt(ctx.piscina)].join('|');
+  const vigentes = (k) => (_idxTerritorial.get(k) || []).filter(f => {
     const t = _fechaMs(ctx.fecha) || Date.now();
     return f._desde <= t && (f._hasta === null || t < f._hasta);
   });
+
+  let lista = vigentes(clave(categoria, anioCat));
+  // Hay federaciones que no tienen categoría Sub20: sus nadadores compiten como
+  // absolutos, así que se les aplica la mínima absoluta (p. ej. la C. Valenciana).
+  if(!lista.length && categoria === 'Sub20') lista = vigentes(clave('Absoluto', 0));
+
   return lista.sort((a, b) => a.seg - b.seg);
 }
 
@@ -1300,6 +1350,8 @@ async function iniciarApp(){
   document.getElementById('perfilEmail').textContent=usuario.email;
   // Resetear siempre el estado del nav y header antes de aplicar el rol
   document.getElementById('rolBadge').style.display='none';
+  const accesoAdmin=document.getElementById('adminAcceso');
+  if(accesoAdmin) accesoAdmin.style.display=(usuario.rol==='admin'||usuario.rol==='admin_federacion')?'block':'none';
   document.getElementById('btnRegistrar').style.display='';
   document.getElementById('navMarcasLabel').textContent='Mis marcas';
   document.getElementById('titleMarcas').textContent='Mis Marcas';
@@ -1358,6 +1410,7 @@ function showScreen(name){
   if(name==='Perfil')renderPerfil();
   if(name==='Live')cargarCompeticionesESP();
   if(name==='Clasificacion')renderClasificacion();
+  if(name==='Admin')renderAdmin();
 }
 
 // -- MIS MARCAS (nadador) ---------------------------------
@@ -2969,6 +3022,265 @@ function filaRankingHtml(o, i, miId){
       ${badge}
     </div>
   </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ADMINISTRACIÓN DE MÍNIMAS
+   ──────────────────────────────────────────────────────────────────────────
+   Para quien tenga rol 'admin' o 'admin_federacion' (RLS ya limita a cada uno
+   a su territorio). Permite:
+
+   · editar los tiempos de una combinación categoría + nivel + sexo + piscina
+     + cronometraje, con la misma rejilla de pruebas que usa la app;
+   · pegar filas desde Excel/CSV para cargar una tabla entera de golpe;
+   · publicar: upsert con la ventana de vigencia calculada de la temporada.
+
+   No hay estado "borrador" en servidor: la pantalla carga lo publicado, marca
+   lo que has cambiado y al publicar manda solo las filas tocadas.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const ADMIN = {
+  temporada: '',
+  piscina: 25,
+  crono: 'manual',
+  sexo: 'M',
+  categoria: '',
+  nivel: '',
+  cargadoPara: '',
+  publicadas: new Map()   // 'cat|anio|sexo|nivel' -> seg
+};
+
+function esAdmin(){
+  return !!usuario && (usuario.rol === 'admin' || usuario.rol === 'admin_federacion');
+}
+
+function territorioAdmin(){
+  return usuario?.rol === 'admin'
+    ? (document.getElementById('admTerritorio')?.value || 'CVA')
+    : territorioDe(usuario);
+}
+
+function opcionesTemporadaAdmin(){
+  const ini = inicioTemporadaDe();
+  return [etiquetaTemporada(ini), etiquetaTemporada(ini + 1)];
+}
+
+function opcionesCategoriaAdmin(temporada){
+  const ini = parseInt(String(temporada)) || inicioTemporadaDe();
+  const out = [];
+  for(let edad = 11; edad <= 19; edad++){
+    const ano = ini - edad;
+    const c = categoriaDe(ano, ini);
+    out.push({ valor: `${c.categoria}|${c.anioCat}`, texto: `${c.categoria} ${c.anioCat}º · ${ano}` });
+  }
+  out.push({ valor: 'Absoluto|0', texto: 'Absoluto' });
+  return out;
+}
+
+// "1:02,10" / "62,10" / "01:02.10" → segundos
+function parsearTiempo(txt){
+  const s = String(txt == null ? '' : txt).trim().replace(',', '.');
+  if(!s) return null;
+  const p = s.split(':');
+  let v;
+  if(p.length === 3) v = (+p[0]) * 3600 + (+p[1]) * 60 + parseFloat(p[2]);
+  else if(p.length === 2) v = (+p[0]) * 60 + parseFloat(p[1]);
+  else v = parseFloat(s);
+  return (isFinite(v) && v > 0) ? Math.round(v * 100) / 100 : null;
+}
+
+function claveAdmin(cat, anioCat, sexo, nivel){
+  return [cat, anioCat, sexo, nivel || ''].join('|');
+}
+
+// ── Carga de lo publicado ──────────────────────────────────────────────────
+async function cargarAdminPublicadas(forzar){
+  const terr = territorioAdmin();
+  const temp = ADMIN.temporada;
+  const marca = `${terr}|${temp}|${ADMIN.piscina}|${ADMIN.crono}`;
+  if(!forzar && ADMIN.cargadoPara === marca) return ADMIN.publicadas;
+
+  ADMIN.publicadas = new Map();
+  ADMIN.cargadoPara = marca;
+  const { data, error } = await sb.from('minimas_temporada')
+    .select('categoria,anio_cat,sexo,nivel,tiempo_seg')
+    .eq('territorio', terr).eq('temporada', temp)
+    .eq('piscina', ADMIN.piscina).eq('crono', ADMIN.crono);
+  if(error){ ADMIN.error = error.message; return ADMIN.publicadas; }
+  ADMIN.error = null;
+  (data || []).forEach(r => {
+    ADMIN.publicadas.set(claveAdmin(r.categoria, r.anio_cat, r.sexo, r.nivel), parseFloat(r.tiempo_seg));
+  });
+  return ADMIN.publicadas;
+}
+
+// ── Pintado ────────────────────────────────────────────────────────────────
+async function renderAdmin(recargar){
+  const cont = document.getElementById('admLista');
+  if(!cont) return;
+
+  if(!esAdmin()){
+    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">Solo los administradores pueden editar las mínimas.</div></div>';
+    return;
+  }
+
+  // Desplegables
+  const selTemp = document.getElementById('admTemporada');
+  const selCat = document.getElementById('admCat');
+  if(selTemp && !selTemp.options.length){
+    selTemp.innerHTML = opcionesTemporadaAdmin().map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+  ADMIN.temporada = selTemp?.value || opcionesTemporadaAdmin()[0];
+  if(selCat && selCat.dataset.temporada !== ADMIN.temporada){
+    selCat.innerHTML = opcionesCategoriaAdmin(ADMIN.temporada)
+      .map(c => `<option value="${c.valor}">${c.texto}</option>`).join('');
+    selCat.dataset.temporada = ADMIN.temporada;
+  }
+  ADMIN.piscina = parseInt(document.getElementById('admPiscina')?.value) || 25;
+  ADMIN.crono = document.getElementById('admCrono')?.value || 'manual';
+  ADMIN.sexo = document.getElementById('admSexo')?.value || 'M';
+  ADMIN.nivel = document.getElementById('admNivel')?.value || '';
+  ADMIN.categoria = selCat?.value || 'Absoluto|0';
+
+  const [categoria, anioCatTxt] = ADMIN.categoria.split('|');
+  const anioCat = parseInt(anioCatTxt) || 0;
+
+  const estado = document.getElementById('admEstado');
+  if(estado) estado.textContent = 'Cargando…';
+  cont.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando mínimas publicadas…</div>';
+
+  await cargarAdminPublicadas(recargar);
+  if(ADMIN.error){
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">${ADMIN.error}</div></div>`;
+    if(estado) estado.textContent = '';
+    return;
+  }
+
+  const mapa = { Libres: [50, 100, 200, 400, 800, 1500], Espalda: [50, 100, 200], Braza: [50, 100, 200], Mariposa: [50, 100, 200], Estilos: [200, 400] };
+  const clave = (estilo, dist) => claveAdmin(categoria, anioCat, ADMIN.sexo, ADMIN.nivel);
+
+  let html = '';
+  let publicadas = 0, total = 0;
+  Object.keys(mapa).forEach(estilo => {
+    html += `<div style="font-size:13px;font-weight:700;color:var(--agua-light);margin:14px 0 6px;">${estilo}</div>`;
+    mapa[estilo].forEach(dist => {
+      total++;
+      const seg = ADMIN.publicadas.get(clave(estilo, dist));
+      if(seg) publicadas++;
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;margin-bottom:5px;">
+        <div style="width:64px;font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--agua-light);">${dist} m</div>
+        <input type="text" inputmode="decimal" id="adm_${estilo}_${dist}" value="${seg ? tdis(seg) : ''}"
+               placeholder="mm:ss,cc" autocomplete="off"
+               style="flex:1;background:rgba(26,26,46,.05);border:1px solid var(--card-border);border-radius:8px;padding:8px 10px;font-family:'DM Sans',sans-serif;font-size:15px;color:inherit;outline:none;">
+      </div>`;
+    });
+  });
+
+  cont.innerHTML = html;
+  if(estado){
+    estado.innerHTML = `${categoria}${anioCat ? ' ' + anioCat + 'º' : ''}${ADMIN.nivel ? ' · nivel ' + ADMIN.nivel : ''} · ` +
+      `${ADMIN.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${ADMIN.piscina} m · ${ADMIN.crono} — ` +
+      `<strong>${publicadas}/${total}</strong> publicadas`;
+  }
+}
+
+// ── Publicar ───────────────────────────────────────────────────────────────
+function filasAdminDesdeTabla(){
+  const [categoria, anioCatTxt] = ADMIN.categoria.split('|');
+  const anioCat = parseInt(anioCatTxt) || 0;
+  const ini = parseInt(String(ADMIN.temporada)) || inicioTemporadaDe();
+  const mapa = { Libres: [50, 100, 200, 400, 800, 1500], Espalda: [50, 100, 200], Braza: [50, 100, 200], Mariposa: [50, 100, 200], Estilos: [200, 400] };
+  const filas = [];
+  Object.keys(mapa).forEach(estilo => {
+    mapa[estilo].forEach(dist => {
+      const el = document.getElementById(`adm_${estilo}_${dist}`);
+      if(!el) return;
+      const seg = parsearTiempo(el.value);
+      if(seg === null) return;
+      filas.push({
+        temporada: ADMIN.temporada, ambito: 'autonomica', territorio: territorioAdmin(),
+        categoria, anio_cat: anioCat, sexo: ADMIN.sexo, estilo, distancia: dist,
+        piscina: ADMIN.piscina, nivel: ADMIN.nivel, crono: ADMIN.crono,
+        tiempo_seg: seg, vigencia_desde: `${ini}-01-01`, vigencia_hasta: `${ini + 1}-09-30`,
+        estado: 'publicada', fuente: 'Cargado desde la app'
+      });
+    });
+  });
+  return filas;
+}
+
+async function guardarAdmin(){
+  if(!esAdmin()) return;
+  const filas = filasAdminDesdeTabla();
+  if(!filas.length){ showToast('No hay ningún tiempo que guardar', true); return; }
+
+  const [categoria, anioCatTxt] = ADMIN.categoria.split('|');
+  const anioCat = parseInt(anioCatTxt) || 0;
+  const clave = (estilo, dist) => claveAdmin(categoria, anioCat, ADMIN.sexo, ADMIN.nivel);
+
+  const nuevas = filas.filter(f => !ADMIN.publicadas.has(clave(f.estilo, f.distancia)));
+  const cambiadas = filas.filter(f => {
+    const prev = ADMIN.publicadas.get(clave(f.estilo, f.distancia));
+    return prev !== undefined && Math.abs(prev - f.tiempo_seg) > 0.001;
+  });
+
+  const ok = confirm(`Vas a publicar ${filas.length} filas (${nuevas.length} nuevas, ${cambiadas.length} cambiadas).\n\n¿Continuar?`);
+  if(!ok) return;
+
+  const { error } = await sb.from('minimas_temporada').upsert(filas, {
+    onConflict: 'temporada,ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,vigencia_desde'
+  });
+  if(error){ showToast('Error al publicar: ' + error.message, true); return; }
+
+  showToast(`${filas.length} mínimas publicadas`);
+  await cargarMinimas(true);
+  await renderAdmin(true);
+}
+
+// ── Pegar CSV ──────────────────────────────────────────────────────────────
+// categoria;anio_cat;sexo;estilo;distancia;piscina;nivel;crono;tiempo
+function parsearCsvAdmin(texto){
+  const ini = parseInt(String(ADMIN.temporada)) || inicioTemporadaDe();
+  const filas = [];
+  const errores = [];
+  String(texto || '').split(/\r?\n/).forEach((linea, i) => {
+    const l = linea.trim();
+    if(!l || /^categoria/i.test(l)) return;
+    const c = l.split(/[;\t]/).map(x => x.trim());
+    if(c.length < 6){ errores.push(`línea ${i + 1}: faltan columnas`); return; }
+    const [categoria, anioCat, sexo, estilo, distancia, piscina, nivel, crono, tiempo] = c;
+    const seg = parsearTiempo(tiempo !== undefined ? tiempo : c[5]);
+    if(!seg){ errores.push(`línea ${i + 1}: tiempo ilegible`); return; }
+    if(!['Libres', 'Espalda', 'Braza', 'Mariposa', 'Estilos'].includes(estilo)){ errores.push(`línea ${i + 1}: estilo "${estilo}"`); return; }
+    filas.push({
+      temporada: ADMIN.temporada, ambito: 'autonomica', territorio: territorioAdmin(),
+      categoria, anio_cat: parseInt(anioCat) || 0, sexo: sexo === 'F' ? 'F' : 'M',
+      estilo, distancia: parseInt(distancia) || 0, piscina: parseInt(piscina) || 25,
+      nivel: nivel || '', crono: crono || 'manual', tiempo_seg: seg,
+      vigencia_desde: `${ini}-01-01`, vigencia_hasta: `${ini + 1}-09-30`,
+      estado: 'publicada', fuente: 'Importado desde CSV'
+    });
+  });
+  return { filas, errores };
+}
+
+async function importarCsvAdmin(){
+  const txt = document.getElementById('admCsv')?.value || '';
+  const est = document.getElementById('admCsvEstado');
+  const { filas, errores } = parsearCsvAdmin(txt);
+  if(!filas.length){
+    if(est) est.textContent = errores.length ? 'Nada válido: ' + errores.slice(0, 3).join(' · ') : 'Pega alguna fila primero.';
+    return;
+  }
+  if(!confirm(`Se van a publicar ${filas.length} filas.${errores.length ? `\n${errores.length} líneas se ignoran.` : ''}\n\n¿Continuar?`)) return;
+
+  const { error } = await sb.from('minimas_temporada').upsert(filas, {
+    onConflict: 'temporada,ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,vigencia_desde'
+  });
+  if(error){ if(est) est.textContent = 'Error: ' + error.message; return; }
+  if(est) est.textContent = `✅ ${filas.length} publicadas${errores.length ? ` · ${errores.length} ignoradas` : ''}`;
+  await cargarMinimas(true);
+  await renderAdmin(true);
 }
 
 </script>
