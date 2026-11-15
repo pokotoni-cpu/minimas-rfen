@@ -587,7 +587,7 @@ const sb = supabase.createClient(
    ══════════════════════════════════════════════════════════════════════════ */
 
 const CFG_TEMPORADA = {
-  mesInicio: 9,          // la temporada empieza en septiembre
+  mesInicio: 10,         // la temporada empieza el 1 de octubre y acaba el 30 de septiembre
   tolerancia: 1e-6,      // para comparar centésimas sin sustos de coma flotante
   tramos: [              // de mayor a menor edad
     { categoria: 'Sub20',    edadMin: 18 },
@@ -618,6 +618,11 @@ function inicioTemporadaDe(fecha){
   return (f.getMonth() + 1) >= CFG_TEMPORADA.mesInicio ? f.getFullYear() : f.getFullYear() - 1;
 }
 function etiquetaTemporada(inicio){ return `${inicio}/${inicio + 1}`; }
+// Último día de la temporada: 30 de septiembre del año siguiente
+function finTemporadaDe(fecha){
+  const ini = (typeof fecha === 'number') ? fecha : inicioTemporadaDe(fecha);
+  return new Date(ini + 1, 8, 30);
+}
 function temporadaActual(){ return etiquetaTemporada(inicioTemporadaDe(new Date())); }
 
 // ── Categoría ──────────────────────────────────────────────────────────────
@@ -902,13 +907,15 @@ function paramsDeMarca(m){
 
 function fechaDeMarca(m){
   if(m.fecha_real) return new Date(String(m.fecha_real).slice(0, 10) + 'T12:00:00');
+  // La fecha real manda sobre la etiqueta de temporada: una marca de enero puede
+  // pertenecer a la temporada siguiente a efectos de clasificación.
+  const f = String(m.fecha || '');
+  const mm = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(mm) return new Date(+mm[3], +mm[2] - 1, +mm[1], 12);
   if(m.temporada){
     const ini = parseInt(String(m.temporada));
     if(ini) return new Date(ini + 1, 0, 15);        // mitad de esa temporada
   }
-  const f = String(m.fecha || '');
-  const mm = f.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if(mm) return new Date(+mm[3], +mm[2] - 1, +mm[1], 12);
   return new Date();
 }
 
@@ -980,9 +987,9 @@ function badgesParaLive(ev, r, swimSeg){
 function temporadaDeTexto(txt){
   const s = String(txt || '');
   const es = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
-  if(es) return etiquetaTemporada((+es[2]) >= 9 ? +es[3] : +es[3] - 1);
+  if(es) return etiquetaTemporada((+es[2]) >= CFG_TEMPORADA.mesInicio ? +es[3] : +es[3] - 1);
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(iso) return etiquetaTemporada((+iso[2]) >= 9 ? +iso[1] : +iso[1] - 1);
+  if(iso) return etiquetaTemporada((+iso[2]) >= CFG_TEMPORADA.mesInicio ? +iso[1] : +iso[1] - 1);
   return temporadaActual();
 }
 function fechaISO(txt){
@@ -2468,10 +2475,22 @@ const ESTADOS_CLASIF = {
   sin_minima: { peso: 5, texto: 'Sin mínima', color: 'rgba(90,107,125,.6)', bg: 'badge-na' }
 };
 
-// ¿Esta marca pertenece a la temporada que se está jugando?
-function marcaEnTemporada(m, etiqueta){
-  const t = m.temporada || temporadaDeTexto(m.fecha);
-  return t === etiqueta;
+// ── Ventana de validez de las marcas ───────────────────────────────────────
+// Regla RFEN: para la temporada 2026/2027 valen todas las marcas conseguidas
+// desde el 1 de enero de 2026, y así sucesivamente. O sea: el año natural en
+// que arranca la temporada, NO el 1 de septiembre.
+function inicioVentanaMarcas(fecha){
+  const base = fecha ? new Date(fecha) : new Date();
+  return new Date(inicioTemporadaDe(base), 0, 1, 0, 0, 0);
+}
+
+// ¿Esta marca cuenta para la temporada que se está jugando?
+function marcaEnTemporada(m, fecha){
+  const f = fechaDeMarca(m);
+  const desde = inicioVentanaMarcas(fecha);
+  const hoy = new Date();
+  hoy.setHours(23, 59, 59, 999);   // una marca de hoy cuenta aunque sea por la mañana
+  return f >= desde && f <= hoy;
 }
 
 // Todas las pruebas que puede nadar en su categoría (los alevines no nadan 1500)
@@ -2572,8 +2591,7 @@ function calcularClasificacion(marcas, perfil){
   const u = perfil || usuario;
   const lista = marcas || misMarcase || [];
   if(!u) return [];
-  const temp = temporadaActual();
-  const deTemporada = lista.filter(m => marcaEnTemporada(m, temp));
+  const deTemporada = lista.filter(m => marcaEnTemporada(m));
 
   const filas = pruebasPosibles(u).map(p => filaPrueba(p, deTemporada, u));
   filas.sort((a, b) => {
@@ -2642,14 +2660,18 @@ function renderClasificacion(){
   const r = resumenClasificacion(filas);
   const tmp = temporadaActual();
 
+  const fila = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   if(resumen){
+    const desde = inicioVentanaMarcas();
+    const hasta = finTemporadaDe();
     resumen.innerHTML = `
       <div class="stats-grid" style="margin-top:0;">
         <div class="stat-card"><div class="stat-num" style="color:var(--verde)">${r.conseguida}</div><div class="stat-label">Con mínima</div></div>
         <div class="stat-card"><div class="stat-num" style="color:var(--amarillo)">${r.cerca}</div><div class="stat-label">A punto</div></div>
       </div>
-      <div style="font-size:13px;color:rgba(90,107,125,.9);text-align:center;margin-top:8px;">
-        Temporada ${tmp} · cuentan solo las marcas de esta temporada
+      <div style="font-size:13px;color:rgba(90,107,125,.9);text-align:center;margin-top:8px;line-height:1.45;">
+        Temporada ${tmp}<br>${fila(new Date(inicioTemporadaDe(), 9, 1))} – ${fila(hasta)}<br>
+        Cuentan las marcas desde el ${fila(desde)}
       </div>`;
   }
 
