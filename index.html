@@ -4275,13 +4275,30 @@ function campeonatoParaNadador(g, u){
 function proximoCampeonato(filas, hoy, u){
   const quien = (u !== undefined) ? u : (typeof usuario !== 'undefined' ? usuario : null);
   const lista = (filas || []).filter(c => c && c.fecha_inicio && campeonatoParaNadador(c, quien));
+
   const abiertos = lista.filter(c => {
     const d = diasHasta(c.plazo_inscripcion || c.fecha_inicio, hoy);
     return d !== null && d >= 0;
   });
-  if(abiertos.length) return abiertos[0];
-  const futuros = lista.filter(c => diasHasta(c.fecha_inicio, hoy) >= 0);
-  return futuros[0] || null;
+  const candidatos = abiertos.length ? abiertos : lista.filter(c => diasHasta(c.fecha_inicio, hoy) >= 0);
+  if(!candidatos.length) return null;
+
+  // Varias jornadas caen el mismo día en sedes distintas y no todas publican sus
+  // grupos. Si entre las de esa fecha hay una que dice el grupo del club, esa es
+  // la buena: es la única información explícita que tenemos.
+  const fechaMin = candidatos[0].fecha_inicio;
+  const mismoDia = candidatos.filter(c => c.fecha_inicio === fechaMin);
+
+  const mio = (quien && typeof grupoDeClub === 'function') ? grupoDeClub(quien.club) : null;
+  if(mio){
+    const explicita = mismoDia.find(c => (c.sedes || []).some(s => {
+      const letras = String(s.grupos || '').toUpperCase().split('+').map(x => x.trim());
+      return letras.includes(String(mio).toUpperCase());
+    }));
+    if(explicita) return explicita;
+  }
+
+  return mismoDia[0];
 }
 
 // Tarjeta con el próximo plazo (se pinta en la pantalla de clasificación)
