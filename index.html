@@ -509,6 +509,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <input class="input-field" id="campPlazo" type="date" style="margin-bottom:8px;font-size:13px;">
         <button class="btn-primary" onclick="guardarCampeonatoAdmin()">Guardar campeonato</button>
         <div id="admCampeonatos" style="margin-top:12px;"></div>
+        <button class="btn-danger" style="margin-top:10px;" onclick="borrarTodosCampeonatos()">🗑️ Borrar todos los campeonatos</button>
         <details style="margin-top:16px;">
           <summary style="cursor:pointer;font-size:13px;color:var(--agua-light);">O pegar el texto de la página</summary>
           <textarea id="admCalTexto" rows="6" placeholder="Copia la página de la FNCV y pégala aquí" style="width:100%;margin-top:8px;background:rgba(26,26,46,.05);border:1px solid var(--card-border);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:11px;color:inherit;outline:none;"></textarea>
@@ -4390,6 +4391,25 @@ async function borrarCampeonatoAdmin(id){
   if(error){ showToast('Error: ' + error.message, true); return; }
   await cargarCampeonatos(true);
   await renderAdminCampeonatos();
+}
+async function borrarTodosCampeonatos(){
+  const terr = territorioAdmin();
+  const temp = ADMIN.temporada;
+  const n = (CAMPEONATOS.filas || []).length;
+
+  if(!n){ showToast('No hay campeonatos que borrar', true); return; }
+
+  const nombreTerr = (typeof TERRITORIOS !== 'undefined' && TERRITORIOS[terr]) ? TERRITORIOS[terr] : terr;
+  if(!confirm(`Se van a borrar los ${n} campeonatos de ${nombreTerr} · ${temp}.\n\nEsto no se puede deshacer.`)) return;
+  if(!confirm('¿Seguro? Se borra el calendario entero de esa temporada.')) return;
+
+  const { error } = await sb.from('campeonatos').delete().eq('territorio', terr).eq('temporada', temp);
+  if(error){ showToast('Error al borrar: ' + error.message, true); return; }
+
+  showToast(`${n} campeonatos borrados`);
+  await cargarCampeonatos(true);
+  await renderAdminCampeonatos();
+  renderProxCampeonato();
 }
 /* ══════════════════════════════════════════════════════════════════════════
    PROGRESIÓN
