@@ -489,6 +489,25 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="btn-primary" style="margin-top:8px;" onclick="importarCsvAdmin()">Importar y publicar</button>
         <div id="admCsvEstado" style="font-size:13px;margin-top:8px;line-height:1.4;"></div>
       </details>
+      <details style="margin-top:22px;">
+        <summary style="cursor:pointer;font-size:14px;color:var(--agua-light);">Campeonatos y plazos</summary>
+        <div style="font-size:12px;color:#5a6b7d;margin:8px 0;line-height:1.5;">Los que salen en la tarjeta de "¿Me clasifico?".</div>
+        <input class="input-field" id="campNombre" placeholder="Nombre del campeonato" style="margin-bottom:6px;font-size:14px;">
+        <input class="input-field" id="campSede" placeholder="Sede" style="margin-bottom:6px;font-size:14px;">
+        <div class="form-grid" style="margin-bottom:6px;">
+          <select class="input-field" id="campPiscina" style="font-size:14px;"><option value="25">25 m</option><option value="50">50 m</option></select>
+          <input class="input-field" id="campEnlace" placeholder="Enlace (opcional)" style="font-size:14px;">
+        </div>
+        <div style="font-size:12px;color:#5a6b7d;margin:6px 0 2px;">Fechas del campeonato</div>
+        <div class="form-grid" style="margin-bottom:6px;">
+          <input class="input-field" id="campInicio" type="date" style="font-size:13px;">
+          <input class="input-field" id="campFin" type="date" style="font-size:13px;">
+        </div>
+        <div style="font-size:12px;color:#5a6b7d;margin:6px 0 2px;">Plazo de inscripción</div>
+        <input class="input-field" id="campPlazo" type="date" style="margin-bottom:8px;font-size:13px;">
+        <button class="btn-primary" onclick="guardarCampeonatoAdmin()">Guardar campeonato</button>
+        <div id="admCampeonatos" style="margin-top:12px;"></div>
+      </details>
     </div>
 
     <!-- CAMPEONATOS -->
@@ -3246,6 +3265,7 @@ async function renderAdmin(recargar){
   });
 
   cont.innerHTML = html;
+  if(typeof renderAdminCampeonatos === 'function') renderAdminCampeonatos();
   if(estado){
     estado.innerHTML = `${categoria}${anioCat ? ' ' + anioCat + 'º' : ''}${ADMIN.nivel ? ' · nivel ' + ADMIN.nivel : ''} · ` +
       `${ADMIN.sexo === 'F' ? 'Femenino' : 'Masculino'} · ${ADMIN.piscina} m · ${ADMIN.crono} — ` +
@@ -3747,7 +3767,7 @@ async function compartirMarca(id){
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════════════════════
    CAMPEONATOS Y PLAZOS
    ──────────────────────────────────────────────────────────────────────────
    "¿Hasta cuándo puedo inscribirme?" es la pregunta que de verdad mueve a un
@@ -3884,6 +3904,62 @@ async function renderCampeonatos(){
     (pasados.length ? `<div class="section-title" style="font-size:14px;margin:16px 0 8px;">Ya celebrados</div>` + pasados.slice(-4).reverse().map(fila).join('') : '');
 }
 
+// ── Administración de campeonatos ──────────────────────────────────────────
+async function renderAdminCampeonatos(){
+  const cont = document.getElementById('admCampeonatos');
+  if(!cont) return;
+  await cargarCampeonatos(true);
+  if(!CAMPEONATOS.filas.length){
+    cont.innerHTML = '<div style="font-size:13px;color:#93a3b5;">Todavía no hay ninguno cargado.</div>';
+    return;
+  }
+  cont.innerHTML = CAMPEONATOS.filas.map(c => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eef3f8;">
+      <div style="flex:1;min-width:0;font-size:13px;">
+        <div style="font-weight:600;">${esc(c.nombre)}</div>
+        <div style="color:#93a3b5;font-size:12px;">${esc(c.fecha_inicio)}${c.plazo_inscripcion ? ' · plazo ' + esc(c.plazo_inscripcion) : ''}</div>
+      </div>
+      <button onclick="borrarCampeonatoAdmin('${escJs(c.id)}')" style="background:none;border:none;color:#c9d3de;font-size:16px;cursor:pointer;" title="Borrar">🗑️</button>
+    </div>`).join('');
+}
+
+async function guardarCampeonatoAdmin(){
+  const nombre = document.getElementById('campNombre')?.value.trim();
+  const inicio = document.getElementById('campInicio')?.value;
+  if(!nombre || !inicio){ showToast('Nombre y fecha de inicio son obligatorios', true); return; }
+
+  const fila = {
+    nombre,
+    temporada: ADMIN.temporada,
+    ambito: 'autonomica',
+    territorio: territorioAdmin(),
+    sede: document.getElementById('campSede')?.value.trim() || null,
+    piscina: parseInt(document.getElementById('campPiscina')?.value) || null,
+    fecha_inicio: inicio,
+    fecha_fin: document.getElementById('campFin')?.value || null,
+    plazo_inscripcion: document.getElementById('campPlazo')?.value || null,
+    enlace: document.getElementById('campEnlace')?.value.trim() || null
+  };
+
+  const { error } = await sb.from('campeonatos').insert(fila);
+  if(error){ showToast('Error: ' + error.message, true); return; }
+
+  showToast('Campeonato guardado');
+  ['campNombre', 'campSede', 'campInicio', 'campFin', 'campPlazo', 'campEnlace'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  await cargarCampeonatos(true);
+  await renderAdminCampeonatos();
+}
+
+async function borrarCampeonatoAdmin(id){
+  if(!confirm('¿Borrar este campeonato?')) return;
+  const { error } = await sb.from('campeonatos').delete().eq('id', id);
+  if(error){ showToast('Error: ' + error.message, true); return; }
+  await cargarCampeonatos(true);
+  await renderAdminCampeonatos();
+}
 /* ══════════════════════════════════════════════════════════════════════════
    PROGRESIÓN
    ──────────────────────────────────────────────────────────────────────────
