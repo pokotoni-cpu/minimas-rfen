@@ -420,19 +420,21 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <span class="filter-chip" onclick="setRankingScope('club',this)">🏠 Mi club</span>
       </div>
       <div class="form-grid" style="margin-bottom:10px;">
-        <select class="input-field" id="rankSexo" onchange="cargarRanking()" style="font-size:14px;">
-          <option value="">Todos</option>
-          <option value="F">Femenino</option>
-          <option value="M">Masculino</option>
-        </select>
         <select class="input-field" id="rankEstilo" onchange="cargarRanking()" style="font-size:14px;">
-          <option value="">Todos los estilos</option>
           <option>Libres</option><option>Espalda</option><option>Braza</option><option>Mariposa</option><option>Estilos</option>
         </select>
         <select class="input-field" id="rankDist" onchange="cargarRanking()" style="font-size:14px;">
-          <option value="">Todas las dist.</option>
-          <option>50</option><option>100</option><option>200</option><option>400</option><option>800</option><option>1500</option>
+          <option value="100">100m</option><option value="50">50m</option>
         </select>
+        <select class="input-field" id="rankPiscina" onchange="cargarRanking()" style="font-size:14px;">
+          <option value="50">50m</option><option value="25">25m</option>
+        </select>
+        <select class="input-field" id="rankSexo" onchange="cargarRanking()" style="font-size:14px;">
+          <option value="M">Masculino</option><option value="F">Femenino</option>
+        </select>
+        <div class="full">
+          <select class="input-field" id="rankCategoria" onchange="cargarRanking()" style="font-size:14px;"></select>
+        </div>
       </div>
       <div id="listaRanking"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
     </div>
@@ -1604,49 +1606,6 @@ function renderMinimas(){
 }
 
 // -- RANKING ----------------------------------------------
-function setRankingScope(scope,el){
-  rankingScope=scope;
-  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  cargarRanking();
-}
-async function cargarRanking(){
-  const lista=document.getElementById('listaRanking');
-  lista.innerHTML='<div class="loading"><span class="spinner"></span>Cargando...</div>';
-  const estilo=document.getElementById('rankEstilo').value;
-  const dist=document.getElementById('rankDist').value;
-  const sexo=document.getElementById('rankSexo').value;
-  let q=sb.from('marcas').select('nombre_nadador,club,estilo,distancia,piscina,tiempo_seg,tiempo_display,ano_nacimiento,tiene_minima,user_id,sexo').order('tiempo_seg',{ascending:true});
-  if(rankingScope==='todos'){
-    // Solo mostrar marcas de nadadores que dieron consentimiento o las propias
-    q=q.or(`user_id.eq.${sesion.user.id},and(consentimiento_ranking.eq.true)`);
-  } else {
-    q=q.eq('club',usuario.club);
-  }
-  if(estilo)q=q.eq('estilo',estilo);
-  if(dist)q=q.eq('distancia',parseInt(dist));
-  if(sexo)q=q.eq('sexo',sexo);
-  q=q.limit(50);
-  const{data}=await q;
-  if(!data||!data.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Sin marcas con mínima para estos filtros</div></div>';return;}
-  lista.innerHTML=data.map((m,i)=>{
-    const posClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
-    const esYo=m.user_id===sesion?.user?.id;
-    return `<div class="ranking-row" style="${esYo?'border-color:var(--agua-light);':''}">
-      <div class="ranking-pos ${posClass}">${i+1}</div>
-      <div class="ranking-info">
-        <div class="ranking-nombre">${m.nombre_nadador}${esYo?' 👈':''}</div>
-        <div class="ranking-sub">${m.club} · ${m.estilo} ${m.distancia}m (${m.piscina}m) · ${getCatLabel(m.ano_nacimiento)}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-        <div class="ranking-tiempo">${m.tiempo_display}</div>
-        ${m.tiene_minima==='si'?'<span class="marca-badge badge-si" style="font-size:8px;">MÍN ✓</span>':''}
-        ${badgeTerritorialFila(m)}
-      </div>
-    </div>`;
-  }).join('');
-}
-
 // -- PERFIL -----------------------------------------------
 async function renderPerfil(){
   if(usuario?.rol==='entrenador'){
@@ -2829,6 +2788,187 @@ function setClasifFiltro(f, el){
   document.querySelectorAll('#screenClasificacion .filter-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   renderClasificacion();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RANKING POR PRUEBA
+   ──────────────────────────────────────────────────────────────────────────
+   Antes ordenaba TODAS las marcas por tiempo: mezclaba 50 libre con 1500,
+   espalda con mariposa y alevines con absolutos. Ahora el ranking siempre es
+   de una prueba: estilo + distancia + piscina + sexo + categoría. Una fila por
+   nadador, con su mejor marca de la temporada.
+
+   Se agrupa en el cliente porque la categoría depende de (año de nacimiento,
+   temporada) y eso no se puede filtrar en SQL sin duplicar la regla. Con
+   `limit(1000)` sobra de momento; cuando haya miles de marcas, esto pasa a
+   ser una vista o una función RPC en Postgres.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function setRankingScope(scope, el){
+  rankingScope = scope;
+  document.querySelectorAll('#screenRanking .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  cargarRanking();
+}
+
+// Las categorías de la temporada, sacadas del mismo motor que todo lo demás
+function opcionesCategoriaRanking(){
+  const ini = inicioTemporadaDe();
+  const out = [];
+  for(let edad = 11; edad <= 19; edad++){
+    const ano = ini - edad;
+    const c = categoriaDe(ano, ini);
+    out.push({ valor: `${c.categoria}|${c.anioCat}`, texto: `${c.categoria} ${c.anioCat}º · ${ano}` });
+  }
+  out.push({ valor: 'Absoluto|0', texto: 'Absoluto' });
+  return out;
+}
+
+// Rellena los desplegables la primera vez y cuando cambia el estilo
+function prepararFiltrosRanking(){
+  const selEstilo = document.getElementById('rankEstilo');
+  const selDist = document.getElementById('rankDist');
+  const selCat = document.getElementById('rankCategoria');
+  const selSexo = document.getElementById('rankSexo');
+  if(!selEstilo || !selDist || !selCat || !selSexo) return;
+
+  const estilo = selEstilo.value || 'Libres';
+  const dists = DISTS[estilo] || [];
+  if(selDist.dataset.estilo !== estilo){
+    const previo = parseInt(selDist.value) || 100;
+    selDist.innerHTML = dists.map(d => `<option value="${d}">${d}m</option>`).join('');
+    selDist.dataset.estilo = estilo;
+    if(dists.includes(previo)) selDist.value = String(previo);
+  }
+
+  if(!selCat.options || selCat.options.length === 0){
+    selCat.innerHTML = opcionesCategoriaRanking()
+      .map(c => `<option value="${c.valor}">${c.texto}</option>`).join('');
+    if(usuario){
+      const cat = categoriaDe(usuario.ano);
+      const valor = `${cat.categoria}|${cat.anioCat}`;
+      if(Array.from(selCat.options).some(o => o.value === valor)) selCat.value = valor;
+    }
+  }
+
+  if(!selSexo.dataset.init && usuario){
+    selSexo.value = usuario.sexo === 'F' ? 'F' : 'M';
+    selSexo.dataset.init = '1';
+  }
+}
+
+// Función pura: de todas las marcas de una prueba, la mejor de cada nadador
+function agruparMejores(marcas, categoria, anioCat, sexo, fecha){
+  const porNadador = new Map();
+  (marcas || []).forEach(m => {
+    if(sexo && m.sexo && m.sexo !== sexo) return;
+    const c = categoriaDe(m.ano_nacimiento, inicioTemporadaDe(fecha));
+    if(c.categoria !== categoria || c.anioCat !== anioCat) return;
+    if(!marcaEnTemporada(m, fecha)) return;
+    const seg = parseFloat(m.tiempo_seg);
+    if(!isFinite(seg) || seg <= 0) return;
+    const t = seg + (m.crono === 'manual' ? penalizacionDist(m.distancia) : 0);
+    const previo = porNadador.get(m.user_id);
+    if(!previo || t < previo.t) porNadador.set(m.user_id, { m, t, seg });
+  });
+  return Array.from(porNadador.values()).sort((a, b) => a.t - b.t);
+}
+
+async function cargarRanking(){
+  const lista = document.getElementById('listaRanking');
+  if(!lista) return;
+  prepararFiltrosRanking();
+
+  const estilo = document.getElementById('rankEstilo').value;
+  const distancia = parseInt(document.getElementById('rankDist').value);
+  const piscina = parseInt(document.getElementById('rankPiscina').value) || 50;
+  const sexo = document.getElementById('rankSexo').value;
+  const [categoria, anioCatTxt] = (document.getElementById('rankCategoria').value || '|0').split('|');
+  const anioCat = parseInt(anioCatTxt) || 0;
+
+  if(!estilo || !distancia){
+    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">🏊</div><div class="empty-text">Elige una prueba para ver el ranking</div></div>';
+    return;
+  }
+
+  lista.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando ranking...</div>';
+
+  // En el demo no hay marcas en la base, y el filtro por user_id daría error
+  // porque 'demo' no es un uuid.
+  if(sesion?.user?.id === 'demo'){
+    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">👀</div><div class="empty-text">En el modo demo el ranking no está disponible: solo se leen marcas reales.</div></div>';
+    return;
+  }
+
+  let q = sb.from('marcas')
+    .select('user_id,nombre_nadador,club,ano_nacimiento,sexo,estilo,distancia,piscina,tiempo_seg,tiempo_display,crono,fecha,temporada,fecha_real')
+    .eq('estilo', estilo)
+    .eq('distancia', distancia)
+    .eq('piscina', piscina)
+    .eq('sexo', sexo)
+    .order('tiempo_seg', { ascending: true })
+    .limit(1000);
+
+  if(rankingScope === 'club'){
+    q = q.eq('club', usuario.club);
+  } else {
+    q = q.or(`user_id.eq.${sesion.user.id},and(consentimiento_ranking.eq.true)`);
+  }
+
+  const { data, error } = await q;
+  if(error){
+    lista.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">No se pudo cargar el ranking.<br>${error.message}</div></div>`;
+    return;
+  }
+
+  const orden = agruparMejores(data, categoria, anioCat, sexo);
+  const cabecera = `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:8px;">
+      <div style="font-size:13px;color:rgba(90,107,125,.95);">
+        <strong style="color:var(--agua-light);">${categoria}${anioCat ? ` ${anioCat}º` : ''}</strong>
+        · ${sexo === 'F' ? 'Femenino' : 'Masculino'} · ${distancia}m ${estilo} (${piscina}m)
+      </div>
+      <div style="font-size:12px;color:rgba(90,107,125,.7);white-space:nowrap;">${orden.length} nadador${orden.length === 1 ? '' : 'es'}</div>
+    </div>`;
+
+  if(!orden.length){
+    lista.innerHTML = cabecera +
+      `<div class="empty-state"><div class="empty-icon">🏁</div>
+        <div class="empty-text">Todavía no hay marcas en esta prueba para ${categoria}${anioCat ? ` ${anioCat}º` : ''}.</div>
+        <div class="empty-text" style="margin-top:6px;font-size:13px;">Cuentan las marcas desde el ${fechaTexto(inicioVentanaMarcas())}.</div>
+      </div>`;
+    return;
+  }
+
+  const miId = sesion?.user?.id;
+  const estoy = orden.some(o => o.m.user_id === miId);
+  const nota = estoy ? '' : `<div style="font-size:13px;color:var(--amarillo);background:rgba(224,159,0,.1);border:1px solid rgba(224,159,0,.25);border-radius:10px;padding:8px 10px;margin-bottom:8px;">
+      No apareces en esta lista: no tienes marca en esta prueba desde el ${fechaTexto(inicioVentanaMarcas())}.</div>`;
+
+  lista.innerHTML = cabecera + nota + orden.map((o, i) => filaRankingHtml(o, i, miId)).join('');
+}
+
+// Una fila del ranking (aparte para poder probarla sin navegador)
+function filaRankingHtml(o, i, miId){
+  const m = o.m;
+  const pos = i + 1;
+  const posClass = pos === 1 ? 'gold' : pos === 2 ? 'silver' : pos === 3 ? 'bronze' : '';
+  const esYo = miId && m.user_id === miId;
+  const seg = parseFloat(m.tiempo_seg);
+  const ev = evaluarMarca({ ...paramsDeMarca(m), fecha: new Date() });
+  const badge = (ev.nacional && ev.nacional.alcanzada)
+    ? '<span class="marca-badge badge-si" style="font-size:9px;">MÍN ✓</span>'
+    : '';
+  return `<div class="ranking-row${esYo ? ' mi-club' : ''}">
+    <div class="ranking-pos ${posClass}">${pos}</div>
+    <div class="ranking-info">
+      <div class="ranking-nombre">${m.nombre_nadador || '—'}${esYo ? ' 👈' : ''}</div>
+      <div class="ranking-sub">${m.club || ''} · ${m.ano_nacimiento || ''}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+      <div class="ranking-tiempo">${tdis(seg)}</div>
+      ${badge}
+    </div>
+  </div>`;
 }
 
 </script>
