@@ -492,6 +492,8 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <details style="margin-top:22px;">
         <summary style="cursor:pointer;font-size:14px;color:var(--agua-light);">Campeonatos y plazos</summary>
         <div style="font-size:12px;color:#5a6b7d;margin:8px 0;line-height:1.5;">Los que salen en la tarjeta de "¿Me clasifico?".</div>
+        <button class="btn-primary" id="admCalBoton" style="margin-bottom:8px;" onclick="importarCalendarioFncv()">⬇️ Descargar calendario de la FNCV</button>
+        <div id="admCalEstado" style="font-size:13px;margin-bottom:12px;line-height:1.45;"></div>
         <input class="input-field" id="campNombre" placeholder="Nombre del campeonato" style="margin-bottom:6px;font-size:14px;">
         <input class="input-field" id="campSede" placeholder="Sede" style="margin-bottom:6px;font-size:14px;">
         <div class="form-grid" style="margin-bottom:6px;">
@@ -507,6 +509,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <input class="input-field" id="campPlazo" type="date" style="margin-bottom:8px;font-size:13px;">
         <button class="btn-primary" onclick="guardarCampeonatoAdmin()">Guardar campeonato</button>
         <div id="admCampeonatos" style="margin-top:12px;"></div>
+        <details style="margin-top:16px;">
+          <summary style="cursor:pointer;font-size:13px;color:var(--agua-light);">O pegar el texto de la página</summary>
+          <textarea id="admCalTexto" rows="6" placeholder="Copia la página de la FNCV y pégala aquí" style="width:100%;margin-top:8px;background:rgba(26,26,46,.05);border:1px solid var(--card-border);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:11px;color:inherit;outline:none;"></textarea>
+          <button class="btn-primary" style="margin-top:8px;" onclick="importarCalendarioPegado()">Añadir las pegadas</button>
+        </details>
       </details>
     </div>
 
@@ -3767,6 +3774,227 @@ async function compartirMarca(id){
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   CALENDARIO DE LA FNCV
+   ──────────────────────────────────────────────────────────────────────────
+   La web de la federación no permite leerla desde otro dominio (CORS), así que
+   se pide a r.jina.ai, que devuelve el contenido en texto y sí manda CORS.
+
+   El texto que llega es muy regular:
+
+       ## Diciembre 2026
+       *   4 dic 2026
+       ### TICC 2026 Próxima
+           *   04 al 06 de Dic de 2026
+           *   V 17:00/ S 9:30-17:00/ D 9:30-17:00
+           *   Castellón · Piscina Olímpica (50 mts./ Crono Electrónico)
+           *   Absoluto
+
+   Se parsea por contenido, no por posición: la fecha se reconoce por su forma,
+   la sede por el "·", las categorías por sus nombres.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const FNCV_PAGINAS = [
+  'https://www.fncv.es/natacion-competiciones-autonomicas',
+  'https://www.fncv.es/natacion-trofeos-federativos',
+  'https://www.fncv.es/natacion-trofeos-clubes',
+  'https://www.fncv.es/natacion-ligas'
+];
+
+const LECTOR_URL = 'https://r.jina.ai/';
+
+const MESES_FNCV = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11 };
+
+// "04 al 06 de Dic de 2026" · "27 de Feb de 2027" · "28 de Nov de 2026"
+function fechaFncv(txt){
+  const m = String(txt || '').match(/(\d{1,2})(?:\s+al\s+(\d{1,2}))?\s+de\s+([a-záéíóú]{3,})\.?\s+de\s+(\d{4})/i);
+  if(!m) return null;
+  const mes = MESES_FNCV[m[3].slice(0, 3).toLowerCase()];
+  if(mes === undefined) return null;
+  const anio = parseInt(m[4], 10);
+  const ini = new Date(anio, mes, parseInt(m[1], 10));
+  const fin = m[2] ? new Date(anio, mes, parseInt(m[2], 10)) : null;
+  if(isNaN(ini.getTime())) return null;
+  return { inicio: ini, fin: fin && !isNaN(fin.getTime()) ? fin : null };
+}
+
+function limpiarTitulo(txt){
+  return String(txt || '')
+    .replace(/^#+\s*/, '')
+    .replace(/\s+(Próxima|Proxima|Finalizada|En curso)\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Un bloque de texto (markdown o texto plano pegado) → competiciones
+function parsearCalendarioFncv(texto){
+  const lineas = String(texto || '').split(/\r?\n/);
+  const out = [];
+
+  for(let i = 0; i < lineas.length; i++){
+    const l = lineas[i].trim();
+    if(!l.startsWith('###')) continue;
+
+    const nombre = limpiarTitulo(l);
+    if(!nombre || nombre.length < 3) continue;
+
+    let fecha = null, lugar = '', categorias = '', hora = '', enlace = null;
+
+    for(let j = i + 1; j < lineas.length; j++){
+      const s = lineas[j].trim();
+      if(s.startsWith('###') || s.startsWith('## ')) break;
+      if(!s) continue;
+
+      // enlace de normativa
+      const link = s.match(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/);
+      if(link && !enlace && /normativ|bases/i.test(link[1])) enlace = link[2];
+
+      if(!s.startsWith('*')) continue;
+      const val = s.replace(/^\*\s*/, '').trim();
+      if(!val) continue;
+
+      if(!fecha){
+        const f = fechaFncv(val);
+        if(f){ fecha = f; continue; }
+      }
+      if(!lugar && val.includes('·')){ lugar = val; continue; }
+      if(!categorias && /(Absoluto|Alevín|Infantil|Junior|Benjamín|Prebenjamín|Máster)/i.test(val) && !val.includes('·')){
+        categorias = val; continue;
+      }
+      if(!hora && /\d{1,2}[:.]\d{2}/.test(val) && !val.includes('·')){ hora = val; continue; }
+    }
+
+    if(!fecha) continue;
+
+    const [ciudad, ...resto] = lugar.split('·');
+    const piscina = (() => {
+      const m = lugar.match(/\(\s*(\d{2})\s*m/i);
+      return m ? parseInt(m[1], 10) : null;
+    })();
+
+    out.push({
+      nombre,
+      fecha_inicio: fecha.inicio,
+      fecha_fin: fecha.fin,
+      sede: (ciudad || '').trim(),
+      instalacion: resto.join('·').trim(),
+      piscina: (piscina === 25 || piscina === 50) ? piscina : null,
+      categorias: categorias.trim(),
+      hora: hora.trim(),
+      enlace
+    });
+  }
+  return out;
+}
+
+// Las cuatro páginas → competiciones (sin repetir)
+async function descargarCalendarioFncv(onProgreso){
+  const todas = [];
+  const errores = [];
+
+  for(let i = 0; i < FNCV_PAGINAS.length; i++){
+    const url = FNCV_PAGINAS[i];
+    if(onProgreso) onProgreso(i, FNCV_PAGINAS.length, url);
+    try{
+      const res = await fetch(LECTOR_URL + url, { headers: { 'Accept': 'text/plain' } });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const texto = await res.text();
+      parsearCalendarioFncv(texto).forEach(c => {
+        c.origen = url;
+        todas.push(c);
+      });
+    }catch(e){
+      errores.push(`${url.split('/').pop()}: ${e.message}`);
+    }
+  }
+
+  // Quitar repetidas (mismo nombre y fecha)
+  const vistas = new Set();
+  const unicas = todas.filter(c => {
+    const k = `${c.nombre}|${c.fecha_inicio.toISOString().slice(0, 10)}`;
+    if(vistas.has(k)) return false;
+    vistas.add(k);
+    return true;
+  }).sort((a, b) => a.fecha_inicio - b.fecha_inicio);
+
+  return { filas: unicas, errores };
+}
+
+// ── Interfaz ───────────────────────────────────────────────────────────────
+function filaCampeonatoDesdeFncv(c){
+  const iso = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+  return {
+    nombre: c.nombre.slice(0, 120),
+    temporada: ADMIN.temporada,
+    ambito: 'autonomica',
+    territorio: territorioAdmin(),
+    sede: c.sede ? c.sede.slice(0, 80) : null,
+    piscina: c.piscina,
+    fecha_inicio: iso(c.fecha_inicio),
+    fecha_fin: iso(c.fecha_fin),
+    plazo_inscripcion: null,
+    enlace: c.enlace ? c.enlace.slice(0, 300) : null
+  };
+}
+
+async function importarCalendarioFncv(){
+  const estado = document.getElementById('admCalEstado');
+  const btn = document.getElementById('admCalBoton');
+  if(btn) btn.disabled = true;
+  if(estado) estado.textContent = '⏳ Descargando el calendario de la FNCV…';
+
+  try{
+    const { filas, errores } = await descargarCalendarioFncv((i, n, url) => {
+      if(estado) estado.textContent = `⏳ Leyendo ${i + 1}/${n}: ${url.split('/').pop()}`;
+    });
+
+    if(!filas.length){
+      if(estado) estado.textContent = 'No he reconocido competiciones.' + (errores.length ? ' ' + errores.join(' · ') : '');
+      return;
+    }
+
+    const futuras = filas.filter(c => c.fecha_inicio >= new Date(new Date().toDateString()));
+    if(!futuras.length){
+      if(estado) estado.textContent = 'El calendario solo tiene competiciones pasadas.';
+      return;
+    }
+
+    const resumen = futuras.map(c => `· ${c.fecha_inicio.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })} — ${c.nombre}`).join('\n');
+    if(!confirm(`He encontrado ${futuras.length} competiciones futuras:\n\n${resumen}\n\n¿Añadirlas al calendario?`)) return;
+
+    const rows = futuras.map(filaCampeonatoDesdeFncv);
+    const { error } = await sb.from('campeonatos').insert(rows);
+    if(error){ if(estado) estado.textContent = 'Error al guardar: ' + error.message; return; }
+
+    if(estado) estado.textContent = `✅ ${rows.length} competiciones añadidas.`;
+    await cargarCampeonatos(true);
+    if(typeof renderAdminCampeonatos === 'function') await renderAdminCampeonatos();
+    if(errores.length && estado) estado.textContent += ` (${errores.length} páginas con error)`;
+  }catch(e){
+    if(estado) estado.textContent = 'Error: ' + e.message;
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
+// Plan B: pegar el texto de la página
+async function importarCalendarioPegado(){
+  const txt = document.getElementById('admCalTexto')?.value || '';
+  const estado = document.getElementById('admCalEstado');
+  const filas = parsearCalendarioFncv(txt);
+  if(!filas.length){
+    if(estado) estado.textContent = 'No he reconocido competiciones en ese texto.';
+    return;
+  }
+  if(!confirm(`Se van a añadir ${filas.length} competiciones. ¿Continuar?`)) return;
+
+  const { error } = await sb.from('campeonatos').insert(filas.map(filaCampeonatoDesdeFncv));
+  if(error){ if(estado) estado.textContent = 'Error: ' + error.message; return; }
+  if(estado) estado.textContent = `✅ ${filas.length} competiciones añadidas.`;
+  await cargarCampeonatos(true);
+  if(typeof renderAdminCampeonatos === 'function') await renderAdminCampeonatos();
+}
+
 ﻿/* ══════════════════════════════════════════════════════════════════════════
    CAMPEONATOS Y PLAZOS
    ──────────────────────────────────────────────────────────────────────────
@@ -3789,15 +4017,24 @@ function diasHasta(fecha, hoy){
 }
 
 // Texto y color del plazo
-function textoPlazo(fecha, hoy){
+function textoPlazo(fecha, hoy, esInscripcion){
   const d = diasHasta(fecha, hoy);
   if(d === null) return null;
-  if(d < 0) return { texto: `plazo cerrado hace ${Math.abs(d)} día${Math.abs(d) === 1 ? '' : 's'}`, color: '#93a3b5', urgente: false };
-  if(d === 0) return { texto: 'último día para inscribirse', color: '#d62839', urgente: true };
-  if(d === 1) return { texto: 'queda 1 día para inscribirse', color: '#d62839', urgente: true };
-  if(d <= 7) return { texto: `quedan ${d} días para inscribirse`, color: '#d62839', urgente: true };
-  if(d <= 21) return { texto: `quedan ${d} días para inscribirse`, color: '#e09f00', urgente: false };
-  return { texto: `quedan ${d} días para inscribirse`, color: '#06a96e', urgente: false };
+  const inscripcion = esInscripcion !== false;
+  const cuando = (n) => inscripcion
+    ? `quedan ${n} día${n === 1 ? '' : 's'} para inscribirse`
+    : `faltan ${n} día${n === 1 ? '' : 's'}`;
+
+  if(d < 0){
+    return {
+      texto: inscripcion ? `plazo cerrado hace ${Math.abs(d)} día${Math.abs(d) === 1 ? '' : 's'}` : 'ya celebrado',
+      color: '#93a3b5', urgente: false
+    };
+  }
+  if(d === 0) return { texto: inscripcion ? 'último día para inscribirse' : 'es hoy', color: '#d62839', urgente: true };
+  if(d <= 7) return { texto: cuando(d), color: '#d62839', urgente: true };
+  if(d <= 21) return { texto: cuando(d), color: '#e09f00', urgente: false };
+  return { texto: cuando(d), color: '#06a96e', urgente: false };
 }
 
 function fechaLarga(fecha){
@@ -3850,7 +4087,7 @@ async function renderProxCampeonato(){
   const c = proximoCampeonato(CAMPEONATOS.filas);
   if(!c){ cont.innerHTML = ''; return; }
 
-  const p = textoPlazo(c.plazo_inscripcion || c.fecha_inicio);
+  const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion) : textoPlazo(c.fecha_inicio, undefined, false);
   cont.innerHTML = `<div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="showScreen('Campeonatos')">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="font-size:22px;">📅</div>
@@ -3886,7 +4123,7 @@ async function renderCampeonatos(){
   const pasados = CAMPEONATOS.filas.filter(c => diasHasta(c.fecha_inicio, hoy) < 0);
 
   const fila = (c) => {
-    const p = textoPlazo(c.plazo_inscripcion || c.fecha_inicio, hoy);
+    const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion, hoy) : textoPlazo(c.fecha_inicio, hoy, false);
     const dias = diasHasta(c.fecha_inicio, hoy);
     const fechas = c.fecha_fin && c.fecha_fin !== c.fecha_inicio
       ? `${fechaLarga(c.fecha_inicio)} – ${fechaLarga(c.fecha_fin)}`
