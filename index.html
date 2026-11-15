@@ -3951,6 +3951,7 @@ function filaCampeonatoDesdeFncv(c){
     sede: c.sede ? c.sede.slice(0, 80) : null,
     piscina: c.piscina,
     grupos: c.grupos || null,
+    categorias: c.categorias || null,
     fecha_inicio: iso(c.fecha_inicio),
     fecha_fin: iso(c.fecha_fin),
     plazo_inscripcion: null,
@@ -4071,7 +4072,7 @@ async function cargarCampeonatos(forzar){
   CAMPEONATOS.cargando = (async () => {
     try{
       const { data, error } = await sb.from('campeonatos')
-        .select('id,nombre,temporada,ambito,territorio,sede,piscina,fecha_inicio,fecha_fin,plazo_inscripcion,enlace')
+        .select('id,nombre,temporada,ambito,territorio,sede,piscina,fecha_inicio,fecha_fin,plazo_inscripcion,enlace,grupos,categorias')
         .order('fecha_inicio', { ascending: true });
       if(error) throw error;
       CAMPEONATOS.filas = data || [];
@@ -4234,19 +4235,46 @@ function agruparCampeonatos(filas){
       mapa.set(k, {
         nombre: c.nombre, fecha_inicio: c.fecha_inicio, fecha_fin: c.fecha_fin || null,
         plazo_inscripcion: c.plazo_inscripcion || null,
+        categorias: c.categorias || '',
         sedes: []
       });
     }
     const g = mapa.get(k);
-    g.sedes.push({ sede: c.sede || '', piscina: c.piscina || null, enlace: c.enlace || null, id: c.id });
+    g.sedes.push({ sede: c.sede || '', piscina: c.piscina || null, enlace: c.enlace || null, id: c.id, grupos: c.grupos || '' });
     if(!g.plazo_inscripcion && c.plazo_inscripcion) g.plazo_inscripcion = c.plazo_inscripcion;
   });
   return Array.from(mapa.values()).sort((a, b) => String(a.fecha_inicio).localeCompare(String(b.fecha_inicio)));
 }
 
+// ¿Esta competición es para este nadador? Se mira la categoría y, si la
+// competición reparte grupos, que su club esté en alguno de ellos.
+function campeonatoParaNadador(g, u){
+  if(!g) return false;
+  if(!u) return true;
+
+  // Categoría: "Infantil,Junior,Absoluto". Un Sub20 compite como absoluto.
+  if(g.categorias){
+    const lista = String(g.categorias).split(',').map(x => sinAcentos(x)).filter(Boolean);
+    const mia = sinAcentos(categoriaDe(u.ano).categoria);
+    const alias = mia === 'sub20' ? ['absoluto', 'junior'] : [mia];
+    const entra = alias.some(a => lista.some(l => l.startsWith(a) || a.startsWith(l)));
+    if(!entra) return false;
+  }
+
+  // Grupos: si la competición reparte grupos por sede, tiene que estar el mío
+  const grupos = (g.sedes || []).map(s => s.grupos).filter(Boolean).join('+').toUpperCase().split('+').map(x => x.trim()).filter(Boolean);
+  if(grupos.length){
+    const mio = (typeof grupoDeClub === 'function') ? grupoDeClub(u.club) : null;
+    if(mio && !grupos.includes(String(mio).toUpperCase())) return false;
+  }
+
+  return true;
+}
+
 // El próximo campeonato con inscripción abierta (o el siguiente por fecha)
-function proximoCampeonato(filas, hoy){
-  const lista = (filas || []).filter(c => c && c.fecha_inicio);
+function proximoCampeonato(filas, hoy, u){
+  const quien = (u !== undefined) ? u : (typeof usuario !== 'undefined' ? usuario : null);
+  const lista = (filas || []).filter(c => c && c.fecha_inicio && campeonatoParaNadador(c, quien));
   const abiertos = lista.filter(c => {
     const d = diasHasta(c.plazo_inscripcion || c.fecha_inicio, hoy);
     return d !== null && d >= 0;
@@ -4263,7 +4291,7 @@ async function renderProxCampeonato(){
   await cargarCampeonatos();
   if(CAMPEONATOS.error || !CAMPEONATOS.filas.length){ cont.innerHTML = ''; return; }
 
-  const c = proximoCampeonato(agruparCampeonatos(CAMPEONATOS.filas));
+  const c = proximoCampeonato(agruparCampeonatos(CAMPEONATOS.filas), undefined, usuario);
   if(!c){ cont.innerHTML = ''; return; }
 
   const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion) : textoPlazo(c.fecha_inicio, undefined, false);
@@ -4322,8 +4350,9 @@ async function renderCampeonatos(){
 
     const enlace = g.sedes.find(s => s.enlace)?.enlace;
 
-    return `<div class="card" style="margin-bottom:10px;${diasHasta(g.fecha_inicio, hoy) < 0 ? 'opacity:.55;' : ''}">
-      <div style="font-weight:600;font-size:15px;">${esc(g.nombre)}</div>
+    const aplica = campeonatoParaNadador(g, usuario);
+    return `<div class="card" style="margin-bottom:10px;${diasHasta(g.fecha_inicio, hoy) < 0 ? 'opacity:.55;' : (aplica ? '' : 'opacity:.6;')}">
+      <div style="font-weight:600;font-size:15px;">${esc(g.nombre)}${aplica ? '' : ' <span style="font-size:11px;color:#93a3b5;font-weight:400;">· no es de tu categoría</span>'}</div>
       <div style="font-size:13px;color:rgba(90,107,125,.9);margin-top:2px;">${fechas}</div>
       <div style="margin-top:4px;">${sedes}</div>
       ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:8px;">${p.texto}</div>` : ''}
