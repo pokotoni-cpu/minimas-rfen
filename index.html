@@ -3951,6 +3951,7 @@ function filaCampeonatoDesdeFncv(c){
     ambito: 'autonomica',
     territorio: territorioAdmin(),
     sede: c.sede ? c.sede.slice(0, 80) : null,
+    instalacion: c.instalacion ? c.instalacion.slice(0, 120) : null,
     piscina: c.piscina,
     grupos: c.grupos || null,
     categorias: c.categorias || null,
@@ -4074,7 +4075,7 @@ async function cargarCampeonatos(forzar){
   CAMPEONATOS.cargando = (async () => {
     try{
       const { data, error } = await sb.from('campeonatos')
-        .select('id,nombre,temporada,ambito,territorio,sede,piscina,fecha_inicio,fecha_fin,plazo_inscripcion,enlace,grupos,categorias')
+        .select('id,nombre,temporada,ambito,territorio,sede,instalacion,piscina,fecha_inicio,fecha_fin,plazo_inscripcion,enlace,grupos,categorias')
         .order('fecha_inicio', { ascending: true });
       if(error) throw error;
       CAMPEONATOS.filas = data || [];
@@ -4242,7 +4243,7 @@ function agruparCampeonatos(filas){
       });
     }
     const g = mapa.get(k);
-    g.sedes.push({ sede: c.sede || '', piscina: c.piscina || null, enlace: c.enlace || null, id: c.id, grupos: c.grupos || '' });
+    g.sedes.push({ sede: c.sede || '', instalacion: c.instalacion || '', piscina: c.piscina || null, enlace: c.enlace || null, id: c.id, grupos: c.grupos || '' });
     if(!g.plazo_inscripcion && c.plazo_inscripcion) g.plazo_inscripcion = c.plazo_inscripcion;
   });
   return Array.from(mapa.values()).sort((a, b) => String(a.fecha_inicio).localeCompare(String(b.fecha_inicio)));
@@ -4304,6 +4305,14 @@ function proximoCampeonato(filas, hoy, u){
 }
 
 // Tarjeta con el próximo plazo (se pinta en la pantalla de clasificación)
+// Enlace universal de Google Maps: en el móvil abre la app, si no el navegador.
+// Se usa la instalación cuando la hay, porque la sede sola suele ser ambigua.
+function urlMapa(sede, instalacion){
+  const q = [instalacion, sede].filter(Boolean).join(', ').trim();
+  if(!q) return null;
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+}
+
 async function renderProxCampeonato(){
   const conts = ['proxCampeonato', 'proxCampeonatoMarcas']
     .map(id => document.getElementById(id))
@@ -4336,6 +4345,7 @@ async function renderProxCampeonato(){
         <div style="font-weight:600;font-size:16px;margin-top:1px;">${esc(c.nombre)}</div>
         <div style="font-size:15px;color:var(--agua-light);font-weight:600;margin-top:4px;">
           📍 ${esc(sedeTxt)}${piscinaTxt}</div>
+        ${(mia && urlMapa(mia.sede, mia.instalacion)) ? `<a href="${urlMapa(mia.sede, mia.instalacion)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-block;margin-top:4px;font-size:13px;color:#3d4a58;text-decoration:underline;">🗺️ Cómo llegar</a>` : ''}
         ${grupo ? `<div style="font-size:12px;color:#93a3b5;margin-top:1px;">grupo ${esc(grupo)}</div>` : ''}
         ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:6px;">${p.texto}</div>` : ''}
       </div>
@@ -4377,10 +4387,12 @@ async function renderCampeonatos(){
     const sedes = g.sedes.map(s => {
       const mia = sedeSugerida(s, usuario?.club);
       const texto = s.sede || 'Sede por confirmar';
-      return `<span style="display:inline-block;margin:4px 4px 0 0;padding:3px 9px;border-radius:20px;font-size:12px;
+      const mapa = urlMapa(s.sede, s.instalacion);
+      const etiqueta = `<span style="display:inline-block;margin:4px 4px 0 0;padding:3px 9px;border-radius:20px;font-size:12px;
         background:${mia ? 'rgba(0,119,182,.14)' : 'rgba(26,26,46,.04)'};
         border:1px solid ${mia ? 'var(--agua-light)' : 'var(--card-border)'};
         color:${mia ? 'var(--agua-light)' : '#5a6b7d'};font-weight:${mia ? 700 : 400};">${esc(texto)}${mia ? ' · tu sede' : ''}${s.piscina ? ' · ' + s.piscina + ' m' : ''}</span>`;
+      return mapa ? `<a href="${mapa}" target="_blank" rel="noopener" style="text-decoration:none;">${etiqueta}</a>` : etiqueta;
     }).join('');
 
     const enlace = g.sedes.find(s => s.enlace)?.enlace;
