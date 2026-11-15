@@ -468,6 +468,16 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <div id="admLista"></div>
       <button class="btn-primary" style="margin-top:12px;" onclick="guardarAdmin()">Publicar cambios</button>
       <details style="margin-top:18px;">
+        <summary style="cursor:pointer;font-size:14px;color:var(--agua-light);">Subir el PDF de la federación</summary>
+        <div style="font-size:12px;color:#5a6b7d;margin:8px 0;line-height:1.6;">
+          Lee el PDF de mínimas, te dice cuántas filas reconoce y las publica si aceptas. Si no reconoce el formato, usa el CSV.
+        </div>
+        <input type="file" id="admPdf" accept="application/pdf" style="width:100%;font-size:13px;color:#3d4a58;">
+        <button class="btn-primary" style="margin-top:8px;" onclick="leerPdfAdmin()">Leer PDF</button>
+        <div id="admPdfEstado" style="font-size:13px;margin-top:8px;line-height:1.45;"></div>
+        <button class="btn-primary" id="admPdfPublicar" style="display:none;margin-top:8px;" onclick="publicarPdfAdmin()">Publicar</button>
+      </details>
+      <details style="margin-top:18px;">
         <summary style="cursor:pointer;font-size:14px;color:var(--agua-light);">Pegar filas desde Excel</summary>
         <div style="font-size:12px;color:#5a6b7d;margin:8px 0;line-height:1.6;">
           Una fila por mínima, columnas separadas por <code>;</code> o tabulador:<br>
@@ -3078,7 +3088,8 @@ const ADMIN = {
   categoria: '',
   nivel: '',
   cargadoPara: '',
-  publicadas: new Map()   // 'cat|anio|sexo|nivel' -> seg
+  publicadas: new Map(),  // 'cat|anio|sexo|nivel|estilo|distancia' -> seg
+  pdfFilas: []
 };
 
 function esAdmin(){
@@ -3258,14 +3269,7 @@ async function guardarAdmin(){
   const ok = confirm(`Vas a publicar ${filas.length} filas (${nuevas.length} nuevas, ${cambiadas.length} cambiadas).\n\n¿Continuar?`);
   if(!ok) return;
 
-  const { error } = await sb.from('minimas_temporada').upsert(filas, {
-    onConflict: 'temporada,ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,vigencia_desde'
-  });
-  if(error){ showToast('Error al publicar: ' + error.message, true); return; }
-
-  showToast(`${filas.length} mínimas publicadas`);
-  await cargarMinimas(true);
-  await renderAdmin(true);
+  await publicarFilasAdmin(filas);
 }
 
 // ── Pegar CSV ──────────────────────────────────────────────────────────────
@@ -3305,13 +3309,237 @@ async function importarCsvAdmin(){
   }
   if(!confirm(`Se van a publicar ${filas.length} filas.${errores.length ? `\n${errores.length} líneas se ignoran.` : ''}\n\n¿Continuar?`)) return;
 
+  const ok = await publicarFilasAdmin(filas);
+  if(est) est.textContent = ok
+    ? `✅ ${filas.length} publicadas${errores.length ? ` · ${errores.length} ignoradas` : ''}`
+    : 'Error al publicar (mira el aviso de abajo).';
+}
+
+// Publica un lote de filas (lo usan la rejilla, el CSV y el PDF)
+async function publicarFilasAdmin(filas){
+  if(!filas || !filas.length){ showToast('Nada que publicar', true); return false; }
   const { error } = await sb.from('minimas_temporada').upsert(filas, {
     onConflict: 'temporada,ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,vigencia_desde'
   });
-  if(error){ if(est) est.textContent = 'Error: ' + error.message; return; }
-  if(est) est.textContent = `✅ ${filas.length} publicadas${errores.length ? ` · ${errores.length} ignoradas` : ''}`;
+  if(error){ showToast('Error al publicar: ' + error.message, true); return false; }
+  showToast(`${filas.length} mínimas publicadas`);
   await cargarMinimas(true);
   await renderAdmin(true);
+  return true;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LECTURA DEL PDF DE MÍNIMAS EN EL NAVEGADOR
+   ──────────────────────────────────────────────────────────────────────────
+   pdf.js da el texto con coordenadas, y con eso se reconstruye la tabla igual
+   que se hizo en Python: la cabecera tiene una columna por año de nacimiento
+   (y nivel A/B), y cada tiempo se asigna a la columna cuyo x está más cerca.
+
+   No se adivina por orden de aparición: en una tabla de 10 columnas el orden
+   del texto extraído no es fiable.
+
+   Si el PDF no tiene este formato, el parser no inventa: devuelve avisos y el
+   administrador siempre puede usar el CSV.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const PDFJS_VERSION = '3.11.174';
+
+function cargarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+      res(window.pdfjsLib);
+    };
+    s.onerror = () => rej(new Error('No se pudo cargar el lector de PDF'));
+    document.head.appendChild(s);
+  });
+}
+
+const RE_PDF_TIEMPO = /^\d{1,2}:\d{2},\d{2}$/;
+const RE_PDF_EVENTO = /^(\d{1,4})\s*(Lib|Esp|Bra|Mar|Est)$/;
+const RE_PDF_ANIO = /^(\d{4})(?:\s+([AB]))?$/;
+const PDF_ESTILOS = { Lib: 'Libres', Esp: 'Espalda', Bra: 'Braza', Mar: 'Mariposa', Est: 'Estilos' };
+
+function pdfSegundos(txt){
+  const m = String(txt).match(/^(\d{1,2}):(\d{2}),(\d{2})$/);
+  return m ? (+m[1]) * 60 + (+m[2]) + (+m[3]) / 100 : null;
+}
+
+// Agrupa las piezas de texto en líneas por su coordenada y
+function pdfLineas(items, tolerancia){
+  const tol = tolerancia || 3;
+  const orden = items.slice().sort((a, b) => b.y - a.y);
+  const grupos = [];
+  orden.forEach(it => {
+    const ult = grupos[grupos.length - 1];
+    if(ult && Math.abs(ult.y - it.y) <= tol) ult.items.push(it);
+    else grupos.push({ y: it.y, items: [it] });
+  });
+  grupos.forEach(g => g.items.sort((a, b) => a.x - b.x));
+  return grupos;
+}
+
+// Una página → filas. `inicio` es el año de comienzo de la temporada.
+function mapearPaginaPdf(items, nPagina, inicio){
+  const filas = [];
+  const avisos = [];
+
+  // Piscina: el título de la hoja dice "P25" o "P50"
+  let piscina = nPagina === 1 ? 25 : 50;
+  const titulo = items.find(i => /P\s?\d{2}\./i.test(i.s) || /P(25|50)/i.test(i.s));
+  if(titulo){
+    const m = titulo.s.match(/P\s?(\d{2})/i);
+    if(m && (m[1] === '25' || m[1] === '50')) piscina = parseInt(m[1], 10);
+  }
+
+  const lineas = pdfLineas(items);
+
+  // Cabecera: la línea con ABS y varios años
+  const cabecera = lineas.find(l =>
+    l.items.some(i => i.s.trim() === 'ABS') &&
+    l.items.filter(i => RE_PDF_ANIO.test(i.s.trim())).length >= 5);
+
+  if(!cabecera){
+    avisos.push(`página ${nPagina}: no encuentro la cabecera con los años`);
+    return { filas, avisos, piscina };
+  }
+
+  const xs = cabecera.items.map(i => i.x);
+  const centro = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const columnas = { M: [], F: [] };
+
+  cabecera.items.forEach(i => {
+    const t = i.s.trim();
+    let col;
+    if(t === 'ABS'){
+      col = { x: i.x, categoria: 'Absoluto', anio_cat: 0, nivel: '' };
+    } else {
+      const m = t.match(RE_PDF_ANIO);
+      if(!m) return;
+      const cat = categoriaDe(parseInt(m[1], 10), inicio);
+      col = { x: i.x, categoria: cat.categoria, anio_cat: cat.anioCat, nivel: m[2] || '' };
+    }
+    (i.x < centro ? columnas.M : columnas.F).push(col);
+  });
+
+  // Filas de prueba
+  lineas.forEach(l => {
+    let etiqueta = null, ev = null;
+    for(const i of l.items){
+      const m = i.s.trim().match(RE_PDF_EVENTO);
+      if(m && [50, 100, 200, 400, 800, 1500].includes(parseInt(m[1], 10))){ etiqueta = i; ev = m; break; }
+    }
+    if(!ev) return;
+
+    const distancia = parseInt(ev[1], 10);
+    const estilo = PDF_ESTILOS[ev[2]];
+
+    ['M', 'F'].forEach(sexo => {
+      const cols = columnas[sexo];
+      if(!cols.length) return;
+      const tiempos = l.items.filter(i =>
+        RE_PDF_TIEMPO.test(i.s.trim()) &&
+        (sexo === 'M' ? i.x < etiqueta.x : i.x > etiqueta.x));
+
+      tiempos.forEach(t => {
+        let mejor = null;
+        cols.forEach(c => {
+          const d = Math.abs(c.x - t.x);
+          if(!mejor || d < mejor.d) mejor = { d, c };
+        });
+        if(!mejor || mejor.d > 12){
+          avisos.push(`p${nPagina} ${estilo} ${distancia} ${sexo}: "${t.s}" fuera de columna`);
+          return;
+        }
+        const seg = pdfSegundos(t.s.trim());
+        if(seg === null) return;
+        filas.push({
+          piscina, sexo, estilo, distancia,
+          categoria: mejor.c.categoria, anio_cat: mejor.c.anio_cat,
+          nivel: mejor.c.nivel, tiempo: t.s.trim(), seg: Math.round(seg * 100) / 100
+        });
+      });
+    });
+  });
+
+  return { filas, avisos, piscina };
+}
+
+// PDF completo → filas
+async function parsearPdfMinimas(arrayBuffer, inicio){
+  const pdfjs = await cargarPdfJs();
+  const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  const filas = [];
+  const avisos = [];
+
+  for(let n = 1; n <= doc.numPages; n++){
+    const page = await doc.getPage(n);
+    const content = await page.getTextContent();
+    const items = content.items
+      .map(it => ({ x: it.transform[4], y: it.transform[5], s: it.str }))
+      .filter(it => it.s && it.s.trim());
+    const r = mapearPaginaPdf(items, n, inicio);
+    filas.push(...r.filas);
+    avisos.push(...r.avisos);
+  }
+  return { filas, avisos, paginas: doc.numPages };
+}
+
+// ── Interfaz dentro de la pantalla de administración ───────────────────────
+async function leerPdfAdmin(){
+  const input = document.getElementById('admPdf');
+  const estado = document.getElementById('admPdfEstado');
+  const btn = document.getElementById('admPdfPublicar');
+  if(!input || !input.files || !input.files[0]){
+    if(estado) estado.textContent = 'Elige un PDF primero.';
+    return;
+  }
+  if(btn) btn.style.display = 'none';
+  if(estado) estado.textContent = '⏳ Leyendo el PDF…';
+
+  try{
+    const inicio = parseInt(String(ADMIN.temporada)) || inicioTemporadaDe();
+    const buf = await input.files[0].arrayBuffer();
+    const { filas, avisos, paginas } = await parsearPdfMinimas(buf, inicio);
+
+    if(!filas.length){
+      if(estado) estado.textContent = `No he reconocido la tabla (${paginas} páginas). Usa el CSV de abajo.`;
+      return;
+    }
+
+    const p25 = filas.filter(f => f.piscina === 25).length;
+    const p50 = filas.filter(f => f.piscina === 50).length;
+    ADMIN.pdfFilas = filas.map(f => ({
+      temporada: ADMIN.temporada, ambito: 'autonomica', territorio: territorioAdmin(),
+      categoria: f.categoria, anio_cat: f.anio_cat, sexo: f.sexo, estilo: f.estilo,
+      distancia: f.distancia, piscina: f.piscina, nivel: f.nivel, crono: ADMIN.crono || 'manual',
+      tiempo_seg: f.seg, vigencia_desde: `${inicio}-01-01`, vigencia_hasta: `${inicio + 1}-09-30`,
+      estado: 'publicada', fuente: 'Importado desde PDF'
+    }));
+
+    if(estado){
+      estado.innerHTML = `✅ <strong>${filas.length}</strong> filas detectadas (P25: ${p25} · P50: ${p50})` +
+        (avisos.length ? `<br>${avisos.length} avisos (líneas que no he sabido colocar)` : '');
+    }
+    if(btn){ btn.style.display = 'block'; btn.textContent = `Publicar ${filas.length} filas del PDF`; }
+  }catch(e){
+    if(estado) estado.textContent = 'Error leyendo el PDF: ' + e.message;
+  }
+}
+
+async function publicarPdfAdmin(){
+  if(!ADMIN.pdfFilas || !ADMIN.pdfFilas.length) return;
+  if(!confirm(`Se van a publicar ${ADMIN.pdfFilas.length} filas del PDF.\n\n¿Continuar?`)) return;
+  await publicarFilasAdmin(ADMIN.pdfFilas);
+  ADMIN.pdfFilas = [];
+  const btn = document.getElementById('admPdfPublicar');
+  if(btn) btn.style.display = 'none';
+  const estado = document.getElementById('admPdfEstado');
+  if(estado) estado.textContent = '✅ Publicadas.';
 }
 
 </script>
