@@ -403,7 +403,6 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button onclick="showScreen('Marcas')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Mis marcas</button>
         <div class="section-title" style="margin:0;">¿Me clasifico?</div>
       </div>
-      <div id="proxCampeonato"></div>
       <div id="resumenClasif" style="margin-bottom:10px;"></div>
       <div style="margin-bottom:10px;">
         <span class="filter-chip active" onclick="setClasifFiltro('todas',this)">Todas</span>
@@ -2834,8 +2833,7 @@ function renderResumenClasificacion(){
 function renderClasificacion(){
   const cont = document.getElementById('listaClasif');
   if(!cont) return;
-  // Tarjeta del próximo plazo de inscripción (si hay campeonatos cargados)
-  if(typeof renderProxCampeonato === 'function') renderProxCampeonato();
+
   const resumen = document.getElementById('resumenClasif');
   const filas = calcularClasificacion();
   const r = resumenClasificacion(filas);
