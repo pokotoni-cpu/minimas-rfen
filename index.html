@@ -265,6 +265,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
     <!-- MARCAS (nadador) / EQUIPO (entrenador) -->
     <div class="screen active" id="screenMarcas">
       <div class="section-title" id="titleMarcas">Mis Marcas</div>
+      <div id="resumenClasificacion"></div>
       <div class="form-grid" style="margin-bottom:10px;">
         <select class="input-field" id="misMarcasEstilo" onchange="renderMarcas()" style="font-size:14px;">
           <option value="">Todos los estilos</option>
@@ -293,11 +294,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -392,6 +393,22 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="piscina-btn" onclick="filtrarPiscina(25,this)">🏊 25m</button>
       </div>
       <div id="listaMinimas"></div>
+    </div>
+
+    <!-- CLASIFICACIÓN -->
+    <div class="screen" id="screenClasificacion">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button onclick="showScreen('Marcas')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Mis marcas</button>
+        <div class="section-title" style="margin:0;">¿Me clasifico?</div>
+      </div>
+      <div id="resumenClasif" style="margin-bottom:10px;"></div>
+      <div style="margin-bottom:10px;">
+        <span class="filter-chip active" onclick="setClasifFiltro('todas',this)">Todas</span>
+        <span class="filter-chip" onclick="setClasifFiltro('conseguida',this)">✅ Mínima</span>
+        <span class="filter-chip" onclick="setClasifFiltro('cerca',this)">🎯 A punto</span>
+        <span class="filter-chip" onclick="setClasifFiltro('sin_marca',this)">➖ Sin marca</span>
+      </div>
+      <div id="listaClasif"></div>
     </div>
 
     <!-- RANKING -->
@@ -1097,6 +1114,9 @@ function entrarDemo(){
     {id:'d5',estilo:'Libres',distancia:200,piscina:50,tiempo_seg:118.50,tiempo_display:'01:58,50',minima_display:'02:00,10',tiene_minima:'si',fecha:'22/06/2025',competicion:'Campeonato Regional',club:'C.N. DEMO',nombre_nadador:'Nadador Demo',ano_nacimiento:'2010',sexo:'M'}
   ];
   // Ocultar botones que no aplican en demo
+  // Las marcas de ejemplo son de la temporada en curso, para que el panel
+  // "¿Me clasifico?" enseñe estados reales y no todo "sin marca".
+  misMarcase = misMarcase.map(m => ({ ...m, temporada: temporadaActual() }));
   document.getElementById('appMain').dataset.demo = 'true';
   iniciarApp();
   setTimeout(()=>{
@@ -1231,6 +1251,7 @@ function showScreen(name){
   if(name==='Ranking')cargarRanking();
   if(name==='Perfil')renderPerfil();
   if(name==='Live')cargarCompeticionesESP();
+  if(name==='Clasificacion')renderClasificacion();
 }
 
 // -- MIS MARCAS (nadador) ---------------------------------
@@ -1241,6 +1262,7 @@ async function cargarMisMarcase(){
   renderMarcas();
 }
 function renderMarcas(){
+  renderResumenClasificacion();
   const lista=document.getElementById('listaMarcas');
   if(!misMarcase.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Aún no has registrado ninguna marca.</div></div>';return;}
 
@@ -2420,6 +2442,303 @@ async function importarRFEN(){
     btn.textContent='🔍 Buscar e importar mis marcas';
   }
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   PANEL "¿ME CLASIFICO?"
+   ──────────────────────────────────────────────────────────────────────────
+   Responde a la pregunta que de verdad se hace un nadador: de todas las
+   pruebas que puede nadar en su categoría, ¿en cuáles tiene mínima, en cuáles
+   se queda a décimas y en cuáles no tiene nada que rascar?
+
+   Reglas:
+   · Solo cuentan las marcas de la temporada en curso (una mínima se consigue
+     dentro de su temporada; la del año pasado no vale).
+   · Se miran las dos piscinas y se coge la mejor: una marca en 25 y otra en 50
+     se comparan cada una con su propia mínima.
+   · La comparación aplica la penalización manual solo cuando toca.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let clasifFiltro = 'todas';
+
+const ESTADOS_CLASIF = {
+  conseguida: { peso: 0, texto: '✅ Mínima nacional', color: 'var(--verde)', bg: 'badge-si' },
+  autonoma:   { peso: 1, texto: '🟠 Mínima autonómica', color: '#e08800', bg: '' },
+  cerca:      { peso: 2, texto: '🎯 A punto', color: 'var(--amarillo)', bg: '' },
+  lejos:      { peso: 3, texto: 'Lejos', color: 'var(--rojo)', bg: 'badge-no' },
+  sin_marca:  { peso: 4, texto: 'Sin marca', color: 'rgba(90,107,125,.8)', bg: 'badge-na' },
+  sin_minima: { peso: 5, texto: 'Sin mínima', color: 'rgba(90,107,125,.6)', bg: 'badge-na' }
+};
+
+// ¿Esta marca pertenece a la temporada que se está jugando?
+function marcaEnTemporada(m, etiqueta){
+  const t = m.temporada || temporadaDeTexto(m.fecha);
+  return t === etiqueta;
+}
+
+// Todas las pruebas que puede nadar en su categoría (los alevines no nadan 1500)
+function pruebasPosibles(perfil){
+  const u = perfil || usuario;
+  const cat = categoriaDe(u?.ano);
+  const mapa = cat.categoria === 'Alevín' ? DISTS_AL : DISTS;
+  const out = [];
+  ['Libres', 'Espalda', 'Braza', 'Mariposa', 'Estilos'].forEach(estilo => {
+    (mapa[estilo] || []).forEach(d => out.push({ estilo, distancia: d }));
+  });
+  return out;
+}
+
+// Mejor marca del nadador en una prueba y piscina concretas
+function mejorMarcaPiscina(marcas, estilo, distancia, piscina){
+  let mejor = null;
+  for(const m of marcas){
+    if(m.estilo !== estilo) continue;
+    if(parseInt(m.distancia) !== distancia) continue;
+    if(parseInt(m.piscina) !== piscina) continue;
+    const raw = parseFloat(m.tiempo_seg);
+    if(!isFinite(raw) || raw <= 0) continue;
+    // Para elegir la mejor se compara en términos equivalentes (manual +0,29/+0,19)
+    const comp = raw + (m.crono === 'manual' ? penalizacionDist(distancia) : 0);
+    if(!mejor || comp < mejor.comp) mejor = { m, raw, comp };
+  }
+  return mejor;
+}
+
+function filaPrueba(p, marcas, perfil){
+  const u = perfil || usuario;
+  const base = {
+    anoNacimiento: u.ano, sexo: u.sexo, territorio: territorioDe(u),
+    estilo: p.estilo, distancia: p.distancia
+  };
+  const opciones = [50, 25].map(piscina => {
+    const nac = minimaNacional({ ...base, piscina, fecha: new Date() });
+    const best = mejorMarcaPiscina(marcas, p.estilo, p.distancia, piscina);
+    const ev = best
+      ? evaluarMarca({ ...base, piscina, crono: best.m.crono || 'electronico', seg: best.raw, fecha: new Date() })
+      : null;
+    return { piscina, nac, best, ev };
+  });
+
+  const conMarca = opciones.filter(o => o.ev);
+  const conMinima = opciones.filter(o => o.nac);
+  let elegida = null;
+  let estado = 'sin_minima';
+
+  if(conMarca.length){
+    // Nos quedamos con la piscina donde está más cerca de la nacional
+    elegida = conMarca.reduce((a, b) => {
+      const ma = a.ev.nacional ? a.ev.nacional.margen : -1e9;
+      const mb = b.ev.nacional ? b.ev.nacional.margen : -1e9;
+      return mb > ma ? b : a;
+    });
+    const ev = elegida.ev;
+    if(!ev.nacional && !ev.territorial) estado = 'sin_minima';
+    else if(ev.nacional && ev.nacional.alcanzada) estado = 'conseguida';
+    else if(ev.territorial && ev.territorial.alcanzada) estado = 'autonoma';
+    else if(ev.nacional && ev.nacional.margen > -1.5) estado = 'cerca';
+    else estado = 'lejos';
+  } else if(conMinima.length){
+    elegida = conMinima[0];
+    estado = 'sin_marca';
+  } else {
+    elegida = opciones[0];
+  }
+
+  const ev = elegida?.ev || null;
+  const margen = ev
+    ? (ev.nacional ? ev.nacional.margen : (ev.territorial ? ev.territorial.margen : null))
+    : null;
+
+  return {
+    estilo: p.estilo,
+    distancia: p.distancia,
+    piscina: elegida?.piscina || null,
+    estado,
+    margen,
+    seg: elegida?.best ? elegida.best.raw : null,
+    display: elegida?.best ? tdis(elegida.best.raw) : null,
+    crono: elegida?.best ? (elegida.best.m.crono || 'electronico') : null,
+    fecha: elegida?.best ? elegida.best.m.fecha : null,
+    minima: ev?.nacional || null,
+    territorial: ev?.territorial || null,
+    objetivo: elegida?.nac || null,
+    totalMarcas: marcas.filter(m =>
+      m.estilo === p.estilo &&
+      parseInt(m.distancia) === p.distancia &&
+      parseInt(m.piscina) === (elegida?.piscina || 0)
+    ).length
+  };
+}
+
+function calcularClasificacion(marcas, perfil){
+  const u = perfil || usuario;
+  const lista = marcas || misMarcase || [];
+  if(!u) return [];
+  const temp = temporadaActual();
+  const deTemporada = lista.filter(m => marcaEnTemporada(m, temp));
+
+  const filas = pruebasPosibles(u).map(p => filaPrueba(p, deTemporada, u));
+  filas.sort((a, b) => {
+    const pa = ESTADOS_CLASIF[a.estado].peso;
+    const pb = ESTADOS_CLASIF[b.estado].peso;
+    if(pa !== pb) return pa - pb;
+    return (b.margen ?? -1e9) - (a.margen ?? -1e9);   // primero lo más cercano
+  });
+  return filas;
+}
+
+function resumenClasificacion(filas){
+  const r = { total: filas.length, conseguida: 0, autonoma: 0, cerca: 0, sinMarca: 0, sinMinima: 0 };
+  filas.forEach(f => {
+    if(f.estado === 'conseguida') r.conseguida++;
+    else if(f.estado === 'autonoma') r.autonoma++;
+    else if(f.estado === 'cerca') r.cerca++;
+    else if(f.estado === 'sin_marca') r.sinMarca++;
+    else if(f.estado === 'sin_minima') r.sinMinima++;
+  });
+  return r;
+}
+
+// ── Pintado ────────────────────────────────────────────────────────────────
+function renderResumenClasificacion(){
+  const cont = document.getElementById('resumenClasificacion');
+  if(!cont) return;
+  if(!usuario || usuario.rol === 'entrenador'){ cont.style.display = 'none'; return; }
+  cont.style.display = 'block';
+
+  const filas = calcularClasificacion();
+  const r = resumenClasificacion(filas);
+  const pruebas = r.total - r.sinMinima;
+
+  let detalle;
+  if(!misMarcase || !misMarcase.length){
+    detalle = 'Registra una marca y te digo si te clasificas.';
+  } else if(r.conseguida === 0){
+    detalle = r.cerca
+      ? `Todavía sin mínima, pero ${r.cerca} prueba${r.cerca > 1 ? 's' : ''} al alcance.`
+      : 'Todavía sin mínima. Sigue registrando marcas.';
+  } else {
+    detalle = `${r.conseguida} de ${pruebas} prueba${pruebas > 1 ? 's' : ''} con mínima nacional` +
+      (r.autonoma ? ` · ${r.autonoma} autonómica${r.autonoma > 1 ? 's' : ''}` : '') +
+      (r.cerca ? ` · ${r.cerca} a punto` : '');
+  }
+
+  cont.innerHTML = `
+    <div class="card" style="cursor:pointer;border-color:var(--agua-light);margin-bottom:10px;" onclick="showScreen('Clasificacion')">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:28px;">🎯</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:17px;">¿Me clasifico?</div>
+          <div style="font-size:14px;color:rgba(90,107,125,.95);line-height:1.35;margin-top:2px;">${detalle}</div>
+        </div>
+        <div style="font-size:22px;color:rgba(90,107,125,.6);">›</div>
+      </div>
+    </div>`;
+}
+
+function renderClasificacion(){
+  const cont = document.getElementById('listaClasif');
+  if(!cont) return;
+  const resumen = document.getElementById('resumenClasif');
+  const filas = calcularClasificacion();
+  const r = resumenClasificacion(filas);
+  const tmp = temporadaActual();
+
+  if(resumen){
+    resumen.innerHTML = `
+      <div class="stats-grid" style="margin-top:0;">
+        <div class="stat-card"><div class="stat-num" style="color:var(--verde)">${r.conseguida}</div><div class="stat-label">Con mínima</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--amarillo)">${r.cerca}</div><div class="stat-label">A punto</div></div>
+      </div>
+      <div style="font-size:13px;color:rgba(90,107,125,.9);text-align:center;margin-top:8px;">
+        Temporada ${tmp} · cuentan solo las marcas de esta temporada
+      </div>`;
+  }
+
+  if(!misMarcase || !misMarcase.length){
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div>
+      <div class="empty-text">Todavía no has registrado marcas.<br>En cuanto tengas una, aquí verás qué te falta.</div></div>`;
+    return;
+  }
+
+  const visibles = filas.filter(f => {
+    if(clasifFiltro === 'todas') return f.estado !== 'sin_minima';
+    if(clasifFiltro === 'conseguida') return f.estado === 'conseguida' || f.estado === 'autonoma';
+    if(clasifFiltro === 'cerca') return f.estado === 'cerca';
+    if(clasifFiltro === 'sin_marca') return f.estado === 'sin_marca';
+    return true;
+  });
+
+  if(!visibles.length){
+    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nada por aquí con este filtro</div></div>';
+    return;
+  }
+
+  cont.innerHTML = visibles.map(htmlFilaClasif).join('');
+}
+
+// Una fila del panel (función aparte para poder probarla sin navegador)
+function htmlFilaClasif(f){
+    const e = ESTADOS_CLASIF[f.estado];
+    const largos = f.piscina ? Math.max(1, Math.round(f.distancia / f.piscina)) : 1;
+
+    // Barra: 100% = justo en la mínima. Se mapea el tramo 85%-100% para que se note.
+    let pct = 0;
+    if(f.seg && f.minima){
+      const ratio = f.minima.seg / f.seg;
+      pct = Math.max(0, Math.min(100, ((ratio - 0.85) / 0.15) * 100));
+    } else if(f.estado === 'conseguida'){
+      pct = 100;
+    }
+
+    let detalle;
+    if(f.estado === 'conseguida'){
+      detalle = `${f.display} (${f.piscina}m) · te sobran ${Math.abs(f.margen).toFixed(2)} s`;
+    } else if(f.estado === 'autonoma'){
+      detalle = `${f.display} (${f.piscina}m) · autonómica sí, nacional a ${Math.abs(f.margen).toFixed(2)} s`;
+    } else if(f.estado === 'cerca' || f.estado === 'lejos'){
+      detalle = `${f.display} (${f.piscina}m) · faltan ${Math.abs(f.margen).toFixed(2)} s` +
+        (largos > 1 ? ` · ${(Math.abs(f.margen) / largos).toFixed(2)} s por largo` : '');
+    } else if(f.estado === 'sin_marca'){
+      detalle = `Mínima ${tdis(f.objetivo.seg)}${f.objetivo.crono === 'manual' ? ' (manual)' : ''}`;
+    } else {
+      detalle = 'Tu categoría no tiene mínima en esta prueba';
+    }
+
+    const mejor = f.minima && f.estado !== 'sin_marca' && f.estado !== 'sin_minima'
+      ? `<div style="font-size:13px;color:rgba(90,107,125,.85);margin-top:2px;">Mínima ${tdis(f.minima.seg)}</div>`
+      : '';
+
+    return `<div class="card" style="padding:12px 13px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:16px;">${f.distancia} ${f.estilo}</div>
+          <div style="font-size:13px;color:rgba(90,107,125,.95);margin-top:2px;line-height:1.35;">${detalle}</div>
+          ${mejor}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div class="marca-badge ${f.estado === 'sin_minima' ? 'badge-na' : e.bg || ''}"
+               style="${e.bg ? '' : `background:rgba(26,26,46,.04);color:${e.color};border:1px solid rgba(26,26,46,.08);`}">
+            ${f.estado === 'cerca' ? `+${Math.abs(f.margen).toFixed(2)} s`
+              : f.estado === 'lejos' ? `+${Math.abs(f.margen).toFixed(2)} s`
+              : f.estado === 'conseguida' ? 'MÍNIMA ✓'
+              : f.estado === 'autonoma' ? 'AUTONÓMICA'
+              : f.estado === 'sin_marca' ? 'SIN MARCA'
+              : 'SIN MÍNIMA'}
+          </div>
+        </div>
+      </div>
+      ${f.seg ? `<div style="height:6px;border-radius:3px;background:#e8eef5;margin-top:9px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${e.color};border-radius:3px;transition:width .3s;"></div>
+      </div>` : ''}
+    </div>`;
+}
+
+function setClasifFiltro(f, el){
+  clasifFiltro = f;
+  document.querySelectorAll('#screenClasificacion .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderClasificacion();
+}
+
 </script>
 </body>
 </html>
