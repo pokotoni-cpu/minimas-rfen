@@ -402,6 +402,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button onclick="showScreen('Marcas')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Mis marcas</button>
         <div class="section-title" style="margin:0;">¿Me clasifico?</div>
       </div>
+      <div id="proxCampeonato"></div>
       <div id="resumenClasif" style="margin-bottom:10px;"></div>
       <div style="margin-bottom:10px;">
         <span class="filter-chip active" onclick="setClasifFiltro('todas',this)">Todas</span>
@@ -488,6 +489,15 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="btn-primary" style="margin-top:8px;" onclick="importarCsvAdmin()">Importar y publicar</button>
         <div id="admCsvEstado" style="font-size:13px;margin-top:8px;line-height:1.4;"></div>
       </details>
+    </div>
+
+    <!-- CAMPEONATOS -->
+    <div class="screen" id="screenCampeonatos">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button onclick="showScreen('Clasificacion')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Clasificación</button>
+        <div class="section-title" style="margin:0;">Campeonatos</div>
+      </div>
+      <div id="listaCampeonatos"></div>
     </div>
 
     <!-- PROGRESIÓN -->
@@ -1462,6 +1472,7 @@ function showScreen(name){
   if(name==='Clasificacion')renderClasificacion();
   if(name==='Admin')renderAdmin();
   if(name==='Progreso')renderProgreso();
+  if(name==='Campeonatos')renderCampeonatos();
 }
 
 // -- MIS MARCAS (nadador) ---------------------------------
@@ -2592,7 +2603,7 @@ async function importarRFEN(){
     btn.textContent='🔍 Buscar e importar mis marcas';
   }
 }
-/* ══════════════════════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════════════════════
    PANEL "¿ME CLASIFICO?"
    ──────────────────────────────────────────────────────────────────────────
    Responde a la pregunta que de verdad se hace un nadador: de todas las
@@ -2792,6 +2803,8 @@ function renderResumenClasificacion(){
 function renderClasificacion(){
   const cont = document.getElementById('listaClasif');
   if(!cont) return;
+  // Tarjeta del próximo plazo de inscripción (si hay campeonatos cargados)
+  if(typeof renderProxCampeonato === 'function') renderProxCampeonato();
   const resumen = document.getElementById('resumenClasif');
   const filas = calcularClasificacion();
   const r = resumenClasificacion(filas);
@@ -3732,6 +3745,143 @@ async function compartirMarca(id){
   }catch(e){
     showToast('No se pudo crear la imagen: ' + e.message, true);
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CAMPEONATOS Y PLAZOS
+   ──────────────────────────────────────────────────────────────────────────
+   "¿Hasta cuándo puedo inscribirme?" es la pregunta que de verdad mueve a un
+   nadador a abrir la app. Aquí se listan los campeonatos de la temporada con
+   la cuenta atrás del plazo.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const CAMPEONATOS = { filas: [], cargado: false, cargando: null, error: null };
+
+// Días completos que faltan hasta una fecha (negativo si ya pasó)
+function diasHasta(fecha, hoy){
+  if(!fecha) return null;
+  const f = (fecha instanceof Date) ? fecha : new Date(String(fecha).slice(0, 10) + 'T00:00:00');
+  if(isNaN(f.getTime())) return null;
+  const h = hoy ? new Date(hoy) : new Date();
+  h.setHours(0, 0, 0, 0);
+  f.setHours(0, 0, 0, 0);
+  return Math.round((f - h) / 86400000);
+}
+
+// Texto y color del plazo
+function textoPlazo(fecha, hoy){
+  const d = diasHasta(fecha, hoy);
+  if(d === null) return null;
+  if(d < 0) return { texto: `plazo cerrado hace ${Math.abs(d)} día${Math.abs(d) === 1 ? '' : 's'}`, color: '#93a3b5', urgente: false };
+  if(d === 0) return { texto: 'último día para inscribirse', color: '#d62839', urgente: true };
+  if(d === 1) return { texto: 'queda 1 día para inscribirse', color: '#d62839', urgente: true };
+  if(d <= 7) return { texto: `quedan ${d} días para inscribirse`, color: '#d62839', urgente: true };
+  if(d <= 21) return { texto: `quedan ${d} días para inscribirse`, color: '#e09f00', urgente: false };
+  return { texto: `quedan ${d} días para inscribirse`, color: '#06a96e', urgente: false };
+}
+
+function fechaLarga(fecha){
+  if(!fecha) return '';
+  const f = (fecha instanceof Date) ? fecha : new Date(String(fecha).slice(0, 10) + 'T00:00:00');
+  if(isNaN(f.getTime())) return '';
+  return f.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+}
+
+async function cargarCampeonatos(forzar){
+  if(CAMPEONATOS.cargando) return CAMPEONATOS.cargando;
+  if(CAMPEONATOS.cargado && !forzar) return CAMPEONATOS.filas;
+  CAMPEONATOS.cargando = (async () => {
+    try{
+      const { data, error } = await sb.from('campeonatos')
+        .select('id,nombre,temporada,ambito,territorio,sede,piscina,fecha_inicio,fecha_fin,plazo_inscripcion,enlace')
+        .order('fecha_inicio', { ascending: true });
+      if(error) throw error;
+      CAMPEONATOS.filas = data || [];
+      CAMPEONATOS.error = null;
+      CAMPEONATOS.cargado = true;
+    }catch(e){
+      CAMPEONATOS.error = e.message || String(e);
+    }finally{
+      CAMPEONATOS.cargando = null;
+    }
+  })();
+  return CAMPEONATOS.cargando;
+}
+
+// El próximo campeonato con inscripción abierta (o el siguiente por fecha)
+function proximoCampeonato(filas, hoy){
+  const lista = (filas || []).filter(c => c && c.fecha_inicio);
+  const abiertos = lista.filter(c => {
+    const d = diasHasta(c.plazo_inscripcion || c.fecha_inicio, hoy);
+    return d !== null && d >= 0;
+  });
+  if(abiertos.length) return abiertos[0];
+  const futuros = lista.filter(c => diasHasta(c.fecha_inicio, hoy) >= 0);
+  return futuros[0] || null;
+}
+
+// Tarjeta con el próximo plazo (se pinta en la pantalla de clasificación)
+async function renderProxCampeonato(){
+  const cont = document.getElementById('proxCampeonato');
+  if(!cont) return;
+  await cargarCampeonatos();
+  if(CAMPEONATOS.error || !CAMPEONATOS.filas.length){ cont.innerHTML = ''; return; }
+
+  const c = proximoCampeonato(CAMPEONATOS.filas);
+  if(!c){ cont.innerHTML = ''; return; }
+
+  const p = textoPlazo(c.plazo_inscripcion || c.fecha_inicio);
+  cont.innerHTML = `<div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="showScreen('Campeonatos')">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="font-size:22px;">📅</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;color:rgba(90,107,125,.9);">${esc(fechaLarga(c.fecha_inicio))}${c.sede ? ' · ' + esc(c.sede) : ''}</div>
+        <div style="font-weight:600;font-size:15px;margin-top:1px;">${esc(c.nombre)}</div>
+        ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:2px;">${p.texto}</div>` : ''}
+      </div>
+      <div style="font-size:20px;color:rgba(90,107,125,.5);">›</div>
+    </div>
+  </div>`;
+}
+
+async function renderCampeonatos(){
+  const cont = document.getElementById('listaCampeonatos');
+  if(!cont) return;
+  cont.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando campeonatos…</div>';
+  await cargarCampeonatos(true);
+
+  if(CAMPEONATOS.error){
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">${esc(CAMPEONATOS.error)}</div></div>`;
+    return;
+  }
+  if(!CAMPEONATOS.filas.length){
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div>
+      <div class="empty-text">Todavía no hay campeonatos cargados.<br>
+      Se añaden con el SQL de <code>06-campeonatos.sql</code>.</div></div>`;
+    return;
+  }
+
+  const hoy = new Date();
+  const futuros = CAMPEONATOS.filas.filter(c => diasHasta(c.fecha_inicio, hoy) >= 0);
+  const pasados = CAMPEONATOS.filas.filter(c => diasHasta(c.fecha_inicio, hoy) < 0);
+
+  const fila = (c) => {
+    const p = textoPlazo(c.plazo_inscripcion || c.fecha_inicio, hoy);
+    const dias = diasHasta(c.fecha_inicio, hoy);
+    const fechas = c.fecha_fin && c.fecha_fin !== c.fecha_inicio
+      ? `${fechaLarga(c.fecha_inicio)} – ${fechaLarga(c.fecha_fin)}`
+      : fechaLarga(c.fecha_inicio);
+    return `<div class="card" style="margin-bottom:10px;${dias < 0 ? 'opacity:.55;' : ''}">
+      <div style="font-weight:600;font-size:15px;">${esc(c.nombre)}</div>
+      <div style="font-size:13px;color:rgba(90,107,125,.9);margin-top:2px;">${fechas}${c.sede ? ' · ' + esc(c.sede) : ''}${c.piscina ? ' · ' + c.piscina + ' m' : ''}</div>
+      ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:6px;">${p.texto}</div>` : ''}
+      ${c.enlace ? `<a href="${esc(c.enlace)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:13px;color:var(--agua-light);text-decoration:underline;">Convocatoria ↗</a>` : ''}
+    </div>`;
+  };
+
+  cont.innerHTML =
+    (futuros.length ? futuros.map(fila).join('') : '<div class="empty-state"><div class="empty-text">No hay campeonatos próximos.</div></div>') +
+    (pasados.length ? `<div class="section-title" style="font-size:14px;margin:16px 0 8px;">Ya celebrados</div>` + pasados.slice(-4).reverse().map(fila).join('') : '');
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
