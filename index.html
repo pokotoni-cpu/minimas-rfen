@@ -265,6 +265,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
     <!-- MARCAS (nadador) / EQUIPO (entrenador) -->
     <div class="screen active" id="screenMarcas">
       <div class="section-title" id="titleMarcas">Mis Marcas</div>
+      <div id="proxCampeonatoMarcas"></div>
       <div id="resumenClasificacion"></div>
       <div class="form-grid" style="margin-bottom:10px;">
         <select class="input-field" id="misMarcasEstilo" onchange="renderMarcas()" style="font-size:14px;">
@@ -1512,6 +1513,7 @@ async function cargarMisMarcase(){
 }
 function renderMarcas(){
   renderResumenClasificacion();
+  if(typeof renderProxCampeonato === 'function') renderProxCampeonato();
   const lista=document.getElementById('listaMarcas');
   if(!misMarcase.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><div class="empty-text">Aún no has registrado ninguna marca.</div></div>';return;}
 
@@ -4303,29 +4305,45 @@ function proximoCampeonato(filas, hoy, u){
 
 // Tarjeta con el próximo plazo (se pinta en la pantalla de clasificación)
 async function renderProxCampeonato(){
-  const cont = document.getElementById('proxCampeonato');
-  if(!cont) return;
+  const conts = ['proxCampeonato', 'proxCampeonatoMarcas']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+  if(!conts.length) return;
+
   await cargarCampeonatos();
-  if(CAMPEONATOS.error || !CAMPEONATOS.filas.length){ cont.innerHTML = ''; return; }
+  // El grupo del club se necesita aquí: sin cargarlo, grupoDeClub() devuelve
+  // null y no se puede saber qué sede le toca.
+  if(typeof cargarGruposClub === 'function') await cargarGruposClub();
+
+  const vaciar = () => conts.forEach(c => { c.innerHTML = ''; });
+  if(CAMPEONATOS.error || !CAMPEONATOS.filas.length){ vaciar(); return; }
 
   const c = proximoCampeonato(agruparCampeonatos(CAMPEONATOS.filas), undefined, usuario);
-  if(!c){ cont.innerHTML = ''; return; }
+  if(!c){ vaciar(); return; }
 
   const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion) : textoPlazo(c.fecha_inicio, undefined, false);
   const mia = c.sedes.find(s => sedeSugerida(s, usuario?.club));
-  const lugar = mia ? mia.sede : (c.sedes.length === 1 ? c.sedes[0].sede : `${c.sedes.length} sedes`);
+  const sedeTxt = mia ? mia.sede : (c.sedes.length === 1 ? c.sedes[0].sede : 'varias sedes');
+  const piscinaTxt = mia && mia.piscina ? ` · piscina de ${mia.piscina} m` : '';
+  const grupo = (typeof grupoDeClub === 'function') ? grupoDeClub(usuario?.club) : null;
 
-  cont.innerHTML = `<div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="showScreen('Campeonatos')">
+  const html = `<div class="card" style="cursor:pointer;margin-bottom:10px;border-color:var(--agua-light);" onclick="showScreen('Campeonatos')">
     <div style="display:flex;align-items:center;gap:10px;">
-      <div style="font-size:22px;">📅</div>
+      <div style="font-size:24px;">📅</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;color:rgba(90,107,125,.9);">${esc(fechaLarga(c.fecha_inicio))}${lugar ? ' · ' + esc(lugar) : ''}</div>
-        <div style="font-weight:600;font-size:15px;margin-top:1px;">${esc(c.nombre)}</div>
-        ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:2px;">${p.texto}</div>` : ''}
+        <div style="font-size:12px;color:rgba(90,107,125,.9);text-transform:uppercase;letter-spacing:.5px;font-weight:600;">
+          ${esc(fechaLarga(c.fecha_inicio))}</div>
+        <div style="font-weight:600;font-size:16px;margin-top:1px;">${esc(c.nombre)}</div>
+        <div style="font-size:15px;color:var(--agua-light);font-weight:600;margin-top:4px;">
+          📍 ${esc(sedeTxt)}${piscinaTxt}</div>
+        ${grupo ? `<div style="font-size:12px;color:#93a3b5;margin-top:1px;">grupo ${esc(grupo)}</div>` : ''}
+        ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:6px;">${p.texto}</div>` : ''}
       </div>
       <div style="font-size:20px;color:rgba(90,107,125,.5);">›</div>
     </div>
   </div>`;
+
+  conts.forEach(c2 => { c2.innerHTML = html; });
 }
 
 async function renderCampeonatos(){
