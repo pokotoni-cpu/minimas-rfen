@@ -906,7 +906,12 @@ function etiquetaNivelMinima(ev){
   return `${cod}-MÍN${ev.territorial.nivel ? ' ' + ev.territorial.nivel : ''}`;
 }
 
-function paramsDeMarca(m){
+// Parámetros de una marca guardada para evaluarla. La fecha es HOY a propósito:
+// los badges dicen "¿esta marca te clasifica ahora?", no "¿clasificaba cuando se
+// nadó?". Si no, una marca de marzo de 2026 seguiría luciendo el badge de la
+// tabla autonómica 25/26, que caducó el 30/09/2026. Para la fecha real de la
+// marca está `fechaDeMarca`.
+function paramsDeMarca(m, fecha){
   return {
     anoNacimiento: m.ano_nacimiento,
     sexo: m.sexo,
@@ -916,7 +921,7 @@ function paramsDeMarca(m){
     piscina: m.piscina,
     crono: m.crono || 'electronico',
     seg: parseFloat(m.tiempo_seg),
-    fecha: fechaDeMarca(m)
+    fecha: fecha || new Date()
   };
 }
 
