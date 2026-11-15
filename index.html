@@ -3774,7 +3774,7 @@ async function compartirMarca(id){
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════════════════════
    CALENDARIO DE LA FNCV
    ──────────────────────────────────────────────────────────────────────────
    La web de la federación no permite leerla desde otro dominio (CORS), así que
@@ -3887,6 +3887,21 @@ function parsearCalendarioFncv(texto){
   return out;
 }
 
+// Quita repetidas conservando TODAS las sedes: una fase provincial se celebra
+// el mismo día en Alicante, Gandia y Castellón, y son competiciones distintas
+// para cada nadador.
+function deduplicarCalendario(filas){
+  const vistas = new Set();
+  return (filas || []).filter(c => {
+    if(!c || !c.nombre || !c.fecha_inicio) return false;
+    const fecha = (c.fecha_inicio instanceof Date) ? c.fecha_inicio.toISOString().slice(0, 10) : String(c.fecha_inicio);
+    const k = `${c.nombre}|${fecha}|${c.sede || ''}`;
+    if(vistas.has(k)) return false;
+    vistas.add(k);
+    return true;
+  });
+}
+
 // Las cuatro páginas → competiciones (sin repetir)
 async function descargarCalendarioFncv(onProgreso){
   const todas = [];
@@ -3908,14 +3923,7 @@ async function descargarCalendarioFncv(onProgreso){
     }
   }
 
-  // Quitar repetidas (mismo nombre y fecha)
-  const vistas = new Set();
-  const unicas = todas.filter(c => {
-    const k = `${c.nombre}|${c.fecha_inicio.toISOString().slice(0, 10)}`;
-    if(vistas.has(k)) return false;
-    vistas.add(k);
-    return true;
-  }).sort((a, b) => a.fecha_inicio - b.fecha_inicio);
+  const unicas = deduplicarCalendario(todas).sort((a, b) => a.fecha_inicio - b.fecha_inicio);
 
   return { filas: unicas, errores };
 }
@@ -4065,6 +4073,45 @@ async function cargarCampeonatos(forzar){
   return CAMPEONATOS.cargando;
 }
 
+// Sin acentos ni mayúsculas, para comparar "Castellón" con "CASTELLON"
+function sinAcentos(txt){
+  return String(txt || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+// ¿La sede de esta fila es la del club del nadador? Heurística por nombre:
+// "C.N. GANDIA" ↔ sede "Gandia". Si no coincide, no se marca nada.
+function sedeSugerida(campeonato, club){
+  const c = sinAcentos(club);
+  if(!c || !campeonato || !campeonato.sede) return false;
+  const s = sinAcentos(campeonato.sede);
+  if(!s || s.length < 4) return false;
+  return (' ' + c + ' ').includes(' ' + s + ' ');
+}
+
+// Un campeonato puede celebrarse en varias sedes el mismo día: se agrupan para
+// no enseñar cuatro tarjetas idénticas y que el nadador elija la suya.
+function agruparCampeonatos(filas){
+  const mapa = new Map();
+  (filas || []).forEach(c => {
+    if(!c || !c.fecha_inicio) return;
+    const k = `${c.nombre}|${c.fecha_inicio}|${c.fecha_fin || ''}`;
+    if(!mapa.has(k)){
+      mapa.set(k, {
+        nombre: c.nombre, fecha_inicio: c.fecha_inicio, fecha_fin: c.fecha_fin || null,
+        plazo_inscripcion: c.plazo_inscripcion || null,
+        sedes: []
+      });
+    }
+    const g = mapa.get(k);
+    g.sedes.push({ sede: c.sede || '', piscina: c.piscina || null, enlace: c.enlace || null, id: c.id });
+    if(!g.plazo_inscripcion && c.plazo_inscripcion) g.plazo_inscripcion = c.plazo_inscripcion;
+  });
+  return Array.from(mapa.values()).sort((a, b) => String(a.fecha_inicio).localeCompare(String(b.fecha_inicio)));
+}
+
 // El próximo campeonato con inscripción abierta (o el siguiente por fecha)
 function proximoCampeonato(filas, hoy){
   const lista = (filas || []).filter(c => c && c.fecha_inicio);
@@ -4084,15 +4131,18 @@ async function renderProxCampeonato(){
   await cargarCampeonatos();
   if(CAMPEONATOS.error || !CAMPEONATOS.filas.length){ cont.innerHTML = ''; return; }
 
-  const c = proximoCampeonato(CAMPEONATOS.filas);
+  const c = proximoCampeonato(agruparCampeonatos(CAMPEONATOS.filas));
   if(!c){ cont.innerHTML = ''; return; }
 
   const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion) : textoPlazo(c.fecha_inicio, undefined, false);
+  const mia = c.sedes.find(s => sedeSugerida(s, usuario?.club));
+  const lugar = mia ? mia.sede : (c.sedes.length === 1 ? c.sedes[0].sede : `${c.sedes.length} sedes`);
+
   cont.innerHTML = `<div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="showScreen('Campeonatos')">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="font-size:22px;">📅</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;color:rgba(90,107,125,.9);">${esc(fechaLarga(c.fecha_inicio))}${c.sede ? ' · ' + esc(c.sede) : ''}</div>
+        <div style="font-size:13px;color:rgba(90,107,125,.9);">${esc(fechaLarga(c.fecha_inicio))}${lugar ? ' · ' + esc(lugar) : ''}</div>
         <div style="font-weight:600;font-size:15px;margin-top:1px;">${esc(c.nombre)}</div>
         ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:2px;">${p.texto}</div>` : ''}
       </div>
@@ -4114,31 +4164,44 @@ async function renderCampeonatos(){
   if(!CAMPEONATOS.filas.length){
     cont.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div>
       <div class="empty-text">Todavía no hay campeonatos cargados.<br>
-      Se añaden con el SQL de <code>06-campeonatos.sql</code>.</div></div>`;
+      Se añaden desde Perfil → Administrar mínimas, o con el SQL de <code>06-campeonatos.sql</code>.</div></div>`;
     return;
   }
 
   const hoy = new Date();
-  const futuros = CAMPEONATOS.filas.filter(c => diasHasta(c.fecha_inicio, hoy) >= 0);
-  const pasados = CAMPEONATOS.filas.filter(c => diasHasta(c.fecha_inicio, hoy) < 0);
+  const grupos = agruparCampeonatos(CAMPEONATOS.filas);
+  const futuros = grupos.filter(g => diasHasta(g.fecha_inicio, hoy) >= 0);
+  const pasados = grupos.filter(g => diasHasta(g.fecha_inicio, hoy) < 0);
 
-  const fila = (c) => {
-    const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion, hoy) : textoPlazo(c.fecha_inicio, hoy, false);
-    const dias = diasHasta(c.fecha_inicio, hoy);
-    const fechas = c.fecha_fin && c.fecha_fin !== c.fecha_inicio
-      ? `${fechaLarga(c.fecha_inicio)} – ${fechaLarga(c.fecha_fin)}`
-      : fechaLarga(c.fecha_inicio);
-    return `<div class="card" style="margin-bottom:10px;${dias < 0 ? 'opacity:.55;' : ''}">
-      <div style="font-weight:600;font-size:15px;">${esc(c.nombre)}</div>
-      <div style="font-size:13px;color:rgba(90,107,125,.9);margin-top:2px;">${fechas}${c.sede ? ' · ' + esc(c.sede) : ''}${c.piscina ? ' · ' + c.piscina + ' m' : ''}</div>
-      ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:6px;">${p.texto}</div>` : ''}
-      ${c.enlace ? `<a href="${esc(c.enlace)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:13px;color:var(--agua-light);text-decoration:underline;">Convocatoria ↗</a>` : ''}
+  const tarjeta = (g) => {
+    const p = g.plazo_inscripcion ? textoPlazo(g.plazo_inscripcion, hoy) : textoPlazo(g.fecha_inicio, hoy, false);
+    const fechas = g.fecha_fin && String(g.fecha_fin) !== String(g.fecha_inicio)
+      ? `${fechaLarga(g.fecha_inicio)} – ${fechaLarga(g.fecha_fin)}`
+      : fechaLarga(g.fecha_inicio);
+
+    const sedes = g.sedes.map(s => {
+      const mia = sedeSugerida(s, usuario?.club);
+      const texto = s.sede || 'Sede por confirmar';
+      return `<span style="display:inline-block;margin:4px 4px 0 0;padding:3px 9px;border-radius:20px;font-size:12px;
+        background:${mia ? 'rgba(0,119,182,.14)' : 'rgba(26,26,46,.04)'};
+        border:1px solid ${mia ? 'var(--agua-light)' : 'var(--card-border)'};
+        color:${mia ? 'var(--agua-light)' : '#5a6b7d'};font-weight:${mia ? 700 : 400};">${esc(texto)}${mia ? ' · tu sede' : ''}${s.piscina ? ' · ' + s.piscina + ' m' : ''}</span>`;
+    }).join('');
+
+    const enlace = g.sedes.find(s => s.enlace)?.enlace;
+
+    return `<div class="card" style="margin-bottom:10px;${diasHasta(g.fecha_inicio, hoy) < 0 ? 'opacity:.55;' : ''}">
+      <div style="font-weight:600;font-size:15px;">${esc(g.nombre)}</div>
+      <div style="font-size:13px;color:rgba(90,107,125,.9);margin-top:2px;">${fechas}</div>
+      <div style="margin-top:4px;">${sedes}</div>
+      ${p ? `<div style="font-size:13px;color:${p.color};font-weight:600;margin-top:8px;">${p.texto}</div>` : ''}
+      ${enlace ? `<a href="${esc(enlace)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:13px;color:var(--agua-light);text-decoration:underline;">Convocatoria ↗</a>` : ''}
     </div>`;
   };
 
   cont.innerHTML =
-    (futuros.length ? futuros.map(fila).join('') : '<div class="empty-state"><div class="empty-text">No hay campeonatos próximos.</div></div>') +
-    (pasados.length ? `<div class="section-title" style="font-size:14px;margin:16px 0 8px;">Ya celebrados</div>` + pasados.slice(-4).reverse().map(fila).join('') : '');
+    (futuros.length ? futuros.map(tarjeta).join('') : '<div class="empty-state"><div class="empty-text">No hay campeonatos próximos.</div></div>') +
+    (pasados.length ? `<div class="section-title" style="font-size:14px;margin:16px 0 8px;">Ya celebrados</div>` + pasados.slice(-4).reverse().map(tarjeta).join('') : '');
 }
 
 // ── Administración de campeonatos ──────────────────────────────────────────
