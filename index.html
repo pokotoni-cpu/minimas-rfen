@@ -4221,62 +4221,6 @@ async function guardarGrupoClub(){
   showToast(grupo ? `Grupo ${grupo} guardado` : 'Grupo borrado');
   renderProxCampeonato();
 }
-async function guardarSedePerfil(){
-  const selSede = document.getElementById('perfilSedeSel');
-  const selGrupo = document.getElementById('perfilGrupo');
-  if(!usuario) return;
-
-  const cambios = {};
-  if(selGrupo) cambios.grupo = selGrupo.value || null;
-  if(selSede) cambios.sede = selSede.value || null;
-  if(!Object.keys(cambios).length) return;
-
-  const { error } = await sb.from('perfiles').update(cambios).eq('id', usuario.id);
-  if(error){ showToast('Error al guardar: ' + error.message, true); return; }
-
-  if('grupo' in cambios) usuario.grupo = cambios.grupo;
-  if('sede' in cambios) usuario.sede = cambios.sede;
-  showToast('Guardado');
-  renderProxCampeonato();
-}
-
-async function renderPerfilSede(){
-  const cont = document.getElementById('perfilSede');
-  if(!cont) return;
-  if(!usuario || usuario.rol === 'entrenador'){ cont.innerHTML = ''; return; }
-
-  await cargarCampeonatos();
-  const sedes = Array.from(new Set(
-    (CAMPEONATOS.filas || []).map(c => c.sede).filter(Boolean)
-  )).sort((a, b) => a.localeCompare(b));
-
-  if(!sedes.length){ cont.innerHTML = ''; return; }
-
-  const actual = usuario.sede || '';
-  cont.innerHTML = `
-    <div class="card" style="margin-top:10px;">
-      <div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:6px;">Mi sede habitual</div>
-      <div style="font-size:12px;color:#5a6b7d;margin-bottom:8px;line-height:1.45;">
-        Cuando un campeonato se nada en varias sedes el mismo día, se destacará la tuya.
-      </div>
-      <select class="input-field" id="perfilSedeSel" style="font-size:14px;">
-        <option value="">Sin preferencia</option>
-        ${sedes.map(s => `<option value="${esc(s)}"${sinAcentos(s) === sinAcentos(actual) ? ' selected' : ''}>${esc(s)}</option>`).join('')}
-      </select>
-      <button class="btn-primary" style="margin-top:8px;" onclick="guardarSedePerfil()">Guardar sede</button>
-    </div>`;
-}
-
-async function guardarSedePerfil(){
-  const sel = document.getElementById('perfilSedeSel');
-  if(!sel || !usuario) return;
-  const sede = sel.value || null;
-  const { error } = await sb.from('perfiles').update({ sede }).eq('id', usuario.id);
-  if(error){ showToast('Error al guardar: ' + error.message, true); return; }
-  usuario.sede = sede;
-  showToast(sede ? `Sede guardada: ${sede}` : 'Sede borrada');
-  renderProxCampeonato();
-}
 
 // Un campeonato puede celebrarse en varias sedes el mismo día: se agrupan para
 // no enseñar cuatro tarjetas idénticas y que el nadador elija la suya.
