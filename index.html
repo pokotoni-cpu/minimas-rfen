@@ -644,6 +644,30 @@ const CFG_TEMPORADA = {
   ]
 };
 
+// ── Escapado de HTML ───────────────────────────────────────────────────────
+// Todo lo que viene de fuera (nombre del nadador, club, competición, nombres de
+// la RFEN) se pinta con innerHTML. Sin escapar, un nombre como
+//   <img src=x onerror=...>
+// se ejecuta en el navegador de todos los que vean el ranking.
+function esc(valor){
+  if(valor === null || valor === undefined) return '';
+  return String(valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Para meter texto dentro de un atributo onclick="fn('...')"
+function escJs(valor){
+  return String(valor === null || valor === undefined ? '' : valor)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n/g, ' ');
+}
+
 // Penalización por cronometraje manual (la que ya usabas)
 function penalizacionDist(dist){ return parseInt(dist) === 50 ? 0.29 : 0.19; }
 
@@ -1214,7 +1238,10 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   else if(m.tiene_minima==='no'){emoji='💪';bc='badge-no';bt='Sin mínima';}
   else{emoji='⚪';bc='badge-na';bt='N/A';}
   const posHtml=pos!==null?`<div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${pos<3?'var(--amarillo)':'rgba(90,107,125,.6)'};width:26px;flex-shrink:0;">${pos+1}</div>`:'';
-  const nombre=mostrarNombre?`<div class="marca-prueba">${m.nombre_nadador} · ${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`:`<div class="marca-prueba">${m.estilo} ${m.distancia}m · ${m.piscina}m</div>`;
+  const prueba=`${esc(m.estilo)} ${esc(m.distancia)}m · ${esc(m.piscina)}m`;
+  const nombre=mostrarNombre
+    ? `<div class="marca-prueba">${esc(m.nombre_nadador)} · ${prueba}</div>`
+    : `<div class="marca-prueba">${prueba}</div>`;
   // Calcular diferencia con mínima nacional
   let difStr='';
   if(m.minima_display){
@@ -1225,18 +1252,18 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
       else difStr=` · le faltan ${dif.toFixed(2)}s`;
     }
   }
-  // Badge mínima autonómica CV
+  // Badge mínima autonómica
   let badgeCV='';
   const cvResult=calcularCVMinima(m);
   if(cvResult){
-    const labelCV=cvResult.nivel?`CV-MÍN ${cvResult.nivel}`:'CV-MÍN';
+    const labelCV=cvResult.nivel?`CV-MÍN ${esc(cvResult.nivel)}`:'CV-MÍN';
     badgeCV=`<span style="display:inline-block;background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:2px 7px;font-size:15px;font-weight:700;margin-left:4px;">${labelCV}</span>`;
   }
   const meta=mostrarNombre
-    ?`${m.club} · ${getCatLabel(m.ano_nacimiento)} · ${m.fecha||''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`
-    :`${m.fecha||''}${m.competicion?' · '+m.competicion:''}${m.minima_display?' · Mín: '+m.minima_display+difStr:''}`;
-  const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${m.id}')" style="background:none;border:none;color:rgba(26,26,46,.18);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
-  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${m.tiempo_display}${badgeCV}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
+    ?`${esc(m.club)} · ${getCatLabel(m.ano_nacimiento)} · ${esc(m.fecha)}${m.minima_display?' · Mín: '+esc(m.minima_display)+difStr:''}`
+    :`${esc(m.fecha)}${m.competicion?' · '+esc(m.competicion):''}${m.minima_display?' · Mín: '+esc(m.minima_display)+difStr:''}`;
+  const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${escJs(m.id)}')" style="background:none;border:none;color:rgba(26,26,46,.18);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
+  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${esc(m.tiempo_display)}${badgeCV}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
 }
 
 // -- AUTH -------------------------------------------------
@@ -1673,7 +1700,7 @@ async function renderPerfil(){
         <div class="nadador-header">
           <div class="nadador-avatar">🏊</div>
           <div style="flex:1;">
-            <div class="nadador-nombre">${nombre}</div>
+            <div class="nadador-nombre">${esc(nombre)}</div>
             <div class="nadador-sub">${info.cat} · ${info.marcas.length} mínima${info.marcas.length>1?'s':''}</div>
           </div>
           <div class="marca-badge badge-si">🏆 MÍNIMA</div>
@@ -1783,17 +1810,18 @@ async function cargarCompeticionesESP(){
       return (orden[a.status]??5)-(orden[b.status]??5);
     });
     lista.innerHTML=meets.map(m=>{
+      LIVE_MEETS.set(String(m.id), m.name || '');
       const si=getLiveStatusInfo(m.status);
       const curso=m.course===1?'50m':'25m';
       const fecha=m.startdate===m.enddate?m.startdate:`${m.startdate} → ${m.enddate}`;
-      return `<div class="live-card" onclick="abrirCompeticion('${m.id}','${m.name.replace(/'/g,"\'")}')">
+      return `<div class="live-card" onclick="abrirCompeticion('${escJs(m.id)}')">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
           <span class="live-status ${si.clase}"></span>
           <span style="font-size:14px;color:#5a6b7d;">${si.texto}</span>
           <span style="margin-left:auto;font-size:14px;color:rgba(90,107,125,.6);">${curso}</span>
         </div>
-        <div style="font-weight:600;font-size:15px;margin-bottom:2px;">${m.name}</div>
-        <div style="font-size:15px;color:rgba(90,107,125,.8);">${m.city} · ${fecha}</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:2px;">${esc(m.name)}</div>
+        <div style="font-size:15px;color:rgba(90,107,125,.8);">${esc(m.city)} · ${esc(fecha)}</div>
       </div>`;
     }).join('');
   }catch(e){
@@ -1831,13 +1859,13 @@ function renderVistaNadadoresClub(){
 
   cont.innerHTML=`<div style="font-size:15px;color:rgba(90,107,125,.8);margin-bottom:10px;">${atletasClub.length} nadadores de ${usuario.club} inscritos</div>` +
     atletasClub.map(a=>{
-      const nombre = a.lastname?`${a.lastname}, ${a.firstname}`:(a.fullname||'—');
+      const nombre = esc(a.lastname?`${a.lastname}, ${a.firstname}`:(a.fullname||'—'));
       const genStr = a.gender==='1'?'M':a.gender==='2'?'F':'';
       return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${a.id}')">
         <div class="nadador-header">
           <div class="nadador-avatar">🏊</div>
           <div style="flex:1;">
-            <div class="nadador-nombre">${nombre}</div>
+            <div class="nadador-nombre">${esc(nombre)}</div>
             <div class="nadador-sub">${a.yob||''}${genStr?' · '+genStr:''}</div>
           </div>
         </div>
@@ -1845,7 +1873,10 @@ function renderVistaNadadoresClub(){
     }).join('');
 }
 
-async function abrirCompeticion(id, nombre){
+const LIVE_MEETS = new Map();
+
+async function abrirCompeticion(id){
+  const nombre = LIVE_MEETS.get(String(id)) || '';
   liveCompeticionActual=id;
   liveCompeticionNombre=nombre;
   liveCompeticionCourse=2;
@@ -1938,7 +1969,7 @@ function renderVistaSesiones(){
     else if(enCurso||completadas>0){estadoTxt='🔴 En curso';estadoColor='#ff6b81';}
     return `<div class="live-card" onclick="abrirSesion(${idx})">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div style="font-weight:600;font-size:15px;">${s.name||'Sesión '+(idx+1)}</div>
+        <div style="font-weight:600;font-size:15px;">${esc(s.name)||'Sesión '+(idx+1)}</div>
         <span style="font-size:14px;color:${estadoColor};">${estadoTxt}</span>
       </div>
       <div style="font-size:15px;color:rgba(90,107,125,.8);">${s.date||''}${s.time?' · '+s.time+'h':''} · ${numEv} pruebas</div>
@@ -1977,7 +2008,7 @@ function renderVistaPruebas(){
 
   const filas=evs.map((ev,i)=>{
     const genStr=ev.gender==='1'||ev.gender===1?'Masc.':ev.gender==='2'||ev.gender===2?'Fem.':ev.gender==='3'||ev.gender===3?'Mixto':'';
-    const agStr=getAgegroupStr(ev);
+    const agStr=esc(getAgegroupStr(ev));
     const nombreEv=getNombreEvento(ev);
     const status=ev.status||0;
     let estTxt='⏳',estColor='rgba(90,107,125,.6)';
@@ -1986,7 +2017,7 @@ function renderVistaPruebas(){
     return `<div class="live-card" style="padding:11px 13px;" onclick="abrirPrueba('${ev.id||ev.eid}')">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-weight:600;font-size:15px;">${nombreEv}</div>
+          <div style="font-weight:600;font-size:15px;">${esc(nombreEv)}</div>
           <div style="font-size:14px;color:rgba(90,107,125,.8);">${genStr}${agStr?' · '+agStr:''}</div>
         </div>
         <span style="font-size:14px;color:${estColor};">${estTxt}</span>
@@ -2011,7 +2042,7 @@ async function renderVistaResultados(){
   const ev=liveEventoSeleccionado;
   const backBtn=`<button onclick="renderVistaPruebas()" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:6px 12px;color:#3d4a58;font-size:14px;cursor:pointer;margin-bottom:10px;">← Pruebas</button>`;
   const genStr=ev.gender==='1'||ev.gender===1?'Masculino':ev.gender==='2'||ev.gender===2?'Femenino':ev.gender==='3'||ev.gender===3?'Mixto':'';
-  const agStr=getAgegroupStr(ev);
+  const agStr=esc(getAgegroupStr(ev));
   const titulo=`<div style="font-size:14px;font-weight:600;color:var(--agua-light);margin-bottom:10px;">${getNombreEvento(ev)}${genStr?' · '+genStr:''}${agStr?' · '+agStr:''}</div>`;
 
   cont.innerHTML=backBtn+titulo+'<div class="loading"><span class="spinner"></span>Cargando resultados...</div>';
@@ -2114,8 +2145,8 @@ async function renderVistaResultados(){
 
 function renderResultRow(r,ev,i,etiqueta){
   const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
-  const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
-  const club=r.clubname||atleta.club||'';
+  const nombre=esc(r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—'));
+  const club=esc(r.clubname||atleta.club||'');
   const swimRaw=String(r.swimtime||r.time||'').replace(',','.');
   let swimSeg=0;
   if(swimRaw.includes(':')){
@@ -2164,8 +2195,8 @@ function renderResultRow(r,ev,i,etiqueta){
 
 function renderInscritoRow(r,ev){
   const atleta=liveAtletasData[r.athleteid]||liveAtletasData[r.uniqueid]||{};
-  const nombre=r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—');
-  const club=r.clubname||atleta.club||'';
+  const nombre=esc(r.nametext||(atleta.lastname?`${atleta.lastname}, ${atleta.firstname}`:'—'));
+  const club=esc(r.clubname||atleta.club||'');
   const miClub=(usuario?.club||'').toUpperCase();
   const esMiClub=liveMiClubCode && String(r.clubid)===String(liveMiClubCode);
   let entryStr='--:--.--';
@@ -2328,7 +2359,7 @@ async function abrirPerfilNadadorLive(athleteId){
 
 function renderPruebaNadadorCard(ev,r){
   const nombreEv=getNombreEvento(ev);
-  const agStr=getAgegroupStr(ev);
+  const agStr=esc(getAgegroupStr(ev));
   const soloInscrito=r._soloInscrito||false;
   const pos=r.place&&r.place>0?r.place:null;
 
@@ -2384,7 +2415,7 @@ function renderPruebaNadadorCard(ev,r){
   return `<div class="card" style="margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
       <div>
-        <div style="font-weight:700;font-size:14px;">${nombreEv}</div>
+        <div style="font-weight:700;font-size:14px;">${esc(nombreEv)}</div>
         <div style="font-size:14px;color:rgba(90,107,125,.6);">${agStr}${ev.time?' · '+ev.time+'h':''}${ev.date?' · '+ev.date:''}${serieInfo?' · '+serieInfo:''}</div>
       </div>
       ${posHtml}
@@ -3014,8 +3045,8 @@ function filaRankingHtml(o, i, miId){
   return `<div class="ranking-row${esYo ? ' mi-club' : ''}">
     <div class="ranking-pos ${posClass}">${pos}</div>
     <div class="ranking-info">
-      <div class="ranking-nombre">${m.nombre_nadador || '—'}${esYo ? ' 👈' : ''}</div>
-      <div class="ranking-sub">${m.club || ''} · ${m.ano_nacimiento || ''}</div>
+      <div class="ranking-nombre">${esc(m.nombre_nadador) || '—'}${esYo ? ' 👈' : ''}</div>
+      <div class="ranking-sub">${esc(m.club)} · ${esc(m.ano_nacimiento)}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
       <div class="ranking-tiempo">${tdis(seg)}</div>
