@@ -3024,7 +3024,7 @@ function filaRankingHtml(o, i, miId){
   </div>`;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════════════════════
    ADMINISTRACIÓN DE MÍNIMAS
    ──────────────────────────────────────────────────────────────────────────
    Para quien tenga rol 'admin' o 'admin_federacion' (RLS ya limita a cada uno
@@ -3089,8 +3089,8 @@ function parsearTiempo(txt){
   return (isFinite(v) && v > 0) ? Math.round(v * 100) / 100 : null;
 }
 
-function claveAdmin(cat, anioCat, sexo, nivel){
-  return [cat, anioCat, sexo, nivel || ''].join('|');
+function claveAdmin(cat, anioCat, sexo, nivel, estilo, distancia){
+  return [cat, anioCat, sexo, nivel || '', estilo, distancia].join('|');
 }
 
 // ── Carga de lo publicado ──────────────────────────────────────────────────
@@ -3103,13 +3103,13 @@ async function cargarAdminPublicadas(forzar){
   ADMIN.publicadas = new Map();
   ADMIN.cargadoPara = marca;
   const { data, error } = await sb.from('minimas_temporada')
-    .select('categoria,anio_cat,sexo,nivel,tiempo_seg')
+    .select('categoria,anio_cat,sexo,nivel,estilo,distancia,tiempo_seg')
     .eq('territorio', terr).eq('temporada', temp)
     .eq('piscina', ADMIN.piscina).eq('crono', ADMIN.crono);
   if(error){ ADMIN.error = error.message; return ADMIN.publicadas; }
   ADMIN.error = null;
   (data || []).forEach(r => {
-    ADMIN.publicadas.set(claveAdmin(r.categoria, r.anio_cat, r.sexo, r.nivel), parseFloat(r.tiempo_seg));
+    ADMIN.publicadas.set(claveAdmin(r.categoria, r.anio_cat, r.sexo, r.nivel, r.estilo, r.distancia), parseFloat(r.tiempo_seg));
   });
   return ADMIN.publicadas;
 }
@@ -3157,7 +3157,7 @@ async function renderAdmin(recargar){
   }
 
   const mapa = { Libres: [50, 100, 200, 400, 800, 1500], Espalda: [50, 100, 200], Braza: [50, 100, 200], Mariposa: [50, 100, 200], Estilos: [200, 400] };
-  const clave = (estilo, dist) => claveAdmin(categoria, anioCat, ADMIN.sexo, ADMIN.nivel);
+  const clave = (estilo, dist) => claveAdmin(categoria, anioCat, ADMIN.sexo, ADMIN.nivel, estilo, dist);
 
   let html = '';
   let publicadas = 0, total = 0;
@@ -3216,7 +3216,7 @@ async function guardarAdmin(){
 
   const [categoria, anioCatTxt] = ADMIN.categoria.split('|');
   const anioCat = parseInt(anioCatTxt) || 0;
-  const clave = (estilo, dist) => claveAdmin(categoria, anioCat, ADMIN.sexo, ADMIN.nivel);
+  const clave = (estilo, dist) => claveAdmin(categoria, anioCat, ADMIN.sexo, ADMIN.nivel, estilo, dist);
 
   const nuevas = filas.filter(f => !ADMIN.publicadas.has(clave(f.estilo, f.distancia)));
   const cambiadas = filas.filter(f => {
