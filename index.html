@@ -1272,8 +1272,9 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
   const meta=mostrarNombre
     ?`${esc(m.club)} · ${getCatLabel(m.ano_nacimiento)} · ${esc(m.fecha)}${m.minima_display?' · Mín: '+esc(m.minima_display)+difStr:''}`
     :`${esc(m.fecha)}${m.competicion?' · '+esc(m.competicion):''}${m.minima_display?' · Mín: '+esc(m.minima_display)+difStr:''}`;
+  const btnCompartir=!mostrarNombre?`<button onclick="compartirMarca('${escJs(m.id)}')" style="background:none;border:none;color:rgba(26,26,46,.28);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Compartir marca">📤</button>`:'';
   const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${escJs(m.id)}')" style="background:none;border:none;color:rgba(26,26,46,.18);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
-  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${esc(m.tiempo_display)}${badgeCV}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnBorrar}</div></div>`;
+  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${esc(m.tiempo_display)}${badgeCV}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnCompartir}${btnBorrar}</div></div>`;
 }
 
 // -- AUTH -------------------------------------------------
@@ -3540,6 +3541,184 @@ async function publicarPdfAdmin(){
   if(btn) btn.style.display = 'none';
   const estado = document.getElementById('admPdfEstado');
   if(estado) estado.textContent = '✅ Publicadas.';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COMPARTIR UNA MARCA COMO IMAGEN
+   ──────────────────────────────────────────────────────────────────────────
+   Dibuja una tarjeta 1080×1350 en un <canvas> y la manda por el menú nativo
+   del móvil (WhatsApp, Telegram…). Si el navegador no puede compartir archivos,
+   la descarga.
+
+   Sin librerías ni backend: todo ocurre en el navegador.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// Qué texto lleva la tarjeta. Separado del dibujo para poder probarlo.
+function textosCompartir(m){
+  const seg = parseFloat(m.tiempo_seg) || 0;
+  const ev = evaluarMarca(paramsDeMarca(m));
+  const nac = ev.nacional;
+  const ter = ev.territorial;
+
+  let estado, detalle, color;
+  if(nac && nac.alcanzada){
+    estado = 'MÍNIMA CONSEGUIDA';
+    detalle = `+${Math.abs(nac.margen).toFixed(2)} s de margen`;
+    color = '#06d6a0';
+  } else if(ter && ter.alcanzada){
+    estado = `MÍNIMA ${(ter.territorio || 'AUT')}`;
+    detalle = nac ? `a ${Math.abs(nac.diferencia).toFixed(2)} s de la nacional` : 'mínima autonómica';
+    color = '#ffb703';
+  } else if(nac){
+    estado = 'SIN MÍNIMA';
+    detalle = `a ${Math.abs(nac.diferencia).toFixed(2)} s de la mínima`;
+    color = '#ff8fa3';
+  } else {
+    estado = 'SIN MÍNIMA';
+    detalle = 'esta prueba no tiene mínima en tu categoría';
+    color = '#ff8fa3';
+  }
+
+  return {
+    nombre: String(m.nombre_nadador || '').slice(0, 40),
+    club: String(m.club || '').slice(0, 40),
+    prueba: `${m.distancia} m ${String(m.estilo || '').toUpperCase()}`,
+    piscina: `${m.piscina} m`,
+    tiempo: tdis(seg),
+    estado, detalle, color,
+    minima: nac ? tdis(nac.seg) : null,
+    categoria: getCatLabel(m.ano_nacimiento),
+    competicion: String(m.competicion || '').slice(0, 46),
+    fecha: String(m.fecha || ''),
+    temporada: temporadaActual()
+  };
+}
+
+// Dibuja la tarjeta y devuelve el canvas
+function dibujarTarjetaMarca(m, ancho, alto){
+  const W = 1080, H = 1350;
+  const t = textosCompartir(m);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const sin = (n) => `${n}px "DM Sans", system-ui, sans-serif`;
+  const bebas = (n) => `${n}px "Bebas Neue", Impact, sans-serif`;
+
+  // Fondo: degradado del azul de la app
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#023e8a');
+  g.addColorStop(0.55, '#0077b6');
+  g.addColorStop(1, '#00b4d8');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Círculos decorativos
+  ctx.globalAlpha = 0.10;
+  ctx.fillStyle = '#ffffff';
+  [[120, 180, 260], [980, 1180, 340], [860, 120, 150]].forEach(([x, y, r]) => {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Cabecera
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.font = sin(30);
+  ctx.fillText('MÍNIMAS RFEN', 80, 120);
+  ctx.textAlign = 'right';
+  ctx.fillText(`Temporada ${t.temporada}`, W - 80, 120);
+
+  // Nombre
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  let tam = 88;
+  do {
+    ctx.font = sin(tam);
+    tam -= 4;
+  } while(ctx.measureText(t.nombre).width > W - 160 && tam > 34);
+  ctx.fillText(t.nombre, W / 2, 300);
+
+  if(t.club){
+    ctx.fillStyle = 'rgba(255,255,255,.72)';
+    ctx.font = sin(36);
+    ctx.fillText(t.club, W / 2, 356);
+  }
+
+  // Prueba
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.font = bebas(78);
+  ctx.fillText(t.prueba, W / 2, 500);
+  ctx.fillStyle = 'rgba(255,255,255,.62)';
+  ctx.font = sin(34);
+  ctx.fillText(`piscina de ${t.piscina}`, W / 2, 552);
+
+  // Tiempo
+  ctx.fillStyle = '#ffffff';
+  ctx.font = bebas(230);
+  ctx.fillText(t.tiempo, W / 2, 800);
+
+  // Estado
+  ctx.fillStyle = t.color;
+  ctx.font = sin(46);
+  ctx.fillText(t.estado, W / 2, 900);
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.font = sin(34);
+  ctx.fillText(t.detalle, W / 2, 952);
+
+  // Pie: mínima y competición
+  const pie = [];
+  if(t.minima) pie.push(`Mínima ${t.minima}`);
+  if(t.categoria) pie.push(t.categoria);
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.font = sin(30);
+  ctx.fillText(pie.join('  ·  '), W / 2, 1060);
+
+  if(t.competicion){
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.font = sin(26);
+    ctx.fillText(t.competicion + (t.fecha ? ` · ${t.fecha}` : ''), W / 2, 1110);
+  }
+
+  // Línea y firma
+  ctx.strokeStyle = 'rgba(255,255,255,.25)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(180, 1200); ctx.lineTo(W - 180, 1200); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.font = bebas(40);
+  ctx.fillText('MÍNIMAS RFEN', W / 2, 1262);
+
+  return c;
+}
+
+async function compartirMarca(id){
+  const m = (misMarcase || []).find(x => String(x.id) === String(id));
+  if(!m){ showToast('No encuentro esa marca', true); return; }
+
+  try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const canvas = dibujarTarjetaMarca(m);
+    canvas.toBlob(async (blob) => {
+      if(!blob){ showToast('No se pudo generar la imagen', true); return; }
+      const nombre = `marca-${m.distancia}m-${m.estilo}-${(m.fecha || '').replace(/[^0-9]/g, '')}.png`;
+      const file = new File([blob], nombre, { type: 'image/png' });
+
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        try{
+          await navigator.share({ files: [file], title: `Mi marca · ${m.distancia} m ${m.estilo}` });
+          return;
+        }catch(e){ /* el usuario canceló o no se puede: se descarga */ }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nombre;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast('Imagen descargada');
+    }, 'image/png');
+  }catch(e){
+    showToast('No se pudo crear la imagen: ' + e.message, true);
+  }
 }
 
 </script>
