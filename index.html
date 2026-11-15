@@ -294,11 +294,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -309,6 +309,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
           </div>
         </div>
         <button class="btn-primary" onclick="importarRFEN()" id="btnRFEN">🔍 Buscar e importar mis marcas</button>
+        <div id="rfenVentana" style="font-size:13px;color:#5a6b7d;text-align:center;margin-top:6px;line-height:1.4;"></div>
         <div id="rfenStatus" style="display:none;margin-top:8px;font-size:15px;text-align:center;padding:8px;border-radius:8px;"></div>
       </div>
 
@@ -624,6 +625,20 @@ function finTemporadaDe(fecha){
   return new Date(ini + 1, 8, 30);
 }
 function temporadaActual(){ return etiquetaTemporada(inicioTemporadaDe(new Date())); }
+
+// Ventana de validez de las marcas: desde el 1 de enero del año en que arranca
+// la temporada (las marcas de ese enero ya cuentan) hasta el 30 de septiembre.
+function inicioVentanaMarcas(fecha){
+  const base = fecha ? new Date(fecha) : new Date();
+  return new Date(inicioTemporadaDe(base), 0, 1, 0, 0, 0);
+}
+
+// dd/mm/aaaa
+function fechaTexto(d){
+  const f = (d instanceof Date) ? d : new Date(d);
+  if(isNaN(f.getTime())) return '';
+  return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()}`;
+}
 
 // ── Categoría ──────────────────────────────────────────────────────────────
 function categoriaDe(anoNacimiento, inicio){
@@ -1010,6 +1025,83 @@ function pintarTemporada(){
   const sub = document.getElementById('authSub');
   if(sub) sub.textContent = `Campeonatos de España · Temporada ${temp}`;
   if(typeof document.title === 'string') document.title = `Mínimas Natación RFEN ${temp}`;
+  // Aviso en la tarjeta de importación: qué marcas entran y cuáles no
+  const hint = document.getElementById('rfenVentana');
+  if(hint) hint.textContent = `Solo cuenta lo nadado desde el ${fechaTexto(inicioVentanaMarcas())} (temporada ${temp})`;
+}
+
+// ── Importación desde RFEN ─────────────────────────────────────────────────
+// Identidad de una marca para no guardarla dos veces: prueba + piscina + tiempo + fecha
+function claveDeMarca(m){
+  const f = fechaISO(m.fecha_real || m.fecha || '') || '';
+  return [m.estilo, parseInt(m.distancia), parseInt(m.piscina), Number(m.tiempo_seg).toFixed(2), f].join('|');
+}
+
+// De todo el historial que devuelve la RFEN nos quedamos solo con lo que cuenta
+// para la temporada en curso y no tengamos ya guardado. Función pura: se puede
+// probar sin navegador y sin red.
+function prepararMarcasRFEN(marcasRFEN, existentes, perfil, fechaRef){
+  const u = perfil || usuario;
+  const hoy = fechaRef ? new Date(fechaRef) : new Date();
+  hoy.setHours(23, 59, 59, 999);
+  const desde = inicioVentanaMarcas(hoy);
+  const yaTengo = new Set((existentes || []).map(claveDeMarca));
+  const vistos = new Set();
+  const ins = [];
+  let fueraTemporada = 0, repetidas = 0, sinDatos = 0;
+
+  (marcasRFEN || []).forEach(m => {
+    if(!m || !m.estilo || !m.distancia || !m.resultado){ sinDatos++; return; }
+
+    const tStr = String(m.resultado).trim();
+    const parts = tStr.split(':');
+    let ts = 0;
+    if(parts.length === 3) ts = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2].replace(',', '.'));
+    else if(parts.length === 2) ts = parseInt(parts[0]) * 60 + parseFloat(parts[1].replace(',', '.'));
+    else ts = parseFloat(tStr.replace(',', '.'));
+    if(!ts || ts <= 0 || !isFinite(ts)){ sinDatos++; return; }
+
+    const fISO = fechaISO(m.fecha);
+    const fMarca = fISO ? new Date(fISO + 'T12:00:00') : null;
+    if(!fMarca || isNaN(fMarca.getTime()) || fMarca < desde || fMarca > hoy){ fueraTemporada++; return; }
+
+    const distancia = parseInt(m.distancia) || 0;
+    const piscina = parseInt(m.piscina) || 25;
+    const crono = String(m.crono || '').toLowerCase().includes('manual') ? 'manual' : 'electronico';
+    const ev = evaluarMarca({
+      anoNacimiento: u.ano, sexo: u.sexo, territorio: territorioDe(u),
+      estilo: m.estilo, distancia, piscina, crono, seg: ts, fecha: hoy
+    });
+    const min = ev.nacional ? ev.nacional.seg : null;
+
+    const fila = {
+      user_id: null,                    // lo pone quien llama
+      nombre_nadador: u.nombre,
+      club: u.club,
+      ano_nacimiento: u.ano,
+      sexo: u.sexo,
+      consentimiento_ranking: u.consentimiento || false,
+      estilo: m.estilo,
+      distancia,
+      piscina,
+      tiempo_seg: ts,
+      tiempo_display: tdis(ts),
+      minima_display: min ? tdis(min) : null,
+      tiene_minima: min === null ? 'sin_minima' : (ev.nacional.alcanzada ? 'si' : 'no'),
+      competicion: m.lugar || '',
+      crono,
+      temporada: temporadaDeTexto(m.fecha),
+      fecha_real: fISO,
+      fecha: m.fecha || ''
+    };
+
+    const k = claveDeMarca(fila);
+    if(vistos.has(k) || yaTengo.has(k)){ repetidas++; return; }
+    vistos.add(k);
+    ins.push(fila);
+  });
+
+  return { ins, fueraTemporada, repetidas, sinDatos, desde, hoy };
 }
 
 // Selectores de año que antes estaban escritos a mano en el HTML
@@ -2381,44 +2473,21 @@ async function importarRFEN(){
     }
 
     const marcasRFEN = histJson.marcas || [];
-    status.textContent=`📥 Importando ${marcasRFEN.length} marcas...`;
+    status.textContent=`📥 Revisando ${marcasRFEN.length} marcas de la RFEN...`;
 
-    const ins=[];
-    marcasRFEN.forEach(m=>{
-      if(!m.estilo||!m.distancia||!m.resultado)return;
-      const tStr=m.resultado.trim();
-      const parts=tStr.split(':');
-      let ts=0;
-      if(parts.length===3) ts=parseInt(parts[0])*3600+parseInt(parts[1])*60+parseFloat(parts[2].replace(',','.'));
-      else if(parts.length===2) ts=parseInt(parts[0])*60+parseFloat(parts[1].replace(',','.'));
-      else ts=parseFloat(tStr.replace(',','.'));
-      if(!ts||ts<=0)return;
+    // Solo entran las que cuentan para la temporada (desde el 1 de enero del
+    // año de inicio hasta hoy) y que no tengamos ya guardadas.
+    const { ins, fueraTemporada, repetidas, sinDatos } = prepararMarcasRFEN(marcasRFEN, misMarcase, usuario);
+    ins.forEach(x => { x.user_id = sesion.user.id; });
 
-      const piscina=m.piscina||25;
-      const cronoTipoMarca=(m.crono||'').toLowerCase().includes('manual')?'manual':'electronico';
-      const min=getDBMinima(usuario.ano,usuario.sexo,m.estilo,m.distancia,piscina);
-      let tiene_minima='sin_minima';
-      if(min!==null&&min>0) tiene_minima=ts<=min?'si':'no';
-
-      ins.push({
-        user_id:sesion.user.id,
-        nombre_nadador:usuario.nombre,
-        club:usuario.club,
-        ano_nacimiento:usuario.ano,
-        sexo:usuario.sexo,
-        consentimiento_ranking:usuario.consentimiento||false,
-        estilo:m.estilo,
-        distancia:m.distancia,
-        piscina,
-        tiempo_seg:ts,
-        tiempo_display:tdis(ts),
-        minima_display:min?tdis(min):null,
-        tiene_minima,
-        competicion:m.lugar||'',
-        crono:cronoTipoMarca,
-        fecha:m.fecha||''
-      });
-    });
+    if(!ins.length){
+      status.style.background='rgba(255,214,10,.15)';
+      status.style.color='#8a6d00';
+      status.textContent=`No hay marcas nuevas que contar para esta temporada (${fueraTemporada} de otras temporadas, ${repetidas} repetidas, ${sinDatos} sin datos).`;
+      btn.disabled=false;
+      btn.textContent='🔍 Buscar e importar mis marcas';
+      return;
+    }
 
     if(ins.length){
       const{error}=await sb.from('marcas').insert(ins);
@@ -2435,7 +2504,9 @@ async function importarRFEN(){
     const conMin=ins.filter(m=>m.tiene_minima==='si').length;
     status.style.background='rgba(6,214,160,.12)';
     status.style.color='var(--verde)';
-    status.textContent=`✅ ${ins.length} marcas importadas · ${conMin} con mínima`;
+    status.textContent=`✅ ${ins.length} importadas · ${conMin} con mínima`
+      + (fueraTemporada ? ` · ${fueraTemporada} de otras temporadas` : '')
+      + (repetidas ? ` · ${repetidas} repetidas` : '');
     btn.textContent='✅ Importado';
 
     await cargarMisMarcase();
@@ -2478,13 +2549,7 @@ const ESTADOS_CLASIF = {
 // ── Ventana de validez de las marcas ───────────────────────────────────────
 // Regla RFEN: para la temporada 2026/2027 valen todas las marcas conseguidas
 // desde el 1 de enero de 2026, y así sucesivamente. O sea: el año natural en
-// que arranca la temporada, NO el 1 de septiembre.
-function inicioVentanaMarcas(fecha){
-  const base = fecha ? new Date(fecha) : new Date();
-  return new Date(inicioTemporadaDe(base), 0, 1, 0, 0, 0);
-}
-
-// ¿Esta marca cuenta para la temporada que se está jugando?
+// que arranca la temporada. `inicioVentanaMarcas` vive en el core.
 function marcaEnTemporada(m, fecha){
   const f = fechaDeMarca(m);
   const desde = inicioVentanaMarcas(fecha);
