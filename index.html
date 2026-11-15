@@ -4099,7 +4099,7 @@ function sedeSugerida(campeonato, club, preferida, grupo){
   if(!campeonato) return false;
 
   // 1) Su grupo de liga: la FNCV publica qué grupos nadan en cada sede
-  const g = (grupo !== undefined) ? grupo : (typeof usuario !== 'undefined' ? usuario?.grupo : null);
+  const g = (grupo !== undefined) ? grupo : (typeof grupoDeClub === 'function' ? grupoDeClub(club) : null);
   if(g && campeonato.grupos){
     const letras = String(campeonato.grupos).toUpperCase().split(/[+\/,]/).map(x => x.trim());
     if(letras.includes(String(g).toUpperCase())) return true;
@@ -4122,45 +4122,105 @@ function sedeSugerida(campeonato, club, preferida, grupo){
   return (' ' + c + ' ').includes(' ' + s + ' ');
 }
 
-// Selector de grupo y sede en el perfil
+// ── Grupo de liga del club ─────────────────────────────────────────────────
+// El grupo es del club, no del nadador: todos sus nadadores compiten en la
+// misma sede cada jornada.
+const GRUPOS_CLUB = { mapa: {}, cargado: false, cargando: null, temporada: '' };
+
+async function cargarGruposClub(forzar){
+  const temp = temporadaActual();
+  if(GRUPOS_CLUB.cargando) return GRUPOS_CLUB.cargando;
+  if(GRUPOS_CLUB.cargado && !forzar && GRUPOS_CLUB.temporada === temp) return GRUPOS_CLUB.mapa;
+
+  GRUPOS_CLUB.cargando = (async () => {
+    try{
+      const { data, error } = await sb.from('clubes_grupo')
+        .select('club,grupo').eq('temporada', temp);
+      if(error) throw error;
+      const mapa = {};
+      (data || []).forEach(r => { mapa[sinAcentos(r.club)] = r.grupo; });
+      GRUPOS_CLUB.mapa = mapa;
+      GRUPOS_CLUB.temporada = temp;
+      GRUPOS_CLUB.cargado = true;
+    }catch(e){
+      GRUPOS_CLUB.mapa = {};
+    }finally{
+      GRUPOS_CLUB.cargando = null;
+    }
+  })();
+  return GRUPOS_CLUB.cargando;
+}
+
+// El grupo del club del usuario (o el que se le pase)
+function grupoDeClub(club){
+  const c = sinAcentos(club || (typeof usuario !== 'undefined' ? usuario?.club : ''));
+  if(!c) return null;
+  return GRUPOS_CLUB.mapa[c] || null;
+}
+
+// En el perfil: el entrenador lo edita, el nadador lo ve
 async function renderPerfilSede(){
   const cont = document.getElementById('perfilSede');
-  if(!cont) return;
-  if(!usuario || usuario.rol === 'entrenador'){ cont.innerHTML = ''; return; }
+  if(!cont || !usuario) return;
 
-  await cargarCampeonatos();
-  const sedes = Array.from(new Set(
-    (CAMPEONATOS.filas || []).map(c => c.sede).filter(Boolean)
-  )).sort((a, b) => a.localeCompare(b));
-
+  await cargarGruposClub();
+  const grupo = grupoDeClub(usuario.club);
+  const esEntrenador = usuario.rol === 'entrenador';
   const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const grupoActual = (usuario.grupo || '').toUpperCase();
+
+  if(esEntrenador){
+    const { data } = await sb.from('clubes_grupo')
+      .select('grupo').eq('club', usuario.club).eq('temporada', temporadaActual())
+      .maybeSingle();
+    const actual = data?.grupo || '';
+
+    cont.innerHTML = `
+      <div class="card" style="margin-top:10px;">
+        <div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:6px;">Grupo de mi club en la liga</div>
+        <div style="font-size:12px;color:#5a6b7d;margin-bottom:10px;line-height:1.45;">
+          En cada jornada se nada en varias sedes a la vez y en cada una compiten unos grupos.
+          Con esto, tus nadadores verán directamente la sede que les toca.
+        </div>
+        <select class="input-field" id="perfilGrupoClub" style="font-size:14px;">
+          <option value="">Sin asignar</option>
+          ${letras.map(l => `<option value="${l}"${l === actual ? ' selected' : ''}>Grupo ${l}</option>`).join('')}
+        </select>
+        <button class="btn-primary" style="margin-top:10px;" onclick="guardarGrupoClub()">Guardar grupo</button>
+      </div>`;
+    return;
+  }
 
   cont.innerHTML = `
     <div class="card" style="margin-top:10px;">
-      <div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:6px;">Mi liga</div>
-      <div style="font-size:12px;color:#5a6b7d;margin-bottom:10px;line-height:1.45;">
-        En la liga, cada jornada se nada en varias sedes a la vez y en cada una compiten unos grupos.
-        Con tu grupo, la app marca la sede que te toca.
+      <div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:6px;">Mi grupo de liga</div>
+      <div style="font-size:12px;color:#5a6b7d;line-height:1.45;">
+        ${grupo
+          ? `Tu club (<strong>${esc(usuario.club)}</strong>) compite en el <strong>grupo ${esc(grupo)}</strong>. En cada jornada verás marcada la sede que te toca.`
+          : `Tu club todavía no tiene grupo asignado. Lo pone tu entrenador desde su perfil.`}
       </div>
-
-      <div style="font-size:12px;color:#5a6b7d;margin-bottom:4px;">Mi grupo</div>
-      <select class="input-field" id="perfilGrupo" style="font-size:14px;margin-bottom:10px;">
-        <option value="">Sin grupo</option>
-        ${letras.map(l => `<option value="${l}"${l === grupoActual ? ' selected' : ''}>Grupo ${l}</option>`).join('')}
-      </select>
-
-      ${sedes.length ? `
-        <div style="font-size:12px;color:#5a6b7d;margin-bottom:4px;">Mi sede habitual</div>
-        <select class="input-field" id="perfilSedeSel" style="font-size:14px;">
-          <option value="">Sin preferencia</option>
-          ${sedes.map(s => `<option value="${esc(s)}"${sinAcentos(s) === sinAcentos(usuario.sede) ? ' selected' : ''}>${esc(s)}</option>`).join('')}
-        </select>` : ''}
-
-      <button class="btn-primary" style="margin-top:10px;" onclick="guardarSedePerfil()">Guardar</button>
     </div>`;
 }
 
+async function guardarGrupoClub(){
+  if(!usuario || usuario.rol !== 'entrenador') return;
+  const sel = document.getElementById('perfilGrupoClub');
+  if(!sel) return;
+  const grupo = sel.value;
+  const temp = temporadaActual();
+
+  if(!grupo){
+    const { error } = await sb.from('clubes_grupo').delete().eq('club', usuario.club).eq('temporada', temp);
+    if(error){ showToast('Error: ' + error.message, true); return; }
+  } else {
+    const { error } = await sb.from('clubes_grupo')
+      .upsert({ club: usuario.club, temporada: temp, grupo }, { onConflict: 'club,temporada' });
+    if(error){ showToast('Error: ' + error.message, true); return; }
+  }
+
+  await cargarGruposClub(true);
+  showToast(grupo ? `Grupo ${grupo} guardado` : 'Grupo borrado');
+  renderProxCampeonato();
+}
 async function guardarSedePerfil(){
   const selSede = document.getElementById('perfilSedeSel');
   const selGrupo = document.getElementById('perfilGrupo');
