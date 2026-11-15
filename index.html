@@ -490,6 +490,18 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       </details>
     </div>
 
+    <!-- PROGRESIÓN -->
+    <div class="screen" id="screenProgreso">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button onclick="showScreen('Clasificacion')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Clasificación</button>
+        <div class="section-title" style="margin:0;">Progresión</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <select class="input-field" id="progPrueba" onchange="renderProgreso(this.value)" style="font-size:14px;"></select>
+      </div>
+      <div id="progContenido"></div>
+    </div>
+
     <!-- PERFIL -->
     <div class="screen" id="screenPerfil">
       <div class="perfil-header">
@@ -1449,6 +1461,7 @@ function showScreen(name){
   if(name==='Live')cargarCompeticionesESP();
   if(name==='Clasificacion')renderClasificacion();
   if(name==='Admin')renderAdmin();
+  if(name==='Progreso')renderProgreso();
 }
 
 // -- MIS MARCAS (nadador) ---------------------------------
@@ -2853,10 +2866,10 @@ function htmlFilaClasif(f){
       ? `<div style="font-size:13px;color:rgba(90,107,125,.85);margin-top:2px;">Mínima ${tdis(f.minima.seg)}</div>`
       : '';
 
-    return `<div class="card" style="padding:12px 13px;margin-bottom:8px;">
+    return `<div class="card" style="padding:12px 13px;margin-bottom:8px;cursor:pointer;" onclick="abrirProgreso('${escJs(f.estilo)}',${f.distancia})">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:16px;">${f.distancia} ${f.estilo}</div>
+          <div style="font-weight:600;font-size:16px;">${f.distancia} ${f.estilo} <span style="font-size:11px;color:#93a3b5;font-weight:400;">📈</span></div>
           <div style="font-size:13px;color:rgba(90,107,125,.95);margin-top:2px;line-height:1.35;">${detalle}</div>
           ${mejor}
         </div>
@@ -3719,6 +3732,203 @@ async function compartirMarca(id){
   }catch(e){
     showToast('No se pudo crear la imagen: ' + e.message, true);
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROGRESIÓN
+   ──────────────────────────────────────────────────────────────────────────
+   Evolución de un nadador en una prueba, con la mínima como línea de
+   referencia. Se dibuja en SVG a mano: 40 líneas, sin librerías.
+
+   Cada piscina va en su propia gráfica, porque un 25 y un 50 no son
+   comparables (y mezclarlos daría saltos que no existen).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// Marca → fecha, ya ordenable
+function fechaOrdenMarca(m){
+  const f = fechaDeMarca(m);
+  return f instanceof Date && !isNaN(f.getTime()) ? f.getTime() : 0;
+}
+
+// Series por piscina + mínima de cada una
+function datosProgreso(marcas, estilo, distancia, perfil){
+  const u = perfil || usuario;
+  const dist = parseInt(distancia);
+  const porPiscina = { 25: [], 50: [] };
+
+  (marcas || []).forEach(m => {
+    if(m.estilo !== estilo || parseInt(m.distancia) !== dist) return;
+    const p = parseInt(m.piscina);
+    if(p !== 25 && p !== 50) return;
+    const seg = parseFloat(m.tiempo_seg);
+    if(!isFinite(seg) || seg <= 0) return;
+    porPiscina[p].push({
+      seg,
+      t: fechaOrdenMarca(m),
+      fecha: fechaDeMarca(m),
+      crono: m.crono || 'electronico',
+      display: tdis(seg),
+      competicion: m.competicion || ''
+    });
+  });
+
+  return [25, 50].filter(p => porPiscina[p].length).map(p => {
+    const serie = porPiscina[p].sort((a, b) => a.t - b.t);
+    const nac = minimaNacional({
+      anoNacimiento: u?.ano, sexo: u?.sexo, estilo, distancia: dist,
+      piscina: p, fecha: new Date()
+    });
+    let mejor = serie[0];
+    serie.forEach(s => { if(s.seg < mejor.seg) mejor = s; });
+    const primera = serie[0], ultima = serie[serie.length - 1];
+    return {
+      piscina: p, serie, mejor,
+      minima: nac ? nac.seg : null,
+      mejoraTotal: primera.seg - mejor.seg,
+      desde: primera, hasta: ultima
+    };
+  });
+}
+
+// Pruebas del nadador (estilo + distancia), para el selector
+function pruebasConMarcas(marcas){
+  const mapa = new Map();
+  (marcas || []).forEach(m => {
+    if(!m.estilo || !m.distancia) return;
+    const k = `${m.estilo}|${parseInt(m.distancia)}`;
+    if(!mapa.has(k)) mapa.set(k, { estilo: m.estilo, distancia: parseInt(m.distancia), n: 0 });
+    mapa.get(k).n++;
+  });
+  return Array.from(mapa.values()).sort((a, b) =>
+    a.estilo.localeCompare(b.estilo) || a.distancia - b.distancia);
+}
+
+// ── Dibujo ─────────────────────────────────────────────────────────────────
+function svgProgreso(d){
+  const W = 340, H = 180;
+  const L = 12, R = 12, T = 18, B = 26;
+  const segs = d.serie.map(s => s.seg);
+  const refs = d.minima ? segs.concat([d.minima]) : segs;
+  let min = Math.min(...refs), max = Math.max(...refs);
+  if(max - min < 0.4){ min -= 0.3; max += 0.3; }
+  const margen = (max - min) * 0.18;
+  min -= margen; max += margen;
+
+  const n = d.serie.length;
+  const x = i => n === 1 ? W / 2 : L + i * (W - L - R) / (n - 1);
+  const y = v => T + (v - min) / (max - min) * (H - T - B);
+
+  const puntos = d.serie.map((s, i) => `${x(i).toFixed(1)},${y(s.seg).toFixed(1)}`).join(' ');
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible;" role="img" aria-label="Progresión en piscina de ${d.piscina} metros">`;
+
+  // Rejilla suave (arriba = mejor)
+  svg += `<line x1="${L}" y1="${y(max)}" x2="${W - R}" y2="${y(max)}" stroke="#e6edf5" stroke-width="1"/>`;
+  svg += `<line x1="${L}" y1="${y(min)}" x2="${W - R}" y2="${y(min)}" stroke="#e6edf5" stroke-width="1"/>`;
+
+  // Línea de mínima
+  if(d.minima){
+    const ym = y(d.minima);
+    svg += `<line x1="${L}" y1="${ym.toFixed(1)}" x2="${W - R}" y2="${ym.toFixed(1)}" stroke="#e09f00" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    svg += `<text x="${W - R}" y="${(ym - 4).toFixed(1)}" text-anchor="end" font-size="9" fill="#b07a00">mín ${tdis(d.minima)}</text>`;
+  }
+
+  // Serie
+  if(n > 1) svg += `<polyline points="${puntos}" fill="none" stroke="#0077b6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  d.serie.forEach((s, i) => {
+    const esMejor = s.seg === d.mejor.seg;
+    svg += `<circle cx="${x(i).toFixed(1)}" cy="${y(s.seg).toFixed(1)}" r="${esMejor ? 4.5 : 3.5}"
+              fill="${esMejor ? '#06d6a0' : '#0077b6'}" stroke="#ffffff" stroke-width="1.5"/>`;
+  });
+
+  // Etiqueta del mejor y del último
+  const ult = d.serie[n - 1];
+  svg += `<text x="${x(n - 1).toFixed(1)}" y="${(y(ult.seg) + 16).toFixed(1)}" text-anchor="middle" font-size="9" fill="#5a6b7d">${ult.display}</text>`;
+  if(n > 1 && d.mejor !== ult){
+    const iMejor = d.serie.indexOf(d.mejor);
+    svg += `<text x="${x(iMejor).toFixed(1)}" y="${(y(d.mejor.seg) - 9).toFixed(1)}" text-anchor="middle" font-size="9" fill="#06a96e">${d.mejor.display}</text>`;
+  }
+
+  // Fechas de los extremos
+  const dd = (f) => f ? `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}` : '';
+  svg += `<text x="${L}" y="${H - 6}" font-size="8.5" fill="#93a3b5">${dd(d.serie[0].fecha)}</text>`;
+  if(n > 1) svg += `<text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="8.5" fill="#93a3b5">${dd(ult.fecha)}</text>`;
+
+  svg += '</svg>';
+  return svg;
+}
+
+// ── Pantalla ───────────────────────────────────────────────────────────────
+function renderProgreso(valor){
+  const sel = document.getElementById('progPrueba');
+  const cont = document.getElementById('progContenido');
+  if(!sel || !cont) return;
+
+  const pruebas = pruebasConMarcas(misMarcase);
+  if(!pruebas.length){
+    sel.innerHTML = '';
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">📈</div>
+      <div class="empty-text">Cuando tengas marcas, aquí verás cómo evolucionas.</div></div>`;
+    return;
+  }
+
+  if(!sel.options.length || sel.dataset.relleno !== '1'){
+    sel.innerHTML = pruebas.map(p => `<option value="${p.estilo}|${p.distancia}">${p.distancia} m ${p.estilo} (${p.n})</option>`).join('');
+    sel.dataset.relleno = '1';
+    if(valor) sel.value = valor;
+  }
+  const v = valor || sel.value || `${pruebas[0].estilo}|${pruebas[0].distancia}`;
+  const [estilo, distTxt] = v.split('|');
+  const distancia = parseInt(distTxt);
+  sel.value = v;
+
+  const series = datosProgreso(misMarcase, estilo, distancia);
+  if(!series.length){
+    cont.innerHTML = '<div class="empty-state"><div class="empty-text">Sin marcas en esta prueba</div></div>';
+    return;
+  }
+
+  cont.innerHTML = series.map(d => {
+    const dif = d.mejoraTotal;
+    const frase = d.serie.length < 2
+      ? 'Solo una marca: registra otra para ver la evolución.'
+      : (dif > 0.01
+          ? `Has mejorado <strong style="color:var(--verde)">${dif.toFixed(2)} s</strong> desde la primera marca.`
+          : (dif < -0.01
+              ? `Estás ${Math.abs(dif).toFixed(2)} s por encima de tu mejor marca.`
+              : 'Sin cambios respecto a tu primera marca.'));
+
+    const filas = d.serie.slice().reverse().map((s, i, arr) => {
+      const previa = arr[i + 1];
+      const delta = previa ? s.seg - previa.seg : null;
+      const deltaTxt = delta === null ? ''
+        : `<span style="color:${delta <= 0 ? 'var(--verde)' : '#ff6b81'};font-size:12px;">${delta <= 0 ? '▼' : '▲'} ${Math.abs(delta).toFixed(2)}</span>`;
+      const fecha = s.fecha ? `${String(s.fecha.getDate()).padStart(2, '0')}/${String(s.fecha.getMonth() + 1).padStart(2, '0')}/${s.fecha.getFullYear()}` : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid #eef3f8;font-size:13px;">
+        <span style="width:78px;color:#7c8b9c;">${fecha}</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--agua-light);width:72px;">${s.display}</span>
+        <span style="flex:1;color:#93a3b5;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.competicion)}</span>
+        ${deltaTxt}
+      </div>`;
+    }).join('');
+
+    return `<div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:var(--agua-light);">Piscina de ${d.piscina} m</div>
+        <div style="font-size:12px;color:#93a3b5;">${d.serie.length} marca${d.serie.length === 1 ? '' : 's'}</div>
+      </div>
+      ${svgProgreso(d)}
+      <div style="font-size:13px;color:#5a6b7d;margin-top:8px;line-height:1.4;">${frase}</div>
+      <div style="margin-top:10px;">${filas}</div>
+    </div>`;
+  }).join('');
+}
+
+function abrirProgreso(estilo, distancia){
+  const sel = document.getElementById('progPrueba');
+  if(sel){ sel.dataset.relleno = ''; sel.innerHTML = ''; }
+  showScreen('Progreso');
+  renderProgreso(`${estilo}|${distancia}`);
 }
 
 </script>
