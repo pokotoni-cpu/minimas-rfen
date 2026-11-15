@@ -546,6 +546,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="perfil-sub" id="perfilCategoria"></div>
         <div class="perfil-sub" id="perfilClub" style="color:var(--agua-light);margin-top:2px;"></div>
         <div class="perfil-sub" id="perfilEmail" style="margin-top:2px;"></div>
+        <div id="perfilSede"></div>
       </div>
       <!-- Nadador: stats -->
       <div id="perfilStatsNadador" style="display:none;">
@@ -1749,6 +1750,7 @@ function renderMinimas(){
 // -- RANKING ----------------------------------------------
 // -- PERFIL -----------------------------------------------
 async function renderPerfil(){
+  if(typeof renderPerfilSede === 'function') renderPerfilSede();
   if(usuario?.rol==='entrenador'){
     const lista=document.getElementById('listaConMinima');
     lista.innerHTML='<div class="loading"><span class="spinner"></span>Cargando...</div>';
@@ -3818,6 +3820,13 @@ function fechaFncv(txt){
   return { inicio: ini, fin: fin && !isNaN(fin.getTime()) ? fin : null };
 }
 
+// "(GRUPOS. D+E)" · "(GRUPOS: A+F )" · "(GRUPOS B+C)" → ['D','E']
+function parsearGrupos(txt){
+  const m = String(txt || '').match(/\(?\s*GRUPOS?[.:\s]*([A-F](?:\s*[+\/,]\s*[A-F])*)/i);
+  if(!m) return [];
+  return m[1].toUpperCase().split(/[+\/,]/).map(x => x.trim()).filter(Boolean);
+}
+
 function limpiarTitulo(txt){
   return String(txt || '')
     .replace(/^#+\s*/, '')
@@ -3881,6 +3890,8 @@ function parsearCalendarioFncv(texto){
       piscina: (piscina === 25 || piscina === 50) ? piscina : null,
       categorias: categorias.trim(),
       hora: hora.trim(),
+      grupos: parsearGrupos(lugar).join('+'),
+      estado: /Finalizada/i.test(l) ? 'finalizada' : (/Próxima/i.test(l) ? 'proxima' : ''),
       enlace
     });
   }
@@ -3938,6 +3949,7 @@ function filaCampeonatoDesdeFncv(c){
     territorio: territorioAdmin(),
     sede: c.sede ? c.sede.slice(0, 80) : null,
     piscina: c.piscina,
+    grupos: c.grupos || null,
     fecha_inicio: iso(c.fecha_inicio),
     fecha_fin: iso(c.fecha_fin),
     plazo_inscripcion: null,
@@ -4081,14 +4093,129 @@ function sinAcentos(txt){
     .replace(/\s+/g, ' ').trim();
 }
 
-// ¿La sede de esta fila es la del club del nadador? Heurística por nombre:
-// "C.N. GANDIA" ↔ sede "Gandia". Si no coincide, no se marca nada.
-function sedeSugerida(campeonato, club){
-  const c = sinAcentos(club);
-  if(!c || !campeonato || !campeonato.sede) return false;
+// ¿Esta sede es la del nadador? Primero su sede declarada; si no la tiene,
+// se intenta adivinar por el nombre del club ("C.N. GANDIA" ↔ "Gandia").
+function sedeSugerida(campeonato, club, preferida, grupo){
+  if(!campeonato) return false;
+
+  // 1) Su grupo de liga: la FNCV publica qué grupos nadan en cada sede
+  const g = (grupo !== undefined) ? grupo : (typeof usuario !== 'undefined' ? usuario?.grupo : null);
+  if(g && campeonato.grupos){
+    const letras = String(campeonato.grupos).toUpperCase().split(/[+\/,]/).map(x => x.trim());
+    if(letras.includes(String(g).toUpperCase())) return true;
+  }
+
+  // 2) Su sede declarada
+  if(!campeonato.sede) return false;
   const s = sinAcentos(campeonato.sede);
-  if(!s || s.length < 4) return false;
+  if(!s) return false;
+
+  const pref = (preferida !== undefined) ? preferida : (typeof usuario !== 'undefined' ? usuario?.sede : null);
+  if(pref){
+    const p = sinAcentos(pref);
+    if(p) return p === s || p.includes(s) || s.includes(p);
+  }
+
+  // 3) Heurística por nombre de club
+  const c = sinAcentos(club);
+  if(!c || s.length < 4) return false;
   return (' ' + c + ' ').includes(' ' + s + ' ');
+}
+
+// Selector de grupo y sede en el perfil
+async function renderPerfilSede(){
+  const cont = document.getElementById('perfilSede');
+  if(!cont) return;
+  if(!usuario || usuario.rol === 'entrenador'){ cont.innerHTML = ''; return; }
+
+  await cargarCampeonatos();
+  const sedes = Array.from(new Set(
+    (CAMPEONATOS.filas || []).map(c => c.sede).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b));
+
+  const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const grupoActual = (usuario.grupo || '').toUpperCase();
+
+  cont.innerHTML = `
+    <div class="card" style="margin-top:10px;">
+      <div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:6px;">Mi liga</div>
+      <div style="font-size:12px;color:#5a6b7d;margin-bottom:10px;line-height:1.45;">
+        En la liga, cada jornada se nada en varias sedes a la vez y en cada una compiten unos grupos.
+        Con tu grupo, la app marca la sede que te toca.
+      </div>
+
+      <div style="font-size:12px;color:#5a6b7d;margin-bottom:4px;">Mi grupo</div>
+      <select class="input-field" id="perfilGrupo" style="font-size:14px;margin-bottom:10px;">
+        <option value="">Sin grupo</option>
+        ${letras.map(l => `<option value="${l}"${l === grupoActual ? ' selected' : ''}>Grupo ${l}</option>`).join('')}
+      </select>
+
+      ${sedes.length ? `
+        <div style="font-size:12px;color:#5a6b7d;margin-bottom:4px;">Mi sede habitual</div>
+        <select class="input-field" id="perfilSedeSel" style="font-size:14px;">
+          <option value="">Sin preferencia</option>
+          ${sedes.map(s => `<option value="${esc(s)}"${sinAcentos(s) === sinAcentos(usuario.sede) ? ' selected' : ''}>${esc(s)}</option>`).join('')}
+        </select>` : ''}
+
+      <button class="btn-primary" style="margin-top:10px;" onclick="guardarSedePerfil()">Guardar</button>
+    </div>`;
+}
+
+async function guardarSedePerfil(){
+  const selSede = document.getElementById('perfilSedeSel');
+  const selGrupo = document.getElementById('perfilGrupo');
+  if(!usuario) return;
+
+  const cambios = {};
+  if(selGrupo) cambios.grupo = selGrupo.value || null;
+  if(selSede) cambios.sede = selSede.value || null;
+  if(!Object.keys(cambios).length) return;
+
+  const { error } = await sb.from('perfiles').update(cambios).eq('id', usuario.id);
+  if(error){ showToast('Error al guardar: ' + error.message, true); return; }
+
+  if('grupo' in cambios) usuario.grupo = cambios.grupo;
+  if('sede' in cambios) usuario.sede = cambios.sede;
+  showToast('Guardado');
+  renderProxCampeonato();
+}
+
+async function renderPerfilSede(){
+  const cont = document.getElementById('perfilSede');
+  if(!cont) return;
+  if(!usuario || usuario.rol === 'entrenador'){ cont.innerHTML = ''; return; }
+
+  await cargarCampeonatos();
+  const sedes = Array.from(new Set(
+    (CAMPEONATOS.filas || []).map(c => c.sede).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b));
+
+  if(!sedes.length){ cont.innerHTML = ''; return; }
+
+  const actual = usuario.sede || '';
+  cont.innerHTML = `
+    <div class="card" style="margin-top:10px;">
+      <div style="font-size:13px;font-weight:600;color:var(--agua-light);margin-bottom:6px;">Mi sede habitual</div>
+      <div style="font-size:12px;color:#5a6b7d;margin-bottom:8px;line-height:1.45;">
+        Cuando un campeonato se nada en varias sedes el mismo día, se destacará la tuya.
+      </div>
+      <select class="input-field" id="perfilSedeSel" style="font-size:14px;">
+        <option value="">Sin preferencia</option>
+        ${sedes.map(s => `<option value="${esc(s)}"${sinAcentos(s) === sinAcentos(actual) ? ' selected' : ''}>${esc(s)}</option>`).join('')}
+      </select>
+      <button class="btn-primary" style="margin-top:8px;" onclick="guardarSedePerfil()">Guardar sede</button>
+    </div>`;
+}
+
+async function guardarSedePerfil(){
+  const sel = document.getElementById('perfilSedeSel');
+  if(!sel || !usuario) return;
+  const sede = sel.value || null;
+  const { error } = await sb.from('perfiles').update({ sede }).eq('id', usuario.id);
+  if(error){ showToast('Error al guardar: ' + error.message, true); return; }
+  usuario.sede = sede;
+  showToast(sede ? `Sede guardada: ${sede}` : 'Sede borrada');
+  renderProxCampeonato();
 }
 
 // Un campeonato puede celebrarse en varias sedes el mismo día: se agrupan para
