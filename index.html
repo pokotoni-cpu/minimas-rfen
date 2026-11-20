@@ -295,11 +295,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1930,6 +1930,8 @@ function getLiveStatusInfo(status){
   return{clase:'recent',texto:'✅ Finalizada'};
 }
 
+let LIVE_COMPETICIONES = [];
+
 async function cargarCompeticionesESP(){
   const lista=document.getElementById('liveCompeticiones');
   try{
@@ -1942,6 +1944,7 @@ async function cargarCompeticionesESP(){
       const orden={3:0,2:1,1:2,0:3,5:4};
       return (orden[a.status]??5)-(orden[b.status]??5);
     });
+    LIVE_COMPETICIONES = meets;
     lista.innerHTML=meets.map(m=>{
       LIVE_MEETS.set(String(m.id), m.name || '');
       const si=getLiveStatusInfo(m.status);
@@ -4402,7 +4405,7 @@ async function renderProxCampeonato(){
   const piscinaTxt = mia && mia.piscina ? ` · piscina de ${mia.piscina} m` : '';
   const grupo = (typeof grupoDeClub === 'function') ? grupoDeClub(usuario?.club) : null;
 
-  const html = `<div class="card" style="cursor:pointer;margin-bottom:10px;border-color:var(--agua-light);" onclick="showScreen('Campeonatos')">
+  const html = `<div class="card" style="cursor:pointer;margin-bottom:10px;border-color:var(--agua-light);" onclick="irAlLiveDe('${escJs(c.nombre)}','${String(c.fecha_inicio).slice(0,10)}')">
     <div style="display:flex;align-items:center;gap:10px;">
       <div style="font-size:24px;">📅</div>
       <div style="flex:1;min-width:0;">
@@ -4748,6 +4751,82 @@ function abrirProgreso(estilo, distancia){
   if(sel){ sel.dataset.relleno = ''; sel.innerHTML = ''; }
   showScreen('Progreso');
   renderProgreso(`${estilo}|${distancia}`);
+}
+
+﻿/* ══════════════════════════════════════════════════════════════════════════
+   IR AL LIVE DESDE EL CALENDARIO
+   ──────────────────────────────────────────────────────────────────────────
+   La jornada viene de la FNCV ("2ª JORNADA LIGA INFANTIL Y MAYORES", 21/11) y
+   la competición del live viene de swimrankings ("II JORNADA LIGA INFANTIL Y
+   MAYORES - BENIMAMET"). No comparten identificador, así que se emparejan por
+   fecha + parecido del nombre.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const LIVE_STOPWORDS = [
+  'de', 'la', 'el', 'los', 'las', 'y', 'del', 'en', 'por', 'con',
+  'liga', 'jornada', 'campeonato', 'trofeo', 'copa', 'fase', 'control',
+  'memorial', 'internacional', 'ciudad', 'ciutat', 'natacion', 'prueba', 'pruebas'
+];
+
+function tokensLive(txt){
+  return String(txt || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !LIVE_STOPWORDS.includes(w) && !/^\d+$/.test(w));
+}
+
+// ¿La fecha del campeonato cae dentro del rango de la competición del live?
+function fechaEnLive(competicion, iso){
+  if(!iso) return true;
+  const ini = competicion.startdate || '';
+  const fin = competicion.enddate || ini;
+  if(!ini) return false;
+  return iso >= ini && iso <= fin;
+}
+
+// Devuelve la competición del live que mejor encaja, o null
+function buscarCompeticionLive(nombre, iso, competiciones){
+  const lista = competiciones || (typeof LIVE_COMPETICIONES !== 'undefined' ? LIVE_COMPETICIONES : []) || [];
+  if(!lista.length) return null;
+
+  const mio = new Set(tokensLive(nombre));
+  let mejor = null, mejorPunto = 0;
+
+  lista.forEach(c => {
+    // Sin coincidencia de fechas no se empareja: la misma liga tiene jornadas
+    // con nombres casi idénticos en meses distintos, y abrir la equivocada es
+    // peor que no abrir ninguna.
+    if(!fechaEnLive(c, iso)) return;
+
+    const suyos = new Set(tokensLive(c.name));
+    let comunes = 0;
+    mio.forEach(t => { if(suyos.has(t)) comunes++; });
+    const union = new Set([...mio, ...suyos]).size;
+    const parecido = union ? comunes / union : 0;
+
+    if(parecido > mejorPunto){ mejorPunto = parecido; mejor = c; }
+  });
+
+  return mejorPunto >= 0.5 ? mejor : null;
+}
+
+// Abre el live en esa competición (o deja la lista si no la encuentra)
+async function irAlLiveDe(nombre, iso){
+  showToast('Buscando esa competición en el live…');
+  await cargarCompeticionesESP();
+
+  const competicion = buscarCompeticionLive(nombre, iso);
+  showScreen('Live');
+
+  if(!competicion){
+    showToast('No encuentro esa competición en el live todavía', true);
+    return;
+  }
+
+  if(typeof LIVE_MEETS !== 'undefined') LIVE_MEETS.set(String(competicion.id), competicion.name || '');
+  abrirCompeticion(competicion.id);
 }
 
 </script>
