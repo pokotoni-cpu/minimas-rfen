@@ -849,7 +849,7 @@ function territorioDe(perfil){
 // ── Almacén de mínimas ─────────────────────────────────────────────────────
 // Se cargan una vez de Supabase y se cachean; si la red falla, se usa la caché.
 const MINIMAS = { filas: [], cargada: false, cargando: null, error: null, actualizado: 0 };
-const MINIMAS_CACHE_KEY = 'minimas.v3';
+const MINIMAS_CACHE_KEY = 'minimas.v4';   // al cambiar el formato de la tabla, subir la versión
 const MINIMAS_CACHE_MS = 6 * 60 * 60 * 1000;   // 6 horas
 
 let _idxNacional = new Map();     // clave -> [filas]
