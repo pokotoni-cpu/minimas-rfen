@@ -539,6 +539,15 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <div id="progContenido"></div>
     </div>
 
+    <!-- MIS MÍNIMAS -->
+    <div class="screen" id="screenMisMinimas">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button onclick="showScreen('Perfil')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:14px;cursor:pointer;">← Perfil</button>
+        <div class="section-title" style="margin:0;">Mis mínimas</div>
+      </div>
+      <div id="listaMisMinimas"></div>
+    </div>
+
     <!-- PERFIL -->
     <div class="screen" id="screenPerfil">
       <div class="perfil-header">
@@ -552,9 +561,9 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       <!-- Nadador: stats -->
       <div id="perfilStatsNadador" style="display:none;">
         <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
-          <div class="stat-card"><div class="stat-num" id="statTotal" style="font-size:30px;">0</div><div class="stat-label">Marcas</div></div>
-          <div class="stat-card"><div class="stat-num" id="statNac" style="font-size:30px;color:var(--agua-light);">0</div><div class="stat-label">Nacional</div></div>
-          <div class="stat-card"><div class="stat-num" id="statAut" style="font-size:30px;color:#e08800;">0</div><div class="stat-label">Autonóm.</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="abrirMisMinimas('todas')"><div class="stat-num" id="statTotal" style="font-size:30px;">0</div><div class="stat-label">Marcas</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="abrirMisMinimas('nacional')"><div class="stat-num" id="statNac" style="font-size:30px;color:var(--agua-light);">0</div><div class="stat-label">Nacional</div></div>
+          <div class="stat-card" style="cursor:pointer;" onclick="abrirMisMinimas('autonomica')"><div class="stat-num" id="statAut" style="font-size:30px;color:#e08800;">0</div><div class="stat-label">Autonóm.</div></div>
         </div>
       </div>
       <!-- Entrenador: nadadores con mínima -->
@@ -1535,6 +1544,7 @@ function showScreen(name){
   if(name==='Admin')renderAdmin();
   if(name==='Progreso')renderProgreso();
   if(name==='Campeonatos')renderCampeonatos();
+  if(name==='MisMinimas')renderMisMinimas();
 }
 
 // -- MIS MARCAS (nadador) ---------------------------------
@@ -4827,6 +4837,62 @@ async function irAlLiveDe(nombre, iso){
 
   if(typeof LIVE_MEETS !== 'undefined') LIVE_MEETS.set(String(competicion.id), competicion.name || '');
   abrirCompeticion(competicion.id);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MIS MÍNIMAS
+   ──────────────────────────────────────────────────────────────────────────
+   Las marcas que hay detrás de cada contador del perfil. Se filtra evaluando
+   cada marca contra la tabla vigente, igual que el contador, para que el número
+   y la lista digan siempre lo mismo.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let misMinTipo = 'nacional';
+
+// Marcas que cumplen la mínima nacional, la autonómica, o todas
+function marcasSegunMinima(tipo, marcas, perfil){
+  const u = perfil || usuario;
+  return (marcas || []).filter(m => {
+    if(tipo === 'todas') return true;
+    const ev = evaluarMarca({
+      ...paramsDeMarca(m),
+      territorio: m.territorio || territorioDe(u)
+    });
+    if(tipo === 'nacional') return !!(ev.nacional && ev.nacional.alcanzada);
+    if(tipo === 'autonomica') return !!(ev.territorial && ev.territorial.alcanzada);
+    return true;
+  });
+}
+
+function abrirMisMinimas(tipo){
+  misMinTipo = tipo || 'nacional';
+  showScreen('MisMinimas');
+  renderMisMinimas();
+}
+
+function renderMisMinimas(){
+  const cont = document.getElementById('listaMisMinimas');
+  if(!cont) return;
+
+  const tipos = [['nacional', 'Nacional'], ['autonomica', 'Autonómica'], ['todas', 'Todas']];
+  const tabs = `<div class="tabs">${tipos.map(([k, t]) =>
+    `<button class="tab-btn ${k === misMinTipo ? 'active' : ''}" onclick="abrirMisMinimas('${k}')">${t}</button>`
+  ).join('')}</div>`;
+
+  const lista = marcasSegunMinima(misMinTipo, misMarcase);
+
+  if(!lista.length){
+    cont.innerHTML = tabs + `<div class="empty-state"><div class="empty-icon">🎯</div>
+      <div class="empty-text">Todavía no tienes marcas con mínima ${misMinTipo === 'autonomica' ? 'autonómica' : 'nacional'}.</div></div>`;
+    return;
+  }
+
+  // Ordenadas por fecha, la más reciente primero
+  const orden = lista.slice().sort((a, b) => fechaOrdenMarca(b) - fechaOrdenMarca(a));
+
+  cont.innerHTML = tabs +
+    `<div style="font-size:13px;color:#5a6b7d;margin-bottom:10px;">${orden.length} marca${orden.length === 1 ? '' : 's'}</div>` +
+    orden.map(m => marcaHtml(m)).join('');
 }
 
 </script>
