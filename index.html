@@ -287,7 +287,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
 
     <!-- REGISTRAR (solo nadadores) -->
     <div class="screen" id="screenRegistrar">
-<div class="section-title">Importar marcas</div>
+      <div class="section-title">Nueva Marca</div>
       <!-- IMPORTAR DESDE RFEN DIRECTO -->
       <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(0,119,182,.15),rgba(0,180,216,.1));border-color:rgba(0,180,216,.3);">
         <div style="font-weight:600;font-size:15px;color:var(--agua-light);margin-bottom:4px;">⚡ Importar desde RFEN automáticamente</div>
@@ -315,6 +315,52 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       </div>
 
 
+      <div class="card">
+        <div class="form-grid">
+          <div class="input-group full">
+            <label>Estilo</label>
+            <select class="input-field" id="fEstilo" onchange="actualizarDistancias()">
+              <option value="">Selecciona estilo</option>
+              <option>Libres</option><option>Espalda</option><option>Braza</option><option>Mariposa</option><option>Estilos</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Distancia</label>
+            <select class="input-field" id="fDistancia" onchange="calcularPreview()"><option value="">— estilo primero —</option></select>
+          </div>
+          <div class="input-group">
+            <label>Piscina</label>
+            <select class="input-field" id="fPiscina" onchange="calcularPreview()">
+              <option value="50">50m</option><option value="25">25m</option>
+            </select>
+          </div>
+          <div class="input-group full">
+            <label>Cronometraje</label>
+            <div class="crono-toggle">
+              <button class="crono-btn active" id="cronoElec" onclick="setCrono('electronico')">⚡ Electrónico/Semiaut.</button>
+              <button class="crono-btn" id="cronoMan" onclick="setCrono('manual')">🕐 Manual</button>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>Tiempo (min : seg , centésimas)</label>
+            <div class="tiempo-grid">
+              <div><input type="number" class="input-field" id="fMin" placeholder="0" min="0" max="30" oninput="calcularPreview()"><div class="tiempo-label">MIN</div></div>
+              <div><input type="number" class="input-field" id="fSeg" placeholder="00" min="0" max="59" oninput="calcularPreview()"><div class="tiempo-label">SEG</div></div>
+              <div><input type="number" class="input-field" id="fCen" placeholder="00" min="0" max="99" oninput="calcularPreview()"><div class="tiempo-label">CENT</div></div>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>Competición (opcional)</label>
+            <input type="text" class="input-field" id="fCompeticion" placeholder="Nombre del campeonato">
+          </div>
+        </div>
+        <div class="resultado-preview" id="resultadoPreview">
+          <div class="preview-emoji" id="prevEmoji"></div>
+          <div class="preview-texto" id="prevTexto"></div>
+          <div class="preview-detalle" id="prevDetalle"></div>
+        </div>
+        <button class="btn-primary" style="margin-top:12px;" onclick="guardarMarca()">Guardar Marca</button>
+      </div>
     </div>
 
     <!-- MÍNIMAS -->
@@ -551,7 +597,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
   <!-- BOTTOM NAV -->
   <div class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="bottom-btn active" id="btnMarcas" onclick="showScreen('Marcas')"><span class="icon">🏅</span><span id="navMarcasLabel">Mis marcas</span></button>
-<span class="icon">⬇️</span>Importar
+    <button class="bottom-btn" id="btnRegistrar" onclick="showScreen('Registrar')"><span class="icon">➕</span>Registrar</button>
     <button class="bottom-btn" id="btnMinimas" onclick="showScreen('Minimas')"><span class="icon">📋</span>Mínimas</button>
     <button class="bottom-btn" id="btnRanking" onclick="showScreen('Ranking')"><span class="icon">🏆</span>Ranking</button>
     <button class="bottom-btn" id="btnLive" onclick="showScreen('Live')"><span class="icon">🔴</span>Live</button>
@@ -1593,6 +1639,114 @@ function setEquipoScope(scope,btn){
 }
 
 // -- FORMULARIO -------------------------------------------
+function setCrono(tipo){cronoTipo=tipo;document.getElementById('cronoElec').classList.toggle('active',tipo==='electronico');document.getElementById('cronoMan').classList.toggle('active',tipo==='manual');calcularPreview();}
+function actualizarDistancias(){
+  const es=document.getElementById('fEstilo').value;
+  const sel=document.getElementById('fDistancia');
+  sel.innerHTML='<option value="">Selecciona distancia</option>';
+  const esAl=categoriaDe(usuario?.ano).categoria==='Alevín';
+  const d=(esAl?DISTS_AL:DISTS)[es]||[];
+  d.forEach(v=>sel.innerHTML+=`<option value="${v}">${v}m</option>`);
+  calcularPreview();
+}
+function filtrarEstilo(es,btn){filtroEstilo=es;document.querySelectorAll('.estilo-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderMinimas();}
+function filtrarPiscina(p,btn){filtroPiscina=p;document.querySelectorAll('.piscina-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderMinimas();}
+function calcularPreview(){
+  const es=document.getElementById('fEstilo').value;
+  const di=parseInt(document.getElementById('fDistancia').value);
+  const pi=parseInt(document.getElementById('fPiscina').value);
+  const mn=parseFloat(document.getElementById('fMin').value)||0;
+  const sg=parseFloat(document.getElementById('fSeg').value)||0;
+  const cn=parseFloat(document.getElementById('fCen').value)||0;
+  const prev=document.getElementById('resultadoPreview');
+  if(!es||!di||(!mn&&!sg&&!cn)){prev.classList.remove('visible');return;}
+  const seg=mn*60+sg+cn/100;
+  const ev=evaluarMarca({anoNacimiento:usuario?.ano,sexo:usuario?.sexo,territorio:territorioDe(usuario),estilo:es,distancia:di,piscina:pi,crono:cronoTipo,seg,fecha:new Date()});
+  const penStr=cronoTipo==='manual'?` (+${penalizacionDist(di)} s manual)`:'';
+  const emoji=document.getElementById('prevEmoji'),txt=document.getElementById('prevTexto'),det=document.getElementById('prevDetalle');
+  prev.classList.add('visible');
+  if(!ev.nacional&&!ev.territorial){
+    prev.className='resultado-preview visible';
+    emoji.textContent='⚪';
+    txt.textContent='SIN MÍNIMA PARA TU CATEGORÍA';
+    det.textContent=`No hay mínima publicada para ${ev.etiqueta} en ${es} ${di}m (${pi}m)`;
+    return;
+  }
+  const nivelTer=ev.territorial?etiquetaNivelMinima(ev):'';
+  if(ev.nacional&&ev.nacional.alcanzada){
+    prev.className='resultado-preview visible';
+    emoji.textContent='🏆';
+    txt.textContent='¡MÍNIMA NACIONAL!'+(ev.territorial&&ev.territorial.alcanzada?` + ${nivelTer}`:'');
+    det.textContent=`Te sobran ${ev.nacional.margen.toFixed(2)} s${penStr}. Mínima ${ev.etiqueta}: ${tdis(ev.nacional.seg)}`;
+    return;
+  }
+  if(ev.territorial&&ev.territorial.alcanzada){
+    prev.className='resultado-preview visible';
+    emoji.textContent='🟠';
+    txt.textContent=nivelTer+' CONSEGUIDA';
+    det.textContent=`Autonómica ${tdis(ev.territorial.seg)}. Te faltan ${Math.abs(ev.nacional?ev.nacional.diferencia:0).toFixed(2)} s para la nacional${penStr}`;
+    return;
+  }
+  prev.className='resultado-preview visible no';
+  emoji.textContent='💪';
+  txt.textContent='TODAVÍA NO, ¡SIGUE!';
+  det.textContent = ev.nacional
+    ? `Te faltan ${ev.nacional.diferencia.toFixed(2)} s${penStr}. Mínima ${ev.etiqueta}: ${tdis(ev.nacional.seg)}`
+    : `Te faltan ${ev.territorial.diferencia.toFixed(2)} s para la autonómica`;
+}
+
+async function guardarMarca(){
+  const es=document.getElementById('fEstilo').value;
+  const di=parseInt(document.getElementById('fDistancia').value);
+  const pi=parseInt(document.getElementById('fPiscina').value);
+  const mn=parseFloat(document.getElementById('fMin').value)||0;
+  const sg=parseFloat(document.getElementById('fSeg').value)||0;
+  const cn=parseFloat(document.getElementById('fCen').value)||0;
+  const comp=document.getElementById('fCompeticion').value;
+  if(!es){showToast('Selecciona un estilo',true);return;}
+  if(!di){showToast('Selecciona una distancia',true);return;}
+  if(!mn&&!sg&&!cn){showToast('Introduce el tiempo',true);return;}
+  if(sg>=60||cn>=100){showToast('Segundos 0-59 y centésimas 0-99',true);return;}
+  const seg=mn*60+sg+cn/100;
+  // Ojo: se guarda el tiempo tal cual se nadó. La penalización por manual se
+  // aplica al comparar con la mínima, no antes de guardar (si no, se queda
+  // grabada para siempre y el ranking miente).
+  const ev=evaluarMarca({anoNacimiento:usuario?.ano,sexo:usuario?.sexo,territorio:territorioDe(usuario),estilo:es,distancia:di,piscina:pi,crono:cronoTipo,seg,fecha:new Date()});
+  const min=ev.nacional?ev.nacional.seg:null;
+  let tm='sin_minima';
+  if(min!==null) tm=ev.nacional.alcanzada?'si':'no';
+  if(sesion?.user?.id==='demo'){showToast('Modo demo — no se pueden guardar marcas',true);return;}
+  const hoy=new Date();
+  const{error}=await sb.from('marcas').insert({
+    user_id:sesion.user.id,
+    nombre_nadador:usuario.nombre,
+    club:usuario.club,
+    ano_nacimiento:usuario.ano,
+    sexo:usuario.sexo,
+    consentimiento_ranking:usuario.consentimiento||false,
+    estilo:es,
+    distancia:di,
+    piscina:pi,
+    tiempo_seg:seg,
+    tiempo_display:tdis(seg),
+    minima_display:min?tdis(min):null,
+    tiene_minima:tm,
+    competicion:comp,
+    crono:cronoTipo,
+    temporada:temporadaActual(),
+    fecha_real:hoy.toISOString().slice(0,10),
+    fecha:hoy.toLocaleDateString('es-ES')
+  });
+  if(error){showToast('Error al guardar: '+error.message,true);return;}
+  ['fEstilo','fCompeticion'].forEach(id=>document.getElementById(id).value='');
+  ['fMin','fSeg','fCen'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fDistancia').innerHTML='<option value="">— estilo primero —</option>';
+  document.getElementById('resultadoPreview').classList.remove('visible');
+  showToast('Marca guardada');
+  await cargarMisMarcase();
+  showScreen('Marcas');
+}
+
 // -- MÍNIMAS ----------------------------------------------
 function renderMinimas(){
   if(!usuario)return;
