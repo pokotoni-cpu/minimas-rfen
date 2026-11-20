@@ -924,14 +924,30 @@ async function cargarMinimas(forzar){
         const cache = _leerCache();
         if(cache){ indexarMinimas(cache); MINIMAS.cargada = true; }
       }
-      const { data, error } = await sb.from('minimas_temporada')
-        .select('ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,tiempo_seg,vigencia_desde,vigencia_hasta,fuente')
-        .eq('estado', 'publicada');
-      if(error) throw error;
-      indexarMinimas(data || []);
+      // PostgREST corta en 1.000 filas por consulta y ya hay más: sin paginar,
+      // unas tablas llegaban y otras no, sin ningún error visible.
+      const PAGINA = 1000;
+      let desde = 0;
+      let todas = [];
+      for(;;){
+        const { data, error } = await sb.from('minimas_temporada')
+          .select('ambito,territorio,categoria,anio_cat,sexo,estilo,distancia,piscina,nivel,crono,tiempo_seg,vigencia_desde,vigencia_hasta,fuente')
+          .eq('estado', 'publicada')
+          .order('categoria', { ascending: true })
+          .order('anio_cat', { ascending: true })
+          .order('distancia', { ascending: true })
+          .order('piscina', { ascending: true })
+          .range(desde, desde + PAGINA - 1);
+        if(error) throw error;
+        const lote = data || [];
+        todas = todas.concat(lote);
+        if(lote.length < PAGINA) break;
+        desde += PAGINA;
+      }
+      indexarMinimas(todas);
       MINIMAS.cargada = true;
       MINIMAS.error = null;
-      _guardarCache(data || []);
+      _guardarCache(todas);
     }catch(e){
       MINIMAS.error = e.message || String(e);
       if(!MINIMAS.cargada){
