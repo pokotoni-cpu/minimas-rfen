@@ -295,11 +295,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -551,9 +551,10 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
       </div>
       <!-- Nadador: stats -->
       <div id="perfilStatsNadador" style="display:none;">
-        <div class="stats-grid">
-          <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Marcas</div></div>
-          <div class="stat-card"><div class="stat-num" id="statMinimas" style="color:var(--verde)">0</div><div class="stat-label">Mínimas</div></div>
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card"><div class="stat-num" id="statTotal" style="font-size:30px;">0</div><div class="stat-label">Marcas</div></div>
+          <div class="stat-card"><div class="stat-num" id="statNac" style="font-size:30px;color:var(--agua-light);">0</div><div class="stat-label">Nacional</div></div>
+          <div class="stat-card"><div class="stat-num" id="statAut" style="font-size:30px;color:#e08800;">0</div><div class="stat-label">Autonóm.</div></div>
         </div>
       </div>
       <!-- Entrenador: nadadores con mínima -->
@@ -675,7 +676,7 @@ const sb = supabase.createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrbGFzeWx2dXJuZW1vcnRpdGFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjkxODMsImV4cCI6MjA5MTQwNTE4M30.EQQ2S6RGj3aAClwA6DJNxLiHr6jjgI2TTM12bPeZKxs'
 );
 
-/* ══════════════════════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════════════════════
    MÍNIMAS POR TEMPORADA
    ──────────────────────────────────────────────────────────────────────────
    La categoría de un nadador NO es un dato suyo: es el resultado de
@@ -1078,6 +1079,23 @@ function fechaDeMarca(m){
 // ── Compatibilidad con el resto de la app ──────────────────────────────────
 // Las funciones de antes siguen existiendo con la misma firma, pero ahora
 // resuelven por temporada. Así no hay que tocar las 40 llamadas del HTML.
+// Cuenta las mínimas del nadador separando nacional de autonómica. Se recalcula
+// al leer: el campo `tiene_minima` de la fila es una foto del momento en que se
+// guardó y no vale para una tabla que cambia de temporada.
+function contarMinimas(marcas, perfil){
+  const u = perfil || usuario;
+  let nac = 0, aut = 0;
+  (marcas || []).forEach(m => {
+    const ev = evaluarMarca({
+      ...paramsDeMarca(m),
+      territorio: m.territorio || territorioDe(u)
+    });
+    if(ev.nacional && ev.nacional.alcanzada) nac++;
+    if(ev.territorial && ev.territorial.alcanzada) aut++;
+  });
+  return { total: (marcas || []).length, nac, aut };
+}
+
 function getDBMinima(ano, sexo, estilo, dist, piscina, fecha){
   const r = minimaNacional({ anoNacimiento: ano, sexo, estilo, distancia: dist, piscina, fecha });
   return r ? r.seg : null;
@@ -1722,31 +1740,63 @@ function renderMinimas(){
   const sx=sexo==='F'?'Femenino':'Masculino';
   const cat=categoriaDe(ano);
   document.getElementById('minimasCategoria').textContent=`${getCatLabel(ano)} · ${sx} · temporada ${temporadaActual()}`;
+
   if(!MINIMAS.cargada){
     lista.innerHTML=MINIMAS.error
       ? `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">No se pudieron cargar las mínimas.<br>${MINIMAS.error}</div></div>`
-      : `<div class="loading"><span class="spinner"></span>Cargando mínimas...</div>`;
+      : '<div class="loading"><span class="spinner"></span>Cargando mínimas...</div>';
     return;
   }
   if(cat.sinCategoria){
     lista.innerHTML='<div class="empty-state"><div class="empty-icon">🌱</div><div class="empty-text">Benjamines: todavía no hay mínima de campeonato</div></div>';
     return;
   }
+
   const dists=(cat.categoria==='Alevín'?DISTS_AL:DISTS)[filtroEstilo]||[];
   if(!dists.length){lista.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin mínimas</div></div>';return;}
+
   const terr=territorioDe(usuario);
-  lista.innerHTML=dists.map(d=>{
+
+  // Cabecera de columnas: así no se confunde qué tiempo es de qué tabla
+  const cabecera=`<div style="display:flex;padding:0 13px 6px;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#93a3b5;">
+      <div style="width:55px;">Prueba</div>
+      <div style="flex:1;text-align:center;">Nacional</div>
+      <div style="flex:1;text-align:center;color:#c98a00;">${terr?esc(terr):'Autonómica'}</div>
+    </div>`;
+
+  let conAutonomica=false;
+
+  const filas=dists.map(d=>{
     const seg=getDBMinima(ano,sexo,filtroEstilo,d,filtroPiscina);
-    const ter=terr?minimasTerritoriales({anoNacimiento:ano,sexo,estilo:filtroEstilo,distancia:d,piscina:filtroPiscina,territorio:terr,fecha:new Date()}):[];
-    const terTxt=ter.length
-      ? `<div style="font-size:13px;color:#e08800;margin-top:2px;">${terr}-MÍN${ter[0].nivel?' '+ter[0].nivel:''} ${tdis(ter[0].seg)}</div>`
-      : '';
-    return `<div class="minima-row"><div class="minima-dist">${d}m</div>
-      <div style="flex:1;text-align:center;">
-        <div class="minima-tiempo" style="text-align:center;">${seg?tdis(seg):'<span class="minima-na">Sin mínima</span>'}</div>
-        ${terTxt}
-      </div></div>`;
+    const ter=terr?minimasTerritoriales({
+      anoNacimiento:ano, sexo, estilo:filtroEstilo, distancia:d,
+      piscina:filtroPiscina, territorio:terr, fecha:new Date()
+    }):[];
+    if(ter.length) conAutonomica=true;
+
+    const celdaNac=seg
+      ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px;color:var(--agua-light);">${tdis(seg)}</div>`
+      : '<div class="minima-na">—</div>';
+
+    // Con niveles A/B se muestran los dos: son requisitos distintos
+    const celdaAut=ter.length
+      ? ter.map(t=>`<div style="font-size:13px;color:#e08800;line-height:1.35;">${t.nivel?'<strong>'+esc(t.nivel)+'</strong> ':''}${tdis(t.seg)}</div>`).join('')
+      : '<div class="minima-na">—</div>';
+
+    return `<div class="minima-row" style="align-items:center;">
+      <div class="minima-dist">${d}m</div>
+      <div style="flex:1;text-align:center;">${celdaNac}</div>
+      <div style="flex:1;text-align:center;">${celdaAut}</div>
+    </div>`;
   }).join('');
+
+  const aviso=!conAutonomica
+    ? `<div style="font-size:12px;color:#93a3b5;text-align:center;margin-top:12px;line-height:1.45;">
+         No hay tabla autonómica publicada para ${terr?esc(terr):'tu federación'} en esta temporada.
+       </div>`
+    : '';
+
+  lista.innerHTML=cabecera+filas+aviso;
 }
 
 // -- RANKING ----------------------------------------------
@@ -1775,8 +1825,10 @@ async function renderPerfil(){
         </div>
       </div>`).join('');
   } else {
-    document.getElementById('statTotal').textContent=misMarcase.length;
-    document.getElementById('statMinimas').textContent=misMarcase.filter(m=>m.tiene_minima==='si').length;
+    const cStats=contarMinimas(misMarcase);
+    document.getElementById('statTotal').textContent=cStats.total;
+    document.getElementById('statNac').textContent=cStats.nac;
+    document.getElementById('statAut').textContent=cStats.aut;
   }
 }
 
