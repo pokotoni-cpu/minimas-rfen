@@ -5711,16 +5711,22 @@ async function renderLiga(){
 
   const cuerpo = clasificacion.map((r, i) => {
     const mio = normalizarClub(r.club) === miClub;
-    const veces = r.veces > 1 ? ` · ${r.veces} veces` : '';
+    const cat = r.anio_nac ? getCatLabel(String(r.anio_nac)) : '';
+    const veces = r.veces > 1 ? r.veces + ' jornadas' : '1 jornada';
     const cuando = r.fecha ? ' · ' + fechaLiga(r.fecha) : '';
+    const sede = r.sede ? ' · ' + esc(r.sede) : '';
+    const posición = i < 3 ? 'var(--amarillo)' : '#93a3b5';
 
-    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid #f1f5f9;${mio ? 'background:rgba(0,119,182,.05);' : ''}">
-      <div style="width:26px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:19px;color:${i < 3 ? 'var(--amarillo)' : '#93a3b5'};">${i + 1}</div>
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:11px 2px;border-bottom:1px solid #f1f5f9;${mio ? 'background:rgba(0,119,182,.05);' : ''}">
+      <div style="width:26px;flex-shrink:0;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:19px;color:${posición};">${i + 1}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-weight:${mio ? '700' : '500'};font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.nadador)}</div>
-        <div style="font-size:18px;color:#93a3b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.club)} · ${r.anio_nac || ''}${cuando}${veces}</div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
+          <div style="font-weight:${mio ? '700' : '600'};font-size:21px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.nadador)}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.5px;color:var(--agua-light);flex-shrink:0;">${esc(r.tiempo)}</div>
+        </div>
+        <div style="font-size:19px;color:#5a6b7d;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.club)}${cat ? ' · ' + esc(cat) : ''}</div>
+        <div style="font-size:18px;color:#93a3b5;margin-top:1px;">${veces}${cuando}${sede}</div>
       </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:.5px;color:var(--agua-luz,var(--agua-light));">${esc(r.tiempo)}</div>
     </div>`;
   }).join('');
 
