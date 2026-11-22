@@ -590,7 +590,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         </div>
         <div class="tabs" id="liveTabsPrincipal" style="margin-bottom:12px;">
           <button class="tab-btn active" id="tabPrograma" onclick="cambiarVistaPrincipal('programa',this)">📅 Programa</button>
-          <button class="tab-btn" id="tabNadadoresClub" onclick="cambiarVistaPrincipal('nadadores',this)">👥 Mi club</button>
+          <button class="tab-btn" id="tabNadadoresClub" onclick="cambiarVistaPrincipal('nadadores',this)">👥 Clubes</button>
         </div>
         <div id="liveSubHeader" style="font-size:15px;color:rgba(90,107,125,.8);margin-bottom:8px;display:none;">Filtrando por tu club: <span id="liveClubFiltro" style="color:var(--agua-light);"></span> · <span id="liveTotalResultados"></span></div>
         <div class="tabs" id="liveTabs" style="margin-bottom:10px;display:none;">
@@ -1941,6 +1941,7 @@ function getLiveStatusInfo(status){
 }
 
 let LIVE_COMPETICIONES = [];
+let LIVE_CLUBES = [];
 
 async function cargarCompeticionesESP(){
   const lista=document.getElementById('liveCompeticiones');
@@ -1985,38 +1986,102 @@ function cambiarVistaPrincipal(vista, btn){
   }
 }
 
-function renderVistaNadadoresClub(){
-  document.getElementById('liveSubHeader').style.display='none';
-  document.getElementById('liveTabs').style.display='none';
-  const cont=document.getElementById('liveEventos');
-  if(!liveMiClubCode){
-    cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se ha detectado tu club en esta competición</div></div>';
+﻿/* ══════════════════════════════════════════════════════════════════════════
+   CLUBES EN EL LIVE
+   ──────────────────────────────────────────────────────────────────────────
+   Antes solo se veía "mi club". Ahora se puede elegir cualquier club de la
+   competición y ver sus nadadores separados en chicos y chicas.
+
+   Las pruebas de cada nadador no vienen en athletes.json: hay que pedirlas
+   prueba a prueba (una petición por evento), así que se muestran al abrir su
+   ficha, que ya las carga y las agrupa.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let liveClubSeleccionado = null;
+let liveGeneroClub = 'M';
+
+function clubesDelLive(lista){
+  const fuente = lista || (typeof LIVE_CLUBES !== 'undefined' ? LIVE_CLUBES : []);
+  return (fuente || [])
+    .filter(c => c && c.id && c.name)
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+function nadadoresDeClub(clubId, genero, atletas){
+  const datos = atletas || (typeof liveAtletasData !== 'undefined' ? liveAtletasData : {}) || {};
+  return Object.entries(datos)
+    .filter(([, a]) => String(a.clubid) === String(clubId) && String(a.gender) === String(genero))
+    .map(([id, a]) => ({ id, ...a }))
+    .sort((a, b) => (a.lastname || '').localeCompare(b.lastname || '', 'es'));
+}
+
+function cambiarClubLive(id){
+  liveClubSeleccionado = id;
+  renderVistaNadadoresClub();
+}
+
+function cambiarGeneroClubLive(g, btn){
+  liveGeneroClub = g;
+  document.querySelectorAll('#liveGeneroClub .filter-chip').forEach(c => c.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderVistaNadadoresClub(true);
+}
+
+function renderVistaNadadoresClub(soloLista){
+  document.getElementById('liveSubHeader').style.display = 'none';
+  document.getElementById('liveTabs').style.display = 'none';
+  const cont = document.getElementById('liveEventos');
+  if(!cont) return;
+
+  const clubs = clubesDelLive();
+  if(!clubs.length){
+    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se han cargado los clubes de esta competición</div></div>';
     return;
   }
-  const atletasClub = Object.entries(liveAtletasData)
-    .filter(([id,a])=>String(a.clubid)===String(liveMiClubCode))
-    .map(([id,a])=>({id,...a}))
-    .sort((a,b)=>(a.lastname||'').localeCompare(b.lastname||''));
 
-  if(!atletasClub.length){
-    cont.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No se encontraron nadadores de tu club inscritos</div></div>';
+  // Club por defecto: el del usuario si está, si no el primero
+  if(!liveClubSeleccionado || !clubs.some(c => String(c.id) === String(liveClubSeleccionado))){
+    liveClubSeleccionado = (typeof liveMiClubCode !== 'undefined' && liveMiClubCode) ? liveMiClubCode : clubs[0].id;
+  }
+  const club = clubs.find(c => String(c.id) === String(liveClubSeleccionado));
+
+  const chicos = nadadoresDeClub(club.id, '1');
+  const chicas = nadadoresDeClub(club.id, '2');
+  const lista = liveGeneroClub === 'F' ? chicas : chicos;
+
+  const selector = `<select class="input-field" style="font-size:14px;margin-bottom:10px;"
+      onchange="cambiarClubLive(this.value)">
+      ${clubs.map(c => `<option value="${esc(c.id)}"${String(c.id) === String(club.id) ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}
+    </select>`;
+
+  const tabs = `<div id="liveGeneroClub" style="margin-bottom:12px;">
+      <span class="filter-chip ${liveGeneroClub === 'M' ? 'active' : ''}" onclick="cambiarGeneroClubLive('M',this)">👦 Chicos (${chicos.length})</span>
+      <span class="filter-chip ${liveGeneroClub === 'F' ? 'active' : ''}" onclick="cambiarGeneroClubLive('F',this)">👧 Chicas (${chicas.length})</span>
+    </div>`;
+
+  if(!lista.length){
+    cont.innerHTML = selector + tabs +
+      `<div class="empty-state"><div class="empty-icon">🏊</div><div class="empty-text">No hay ${liveGeneroClub === 'F' ? 'chicas' : 'chicos'} de ${esc(club.name)} inscritos</div></div>`;
     return;
   }
 
-  cont.innerHTML=`<div style="font-size:15px;color:rgba(90,107,125,.8);margin-bottom:10px;">${atletasClub.length} nadadores de ${usuario.club} inscritos</div>` +
-    atletasClub.map(a=>{
-      const nombre = esc(a.lastname?`${a.lastname}, ${a.firstname}`:(a.fullname||'—'));
-      const genStr = a.gender==='1'?'M':a.gender==='2'?'F':'';
-      return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${a.id}')">
-        <div class="nadador-header">
-          <div class="nadador-avatar">🏊</div>
-          <div style="flex:1;">
-            <div class="nadador-nombre">${esc(nombre)}</div>
-            <div class="nadador-sub">${a.yob||''}${genStr?' · '+genStr:''}</div>
-          </div>
+  const tarjetas = lista.map(a => {
+    const nombre = esc(a.lastname ? `${a.lastname}, ${a.firstname}` : (a.fullname || '—'));
+    return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${escJs(a.id)}')">
+      <div class="nadador-header">
+        <div class="nadador-avatar">🏊</div>
+        <div style="flex:1;">
+          <div class="nadador-nombre">${nombre}</div>
+          <div class="nadador-sub">${a.yob || ''}${a.nation ? ' · ' + esc(a.nation) : ''}</div>
         </div>
-      </div>`;
-    }).join('');
+        <div style="font-size:18px;color:rgba(90,107,125,.5);">›</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  cont.innerHTML = selector + tabs +
+    `<div style="font-size:13px;color:#5a6b7d;margin-bottom:10px;">${lista.length} nadador${lista.length === 1 ? '' : 'es'} · toca para ver todas sus pruebas</div>` +
+    tarjetas;
 }
 
 const LIVE_MEETS = new Map();
@@ -2055,6 +2120,7 @@ async function abrirCompeticion(id){
     const clubsArr = Array.isArray(clubsData) ? clubsData : (clubsData.clubs||[]);
     const clubsMap={};
     clubsArr.forEach(cl=>clubsMap[cl.id]=cl.name||cl.shortname||'');
+    LIVE_CLUBES = clubsArr.map(cl => ({ id: cl.id, name: cl.name || cl.shortname || '' }));
 
     // Detectar el clubcode del usuario buscando coincidencia de nombre en clubs.json
     liveMiClubCode = null;
