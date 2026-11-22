@@ -303,11 +303,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Tu nombre">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Tus apellidos">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -1347,38 +1347,62 @@ let rankingScope='todos', equipoScope='club';
 // -- HELPERS ----------------------------------------------
 function showToast(msg,err=false){const el=document.getElementById('toast');el.textContent=msg;el.style.background=err?'#ef233c':'var(--verde)';el.style.color=err?'#fff':'#003d2e';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
 function marcaHtml(m,mostrarNombre=false,pos=null){
-  let emoji,bc,bt;
-  if(m.tiene_minima==='si'){emoji='🏆';bc='badge-si';bt='MÍNIMA ✓';}
-  else if(m.tiene_minima==='no'){emoji='💪';bc='badge-no';bt='Sin mínima';}
-  else{emoji='⚪';bc='badge-na';bt='N/A';}
-  const posHtml=pos!==null?`<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${pos<3?'var(--amarillo)':'rgba(90,107,125,.6)'};width:26px;flex-shrink:0;">${pos+1}</div>`:'';
-  const prueba=`${esc(m.estilo)} ${esc(m.distancia)}m · ${esc(m.piscina)}m`;
-  const nombre=mostrarNombre
-    ? `<div class="marca-prueba">${esc(m.nombre_nadador)} · ${prueba}</div>`
-    : `<div class="marca-prueba">${prueba}</div>`;
-  // Calcular diferencia con mínima nacional
-  let difStr='';
-  if(m.minima_display){
-    const minSeg=getDBMinima(m.ano_nacimiento,m.sexo,m.estilo,m.distancia,m.piscina);
+  const terr = territorioDe(usuario);
+  let ev = null;
+  try { ev = evaluarMarca({ ...paramsDeMarca(m), territorio: m.territorio || terr }); } catch(e){}
+  const nac = !!(ev && ev.nacional && ev.nacional.alcanzada);
+  const aut = !!(ev && ev.territorial && ev.territorial.alcanzada);
+
+  const prueba = `${esc(m.estilo)} ${esc(m.distancia)}m · ${esc(m.piscina)}m`;
+
+  // Sellos compactos: NAC y el código de la federación
+  const sello = (texto, color, fondo, borde) =>
+    `<span style="display:inline-block;background:${fondo};border:1px solid ${borde};color:${color};border-radius:7px;padding:2px 7px;font-size:18px;font-weight:700;white-space:nowrap;">${texto}</span>`;
+  const sellos =
+    (nac ? sello('NAC', 'var(--agua-light)', 'rgba(0,119,182,.12)', 'rgba(0,119,182,.35)') : '') +
+    (aut ? sello(esc(terr || 'AUT'), '#e08800', 'rgba(255,165,0,.14)', 'rgba(255,165,0,.4)') : '');
+
+  // Margen con la mínima nacional de su categoría
+  let margen = '';
+  try {
+    const minSeg = typeof getDBMinima === 'function'
+      ? getDBMinima(m.ano_nacimiento, m.sexo, m.estilo, m.distancia, m.piscina, new Date())
+      : null;
     if(minSeg){
-      const dif=m.tiempo_seg-minSeg;
-      if(m.tiene_minima==='si') difStr=` · -${Math.abs(dif).toFixed(2)}s de la mínima`;
-      else difStr=` · le faltan ${dif.toFixed(2)}s`;
+      const dif = m.tiempo_seg - minSeg;
+      margen = dif <= 0
+        ? `<span style="color:var(--verde);">${Math.abs(dif).toFixed(2)}s por debajo de la mínima</span>`
+        : `<span style="color:#e08800;">le faltan ${dif.toFixed(2)}s</span>`;
     }
-  }
-  // Badge mínima autonómica
-  let badgeCV='';
-  const cvResult=calcularCVMinima(m);
-  if(cvResult){
-    const labelCV=cvResult.nivel?`CV-MÍN ${esc(cvResult.nivel)}`:'CV-MÍN';
-    badgeCV=`<span style="display:inline-block;background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:8px;padding:2px 7px;font-size:19px;font-weight:700;margin-left:4px;">${labelCV}</span>`;
-  }
-  const meta=mostrarNombre
-    ?`${esc(m.club)} · ${getCatLabel(m.ano_nacimiento)} · ${esc(m.fecha)}${m.minima_display?' · Mín: '+esc(m.minima_display)+difStr:''}`
-    :`${esc(m.fecha)}${m.competicion?' · '+esc(m.competicion):''}${m.minima_display?' · Mín: '+esc(m.minima_display)+difStr:''}`;
-  const btnCompartir=!mostrarNombre?`<button onclick="compartirMarca('${escJs(m.id)}')" style="background:none;border:none;color:rgba(26,26,46,.28);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;" title="Compartir marca">📤</button>`:'';
-  const btnBorrar=!mostrarNombre?`<button onclick="borrarMarca('${escJs(m.id)}')" style="background:none;border:none;color:rgba(26,26,46,.18);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;" title="Borrar marca">🗑️</button>`:'';
-  return `<div class="card"><div class="marca-card">${posHtml}<div class="marca-emoji">${emoji}</div><div class="marca-info">${nombre}<div class="marca-tiempo">${esc(m.tiempo_display)}${badgeCV}</div><div class="marca-meta">${meta}</div></div><div class="marca-badge ${bc}">${bt}</div>${btnCompartir}${btnBorrar}</div></div>`;
+  } catch(e){}
+
+  const posHtml = pos !== null
+    ? `<div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${pos < 3 ? 'var(--amarillo)' : '#93a3b5'};flex-shrink:0;width:24px;text-align:center;">${pos + 1}</div>`
+    : '';
+
+  const acciones = mostrarNombre ? '' : `<div style="display:flex;flex-shrink:0;">
+      <button onclick="event.stopPropagation();compartirMarca('${escJs(m.id)}')" style="background:none;border:none;color:#c3cedb;font-size:21px;cursor:pointer;padding:2px 4px;" title="Compartir">📤</button>
+      <button onclick="event.stopPropagation();borrarMarca('${escJs(m.id)}')" style="background:none;border:none;color:#c3cedb;font-size:21px;cursor:pointer;padding:2px 4px;" title="Borrar">🗑️</button>
+    </div>`;
+
+  const cabecera = mostrarNombre
+    ? `<div style="font-weight:700;font-size:21px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.nombre_nadador)}</div>
+       <div style="font-size:18px;color:#93a3b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${prueba} · ${esc(m.club)}</div>`
+    : `<div style="font-weight:700;font-size:22px;">${prueba}</div>
+       <div style="font-size:18px;color:#93a3b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.fecha)}${m.competicion ? ' · ' + esc(m.competicion) : ''}</div>`;
+
+  return `<div class="card" style="padding:12px 13px;">
+    <div style="display:flex;align-items:flex-start;gap:8px;">
+      ${posHtml}
+      <div style="flex:1;min-width:0;">${cabecera}</div>
+      ${acciones}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:25px;letter-spacing:1px;color:var(--agua-light);line-height:1;">${esc(m.tiempo_display || tdis(m.tiempo_seg))}</div>
+      ${sellos}
+    </div>
+    ${margen ? `<div style="font-size:18px;margin-top:4px;">${margen}</div>` : ''}
+  </div>`;
 }
 
 // -- AUTH -------------------------------------------------
