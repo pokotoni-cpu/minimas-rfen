@@ -5332,7 +5332,18 @@ function cabeceraActa(lineas){
     const mes = meses[fechaTxt[2].toLowerCase().slice(0, 3)];
     if(mes) fecha = `${fechaTxt[3]}-${String(mes).padStart(2, '0')}-${String(fechaTxt[1]).padStart(2, '0')}`;
   }
-  return { nombre: nombre.trim(), fecha, sede: '' };
+
+  // La sede es la línea que va justo debajo de la piscina
+  let sede = '';
+  const idx = (lineas || []).findIndex(x => /piscina/i.test(x));
+  if(idx >= 0){
+    for(let i = idx + 1; i < Math.min(idx + 3, lineas.length); i++){
+      const c = String(lineas[i] || '').trim();
+      if(c && c.length < 40 && !/\d{3,}/.test(c)){ sede = c; break; }
+    }
+  }
+
+  return { nombre: nombre.trim(), fecha, sede };
 }
 
 // PDF del acta → líneas de texto (una por renglón)
@@ -5355,47 +5366,68 @@ async function leerLineasActa(arrayBuffer){
 }
 
 // ── Descubrimiento: qué actas hay publicadas ───────────────────────────────
-// La página de ligas es HTML con JavaScript; se lee con el mismo lector que el
-// calendario, que devuelve markdown con los enlaces ya resueltos.
+// La página de ligas lista las competiciones paginadas (?t=9&p=1,2,3) y el
+// lector de markdown solo devuelve la primera página, así que se lee el HTML
+// tal cual a través del proxy y se sacan todas las actas.
+
+const PAGINAS_LIGAS = [
+  'https://www.fncv.es/natacion-ligas',
+  'https://www.fncv.es/natacion-ligas?t=9&p=1',
+  'https://www.fncv.es/natacion-ligas?t=9&p=2',
+  'https://www.fncv.es/natacion-ligas?t=9&p=3'
+];
+
+// Nombre de archivo → clave estable (sin espacios ni acentos raros)
 function claveDeActa(url){
-  const m = String(url || '').match(/\/(\d+)_[^\/]*\.pdf/i);
-  return m ? m[1] : String(url || '');
+  const limpio = decodeURIComponent(String(url || '')).split('/').pop() || '';
+  return limpio.replace(/\.pdf$/i, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
 }
 
-const MESES_LIGA = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12 };
-
-function fechaDeBloque(txt){
-  const m = String(txt || '').match(/(\d{1,2})\s+(?:al\s+\d{1,2}\s+)?de\s+(\w{3})\w*\s+de\s+(\d{4})/i);
-  if(!m) return null;
-  const mes = MESES_LIGA[m[2].toLowerCase().slice(0, 3)];
-  if(!mes) return null;
-  return `${m[3]}-${String(mes).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
-}
-
-// Markdown de la página de ligas → [{titulo, fecha, resultados, clave}]
-function parsearLigasFncv(markdown){
+// HTML de la página de ligas → URLs de actas (únicas)
+function actasDeLigasHtml(html, base){
   const salida = [];
-  let actual = null;
+  const vistos = new Set();
+  const re = /href="([^"]*\/actas\/cas\/[^"]+\.pdf)"/gi;
+  let m;
+  while((m = re.exec(String(html || ''))) !== null){
+    let url = m[1].replace(/&amp;/g, '&').trim();
+    if(url.startsWith('/')) url = 'https://www.fncv.es' + url;
+    else if(url.startsWith('./')) url = 'https://www.fncv.es/' + url.slice(2);
+    else if(!/^https?:/i.test(url)) url = (base || 'https://www.fncv.es/') + url.replace(/^\/+/, '');
+    const clave = claveDeActa(url);
+    if(!clave || vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push({ url, clave });
+  }
+  return salida;
+}
 
-  String(markdown || '').split('\n').forEach(linea => {
-    const titulo = linea.match(/^###\s+(.+?)\s*$/);
-    if(titulo){
-      actual = { titulo: titulo[1].replace(/\s+/g, ' ').trim(), fecha: null, resultados: null, clave: null };
-      salida.push(actual);
-      return;
-    }
-    if(!actual) return;
+async function descargarDeFncv(url){
+  const r = await fetch('/api/actas?url=' + encodeURIComponent(url));
+  if(!r.ok){
+    let detalle = '';
+    try { detalle = (await r.json()).error || ''; } catch(e){}
+    throw new Error('no se pudo descargar (' + r.status + ')' + (detalle ? ': ' + detalle : ''));
+  }
+  return r;
+}
 
-    if(!actual.fecha) actual.fecha = fechaDeBloque(linea);
-
-    const enlace = linea.match(/\[Resultados\]\((https?:\/\/[^)]+)\)/i);
-    if(enlace){
-      actual.resultados = enlace[1];
-      actual.clave = claveDeActa(enlace[1]);
-    }
-  });
-
-  return salida.filter(x => x.titulo);
+async function listarActasPublicadas(onProgreso){
+  const actas = [];
+  const vistos = new Set();
+  for(let i = 0; i < PAGINAS_LIGAS.length; i++){
+    if(onProgreso) onProgreso(i, PAGINAS_LIGAS.length);
+    try{
+      const r = await descargarDeFncv(PAGINAS_LIGAS[i]);
+      const html = await r.text();
+      actasDeLigasHtml(html, PAGINAS_LIGAS[i]).forEach(x => {
+        if(vistos.has(x.clave)) return;
+        vistos.add(x.clave);
+        actas.push(x);
+      });
+    }catch(e){ /* una página que falle no debe tumbar el resto */ }
+  }
+  return actas;
 }
 
 // ── Sincronización automática ──────────────────────────────────────────────
@@ -5412,50 +5444,53 @@ async function sincronizarLiga(){
   estado.textContent = 'Buscando actas publicadas en la FNCV…';
 
   try{
-    const resp = await fetch(LECTOR_URL + 'https://www.fncv.es/natacion-ligas');
-    if(!resp.ok) throw new Error('la página de la FNCV no respondió (' + resp.status + ')');
+    const actas = await listarActasPublicadas((i, n) => {
+      estado.textContent = `Leyendo la página ${i + 1}/${n} de la FNCV…`;
+    });
+    if(!actas.length) throw new Error('no se ha encontrado ningún acta con resultados');
 
-    const lista = parsearLigasFncv(await resp.text()).filter(x => x.resultados && x.clave);
-    if(!lista.length) throw new Error('no se ha encontrado ningún acta con resultados');
-
+    await cargarLiga(true);
     const yaImportadas = new Set((LIGA.filas || []).map(r => r.jornada_clave));
-    const pendientes = lista.filter(x => !yaImportadas.has(x.clave));
-
-    estado.textContent = `${lista.length} actas publicadas · ${lista.length - pendientes.length} ya importadas · ${pendientes.length} por importar…`;
+    const pendientes = actas.filter(a => !yaImportadas.has(a.clave));
 
     if(!pendientes.length){
-      estado.textContent = `Todo al día: ${lista.length} actas publicadas, todas importadas.`;
+      estado.textContent = `Todo al día: ${actas.length} actas publicadas, todas importadas.`;
       return;
     }
 
-    let hechas = 0, filas = 0;
+    let hechas = 0, filas = 0, fallos = 0;
+
     for(const acta of pendientes){
-      estado.textContent = `Importando ${hechas + 1}/${pendientes.length}: ${acta.titulo.slice(0, 45)}…`;
+      estado.textContent = `Importando ${hechas + fallos + 1}/${pendientes.length}: ${acta.clave.replace(/_/g, ' ').slice(0, 40)}…`;
+      try{
+        const r = await descargarDeFncv(acta.url);
+        const lineas = await leerLineasActa(await r.arrayBuffer());
+        const cab = cabeceraActa(lineas);
 
-      const r = await fetch('/api/actas?url=' + encodeURIComponent(acta.resultados));
-      if(!r.ok) throw new Error('no se pudo descargar el acta ' + acta.clave + ' (' + r.status + ')');
+        const resultados = parsearLineasActa(lineas, {
+          nombre: cab.nombre || acta.clave,
+          fecha: cab.fecha,
+          sede: cab.sede || null,
+          clave: acta.clave,
+          fuente: acta.url
+        });
+        if(!resultados.length){ fallos++; continue; }
 
-      const lineas = await leerLineasActa(await r.arrayBuffer());
-      const resultados = parsearLineasActa(lineas, {
-        nombre: acta.titulo,
-        fecha: acta.fecha,
-        clave: acta.clave,
-        fuente: acta.resultados
-      });
+        for(let i = 0; i < resultados.length; i += 500){
+          const { error } = await sb.from('resultados_liga')
+            .upsert(resultados.slice(i, i + 500), { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
+          if(error) throw error;
+        }
 
-      for(let i = 0; i < resultados.length; i += 500){
-        const lote = resultados.slice(i, i + 500);
-        const { error } = await sb.from('resultados_liga')
-          .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
-        if(error) throw error;
+        hechas++;
+        filas += resultados.length;
+      }catch(e){
+        fallos++;
       }
-
-      hechas++;
-      filas += resultados.length;
     }
 
     LIGA.cargada = false;
-    estado.textContent = `✅ ${hechas} actas importadas · ${filas} resultados.`;
+    estado.textContent = `✅ ${hechas} actas importadas · ${filas} resultados` + (fallos ? ` · ${fallos} con problemas` : '') + '.';
     if(document.getElementById('listaLiga')) renderLiga();
 
   }catch(e){
