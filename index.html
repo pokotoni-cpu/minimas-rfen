@@ -303,11 +303,11 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div class="form-grid" style="margin-bottom:8px;">
           <div class="input-group full">
             <label>Nombre</label>
-            <input type="text" class="input-field" id="rfenNombre" placeholder="">
+            <input type="text" class="input-field" id="rfenNombre" placeholder="Samuel">
           </div>
           <div class="input-group full">
             <label>Apellidos</label>
-            <input type="text" class="input-field" id="rfenApellidos" placeholder="">
+            <input type="text" class="input-field" id="rfenApellidos" placeholder="Cabrera Puertollano">
           </div>
           <div class="input-group full">
             <label>Sexo</label>
@@ -5062,12 +5062,14 @@ async function irAlLiveDe(nombre, iso){
 /* ══════════════════════════════════════════════════════════════════════════
    MIS MÍNIMAS
    ──────────────────────────────────────────────────────────────────────────
-   Las marcas que hay detrás de cada contador del perfil. Se filtra evaluando
-   cada marca contra la tabla vigente, igual que el contador, para que el número
-   y la lista digan siempre lo mismo.
+   Las marcas que hay detrás de cada contador del perfil, agrupadas por prueba.
+   Es una pantalla de consulta, no de gestión: sin botones de compartir ni de
+   borrar, y con dos columnas claras (tiempo y mínimas conseguidas).
    ══════════════════════════════════════════════════════════════════════════ */
 
 let misMinTipo = 'nacional';
+
+const ORDEN_ESTILOS = ['Libres', 'Espalda', 'Braza', 'Mariposa', 'Estilos'];
 
 // Marcas que cumplen la mínima nacional, la autonómica, o todas
 function marcasSegunMinima(tipo, marcas, perfil){
@@ -5084,6 +5086,33 @@ function marcasSegunMinima(tipo, marcas, perfil){
   });
 }
 
+// Agrupa por prueba (estilo + distancia) y ordena: prueba y, dentro, la más
+// reciente primero. Devuelve [{prueba, estilo, distancia, marcas:[...]}]
+function agruparPorPrueba(marcas){
+  const grupos = new Map();
+  (marcas || []).forEach(m => {
+    const clave = `${m.estilo}|${m.distancia}`;
+    if(!grupos.has(clave)) grupos.set(clave, { estilo: m.estilo, distancia: Number(m.distancia), marcas: [] });
+    grupos.get(clave).marcas.push(m);
+  });
+
+  const lista = [...grupos.values()];
+  lista.sort((a, b) => {
+    const ea = ORDEN_ESTILOS.indexOf(a.estilo), eb = ORDEN_ESTILOS.indexOf(b.estilo);
+    if(ea !== eb) return (ea < 0 ? 99 : ea) - (eb < 0 ? 99 : eb);
+    return a.distancia - b.distancia;
+  });
+  lista.forEach(g => {
+    g.marcas.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+  });
+  return lista;
+}
+
+function fechaCorta(iso){
+  const p = String(iso || '').slice(0, 10).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : String(iso || '');
+}
+
 function abrirMisMinimas(tipo){
   misMinTipo = tipo || 'nacional';
   showScreen('MisMinimas');
@@ -5094,25 +5123,66 @@ function renderMisMinimas(){
   const cont = document.getElementById('listaMisMinimas');
   if(!cont) return;
 
-  const tipos = [['nacional', 'Nacional'], ['autonomica', 'Autonómica'], ['todas', 'Todas']];
-  const tabs = `<div class="tabs">${tipos.map(([k, t]) =>
-    `<button class="tab-btn ${k === misMinTipo ? 'active' : ''}" onclick="abrirMisMinimas('${k}')">${t}</button>`
-  ).join('')}</div>`;
+  const terr = territorioDe(usuario);
+  const porTipo = {
+    nacional: marcasSegunMinima('nacional', misMarcase),
+    autonomica: marcasSegunMinima('autonomica', misMarcase),
+    todas: misMarcase || []
+  };
 
-  const lista = marcasSegunMinima(misMinTipo, misMarcase);
+  const opciones = [
+    ['nacional', 'Nacional', porTipo.nacional.length],
+    ['autonomica', 'Autonómica', porTipo.autonomica.length],
+    ['todas', 'Todas', porTipo.todas.length]
+  ];
 
+  const chips = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${
+    opciones.map(([k, t, n]) =>
+      `<span class="filter-chip ${k === misMinTipo ? 'active' : ''}" onclick="abrirMisMinimas('${k}')">${t} (${n})</span>`
+    ).join('')
+  }</div>`;
+
+  const lista = porTipo[misMinTipo] || [];
   if(!lista.length){
-    cont.innerHTML = tabs + `<div class="empty-state"><div class="empty-icon">🎯</div>
+    cont.innerHTML = chips + `<div class="empty-state"><div class="empty-icon">🎯</div>
       <div class="empty-text">Todavía no tienes marcas con mínima ${misMinTipo === 'autonomica' ? 'autonómica' : 'nacional'}.</div></div>`;
     return;
   }
 
-  // Ordenadas por fecha, la más reciente primero
-  const orden = lista.slice().sort((a, b) => fechaOrdenMarca(b) - fechaOrdenMarca(a));
+  const grupos = agruparPorPrueba(lista);
 
-  cont.innerHTML = tabs +
-    `<div style="font-size:17px;color:#5a6b7d;margin-bottom:10px;">${orden.length} marca${orden.length === 1 ? '' : 's'}</div>` +
-    orden.map(m => marcaHtml(m)).join('');
+  const bloques = grupos.map(g => {
+    const filas = g.marcas.map(m => {
+      const ev = evaluarMarca({ ...paramsDeMarca(m), territorio: m.territorio || terr });
+      const nac = ev.nacional && ev.nacional.alcanzada;
+      const aut = ev.territorial && ev.territorial.alcanzada;
+
+      const selloNac = nac
+        ? `<span style="display:inline-block;background:rgba(0,119,182,.12);border:1px solid rgba(0,119,182,.35);color:var(--agua-light);border-radius:7px;padding:2px 7px;font-size:18px;font-weight:700;">NAC</span>`
+        : '';
+      const selloAut = aut
+        ? `<span style="display:inline-block;background:rgba(255,165,0,.14);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:7px;padding:2px 7px;font-size:18px;font-weight:700;">${esc(terr || 'AUT')}</span>`
+        : '';
+
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f1f5f9;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:19px;letter-spacing:.5px;">${tdis(m.tiempo_seg)}</div>
+          <div style="font-size:18px;color:#93a3b5;">${esc(fechaCorta(m.fecha))} · ${esc(m.piscina)}m</div>
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0;">${selloNac}${selloAut}</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:18px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px;">
+        <div style="font-weight:700;font-size:21px;">${esc(g.estilo)} ${g.distancia}m</div>
+        <div style="font-size:18px;color:#93a3b5;">${g.marcas.length} marca${g.marcas.length === 1 ? '' : 's'}</div>
+      </div>
+      ${filas}
+    </div>`;
+  }).join('');
+
+  cont.innerHTML = chips + bloques;
 }
 
 </script>
