@@ -5086,9 +5086,8 @@ async function irAlLiveDe(nombre, iso){
 /* ══════════════════════════════════════════════════════════════════════════
    MIS MÍNIMAS
    ──────────────────────────────────────────────────────────────────────────
-   Las marcas que hay detrás de cada contador del perfil, agrupadas por prueba.
-   Es una pantalla de consulta, no de gestión: sin botones de compartir ni de
-   borrar, y con dos columnas claras (tiempo y mínimas conseguidas).
+   Las marcas que hay detrás de cada contador del perfil, agrupadas por prueba
+   y con la misma tarjeta que "Mis marcas" (con compartir y borrar).
    ══════════════════════════════════════════════════════════════════════════ */
 
 let misMinTipo = 'nacional';
@@ -5111,7 +5110,7 @@ function marcasSegunMinima(tipo, marcas, perfil){
 }
 
 // Agrupa por prueba (estilo + distancia) y ordena: prueba y, dentro, la más
-// reciente primero. Devuelve [{prueba, estilo, distancia, marcas:[...]}]
+// reciente primero. Devuelve [{estilo, distancia, marcas:[...]}]
 function agruparPorPrueba(marcas){
   const grupos = new Map();
   (marcas || []).forEach(m => {
@@ -5132,11 +5131,6 @@ function agruparPorPrueba(marcas){
   return lista;
 }
 
-function fechaCorta(iso){
-  const p = String(iso || '').slice(0, 10).split('-');
-  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : String(iso || '');
-}
-
 function abrirMisMinimas(tipo){
   misMinTipo = tipo || 'nacional';
   showScreen('MisMinimas');
@@ -5147,7 +5141,6 @@ function renderMisMinimas(){
   const cont = document.getElementById('listaMisMinimas');
   if(!cont) return;
 
-  const terr = territorioDe(usuario);
   const porTipo = {
     nacional: marcasSegunMinima('nacional', misMarcase),
     autonomica: marcasSegunMinima('autonomica', misMarcase),
@@ -5173,38 +5166,17 @@ function renderMisMinimas(){
     return;
   }
 
-  const grupos = agruparPorPrueba(lista);
-
-  const bloques = grupos.map(g => {
-    const filas = g.marcas.map(m => {
-      const ev = evaluarMarca({ ...paramsDeMarca(m), territorio: m.territorio || terr });
-      const nac = ev.nacional && ev.nacional.alcanzada;
-      const aut = ev.territorial && ev.territorial.alcanzada;
-
-      const selloNac = nac
-        ? `<span style="display:inline-block;background:rgba(0,119,182,.12);border:1px solid rgba(0,119,182,.35);color:var(--agua-light);border-radius:7px;padding:2px 7px;font-size:18px;font-weight:700;">NAC</span>`
-        : '';
-      const selloAut = aut
-        ? `<span style="display:inline-block;background:rgba(255,165,0,.14);border:1px solid rgba(255,165,0,.4);color:#e08800;border-radius:7px;padding:2px 7px;font-size:18px;font-weight:700;">${esc(terr || 'AUT')}</span>`
-        : '';
-
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f1f5f9;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:19px;letter-spacing:.5px;">${tdis(m.tiempo_seg)}</div>
-          <div style="font-size:18px;color:#93a3b5;">${esc(fechaCorta(m.fecha))} · ${esc(m.piscina)}m</div>
-        </div>
-        <div style="display:flex;gap:5px;flex-shrink:0;">${selloNac}${selloAut}</div>
-      </div>`;
-    }).join('');
-
-    return `<div style="margin-bottom:18px;">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px;">
+  const bloques = agruparPorPrueba(lista).map(g => `
+    <div style="margin-bottom:18px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
         <div style="font-weight:700;font-size:21px;">${esc(g.estilo)} ${g.distancia}m</div>
         <div style="font-size:18px;color:#93a3b5;">${g.marcas.length} marca${g.marcas.length === 1 ? '' : 's'}</div>
       </div>
-      ${filas}
-    </div>`;
-  }).join('');
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${g.marcas.map(m => marcaHtml(m)).join('')}
+      </div>
+    </div>
+  `).join('');
 
   cont.innerHTML = chips + bloques;
 }
