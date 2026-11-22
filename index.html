@@ -281,7 +281,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <select class="input-field" id="ligaSexo" onchange="renderLiga()">
           <option value="M">Masculino</option><option value="F">Femenino</option>
         </select>
-        <div class="full"><select class="input-field" id="ligaJornada" onchange="renderLiga()"></select></div>
+        <div class="full"><select class="input-field" id="ligaAnio" onchange="renderLiga()"></select></div>
       </div>
       <div id="listaLiga"></div>
     </div>
@@ -5599,6 +5599,41 @@ async function cargarLiga(forzar){
   return LIGA.filas;
 }
 
+// Todas las jornadas en una sola clasificación: el mejor tiempo de cada nadador.
+// Mismo criterio para agrupar que el resto de la app: nombre normalizado + club.
+function mejoresPorNadador(filas){
+  const grupos = new Map();
+
+  (filas || []).forEach(r => {
+    const clave = normalizarClub(r.club) + '|' + normalizarClub(r.nadador);
+    const previo = grupos.get(clave);
+    if(!previo){
+      grupos.set(clave, {
+        nadador: r.nadador,
+        club: r.club,
+        anio_nac: r.anio_nac,
+        tiempo: r.tiempo,
+        tiempo_seg: r.tiempo_seg,
+        fecha: r.fecha,
+        sede: r.sede,
+        jornada: r.jornada,
+        veces: 1
+      });
+      return;
+    }
+    previo.veces++;
+    if(r.tiempo_seg < previo.tiempo_seg){
+      previo.tiempo = r.tiempo;
+      previo.tiempo_seg = r.tiempo_seg;
+      previo.fecha = r.fecha;
+      previo.sede = r.sede;
+      previo.jornada = r.jornada;
+    }
+  });
+
+  return [...grupos.values()].sort((a, b) => a.tiempo_seg - b.tiempo_seg);
+}
+
 function fechaLiga(iso){
   const p = String(iso || '').slice(0, 10).split('-');
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '';
@@ -5617,18 +5652,15 @@ async function renderLiga(){
   }
   if(!LIGA.filas.length){
     cont.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>
-      <div class="empty-text">Todavía no hay actas publicadas.<br>Se importan desde Administración con el PDF de resultados de la FNCV.</div></div>`;
+      <div class="empty-text">Todavía no hay actas publicadas.<br>Se importan desde Administración con el botón de sincronizar.</div></div>`;
     return;
   }
 
   const selPrueba = document.getElementById('ligaPrueba');
-  const selJornada = document.getElementById('ligaJornada');
+  const selAnio = document.getElementById('ligaAnio');
 
-  // Opciones de prueba y jornada (se rehacen solo si cambian)
   const pruebas = [...new Set(LIGA.filas.map(r => `${r.estilo}|${r.distancia}`))]
-    .sort((a, b) => a.localeCompare(b, 'es'));
-  const jornadas = [...new Set(LIGA.filas.map(r => r.jornada_clave))]
-    .sort();
+    .sort((x, y) => x.localeCompare(y, 'es'));
 
   if(selPrueba.dataset.opciones !== pruebas.join(';')){
     const elegida = selPrueba.value;
@@ -5640,44 +5672,61 @@ async function renderLiga(){
     selPrueba.dataset.opciones = pruebas.join(';');
   }
 
-  if(selJornada.dataset.opciones !== jornadas.join(';')){
-    const elegida = selJornada.value;
-    selJornada.innerHTML = jornadas.map(k => {
-      const fila = LIGA.filas.find(r => r.jornada_clave === k);
-      const etiqueta = `${fila.jornada || 'Jornada'}${fila.fecha ? ' · ' + fechaLiga(fila.fecha) : ''}`;
-      return `<option value="${esc(k)}">${esc(etiqueta)}</option>`;
-    }).join('');
-    if(jornadas.includes(elegida)) selJornada.value = elegida;
-    selJornada.dataset.opciones = jornadas.join(';');
-  }
-
   const [estilo, dist] = (selPrueba.value || '').split('|');
-  const clave = selJornada.value;
   const sexo = document.getElementById('ligaSexo').value || usuario.sexo;
 
-  const filas = LIGA.filas
-    .filter(r => r.jornada_clave === clave && r.estilo === estilo && String(r.distancia) === String(dist) && r.sexo === sexo)
-    .sort((a, b) => a.tiempo_seg - b.tiempo_seg);
+  // Años de nacimiento que compiten en esa prueba
+  const anios = [...new Set(
+    LIGA.filas
+      .filter(r => r.estilo === estilo && String(r.distancia) === String(dist) && r.sexo === sexo && r.anio_nac)
+      .map(r => String(r.anio_nac))
+  )].sort((x, y) => y.localeCompare(x));
 
-  if(!filas.length){
-    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin resultados para esa prueba en esa jornada</div></div>';
+  if(selAnio.dataset.opciones !== anios.join(';')){
+    const elegida = selAnio.value;
+    selAnio.innerHTML = '<option value="">Todos los años</option>' +
+      anios.map(y => `<option value="${y}">${y} (${getCatLabel(y)})</option>`).join('');
+    if(anios.includes(elegida)) selAnio.value = elegida;
+    selAnio.dataset.opciones = anios.join(';');
+  }
+
+  const anio = selAnio.value;
+
+  const filtradas = LIGA.filas.filter(r =>
+    r.estilo === estilo &&
+    String(r.distancia) === String(dist) &&
+    r.sexo === sexo &&
+    (!anio || String(r.anio_nac) === anio)
+  );
+
+  const clasificacion = mejoresPorNadador(filtradas);
+
+  if(!clasificacion.length){
+    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin resultados para esa prueba</div></div>';
     return;
   }
 
   const miClub = normalizarClub(usuario.club);
-  const cuerpo = filas.map((r, i) => {
+  const jornadas = new Set(filtradas.map(r => r.jornada_clave)).size;
+
+  const cuerpo = clasificacion.map((r, i) => {
     const mio = normalizarClub(r.club) === miClub;
+    const veces = r.veces > 1 ? ` · ${r.veces} veces` : '';
+    const cuando = r.fecha ? ' · ' + fechaLiga(r.fecha) : '';
+
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid #f1f5f9;${mio ? 'background:rgba(0,119,182,.05);' : ''}">
       <div style="width:26px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:19px;color:${i < 3 ? 'var(--amarillo)' : '#93a3b5'};">${i + 1}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:${mio ? '700' : '500'};font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.nadador)}</div>
-        <div style="font-size:18px;color:#93a3b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.club)} · ${r.anio_nac || ''}</div>
+        <div style="font-size:18px;color:#93a3b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.club)} · ${r.anio_nac || ''}${cuando}${veces}</div>
       </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:.5px;color:var(--agua-light);">${esc(r.tiempo)}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:.5px;color:var(--agua-luz,var(--agua-light));">${esc(r.tiempo)}</div>
     </div>`;
   }).join('');
 
-  cont.innerHTML = `<div style="font-size:18px;color:#5a6b7d;margin-bottom:8px;">${filas.length} nadadores · ${esc(estilo)} ${esc(dist)}m · ${sexo === 'F' ? 'Femenino' : 'Masculino'}</div>${cuerpo}`;
+  cont.innerHTML = `<div style="font-size:18px;color:#5a6b7d;margin-bottom:8px;">
+      ${clasificacion.length} nadadores · ${jornadas} jornada${jornadas === 1 ? '' : 's'} · mejor tiempo de la temporada
+    </div>${cuerpo}`;
 }
 
 function normalizarClub(txt){
