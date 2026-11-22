@@ -1986,6 +1986,82 @@ function cambiarVistaPrincipal(vista, btn){
   }
 }
 
+
+// ── Pruebas de cada nadador ────────────────────────────────────────────────
+// athletes.json no trae las inscripciones: hay que pedir los resultados de cada
+// prueba (una petición por evento) y quedarse con quién nada qué.
+const LIVE_PRUEBAS = { cargado: false, cargando: null, meetId: null, porAtleta: {} };
+
+// De [{ev, data}] a { athleteId: [{ev, tiempo, puesto, estado, entrada}] }
+function agruparPruebasPorAtleta(respuestas){
+  const porAtleta = {};
+  (respuestas || []).forEach(({ ev, data }) => {
+    const grupos = (data && data.agegroups) || [];
+    grupos.forEach(g => (g.results || []).forEach(r => {
+      const aid = String(r.athleteid || r.uniqueid || '');
+      if(!aid) return;
+      (porAtleta[aid] = porAtleta[aid] || []).push({
+        ev,
+        tiempo: r.swimtime || '',
+        entrada: r.entrytime || '',
+        puesto: typeof r.place === 'number' ? r.place : -1,
+        estado: r.entrystatus || ''
+      });
+    }));
+  });
+  Object.values(porAtleta).forEach(lista => {
+    lista.sort((a, b) => (parseInt(a.ev.number) || 0) - (parseInt(b.ev.number) || 0));
+  });
+  return porAtleta;
+}
+
+async function cargarPruebasAtletas(onProgreso){
+  const meet = liveCompeticionActual;
+  if(LIVE_PRUEBAS.cargado && LIVE_PRUEBAS.meetId === meet) return LIVE_PRUEBAS.porAtleta;
+  if(LIVE_PRUEBAS.cargando) return LIVE_PRUEBAS.cargando;
+
+  LIVE_PRUEBAS.cargando = (async () => {
+    const eventos = (liveEventosData || []).filter(e => e && e.id);
+    const respuestas = [];
+    const lote = 8;
+
+    for(let i = 0; i < eventos.length; i += lote){
+      const trozo = eventos.slice(i, i + lote);
+      const res = await Promise.all(trozo.map(async ev => {
+        try{
+          const r = await fetch(`${LIVE_BASE}/meets/${meet}/results/${ev.id}.json?t=${Date.now()}`);
+          if(!r.ok) return null;
+          return { ev, data: await r.json() };
+        }catch(e){ return null; }
+      }));
+      res.filter(Boolean).forEach(x => respuestas.push(x));
+      if(onProgreso) onProgreso(Math.min(i + lote, eventos.length), eventos.length);
+    }
+
+    LIVE_PRUEBAS.porAtleta = agruparPruebasPorAtleta(respuestas);
+    LIVE_PRUEBAS.meetId = meet;
+    LIVE_PRUEBAS.cargado = true;
+    return LIVE_PRUEBAS.porAtleta;
+  })();
+
+  try { return await LIVE_PRUEBAS.cargando; }
+  finally { LIVE_PRUEBAS.cargando = null; }
+}
+
+// Las pruebas de un nadador, en HTML
+function htmlPruebasAtleta(id){
+  const lista = LIVE_PRUEBAS.porAtleta[String(id)] || [];
+  if(!lista.length) return '<div style="font-size:13px;color:#93a3b5;">Sin pruebas cargadas</div>';
+
+  return lista.map(p => {
+    const nombre = typeof getNombreEvento === 'function' ? getNombreEvento(p.ev) : '';
+    const tiempo = p.tiempo ? `<strong style="color:var(--agua-light);">${esc(p.tiempo)}</strong>` : '<span style="color:#93a3b5;">pendiente</span>';
+    const puesto = p.puesto > 0 ? ` · ${p.puesto}º` : '';
+    const baja = p.estado ? ` · ${esc(p.estado)}` : '';
+    return `<div style="font-size:13px;color:#5a6b7d;line-height:1.5;">${esc(nombre)} · ${tiempo}${puesto}${baja}</div>`;
+  }).join('');
+}
+
 ﻿/* ══════════════════════════════════════════════════════════════════════════
    CLUBES EN EL LIVE
    ──────────────────────────────────────────────────────────────────────────
@@ -2065,10 +2141,20 @@ function renderVistaNadadoresClub(soloLista){
     return;
   }
 
+  if(!LIVE_PRUEBAS.cargado || LIVE_PRUEBAS.meetId !== liveCompeticionActual){
+    cont.innerHTML = selector + tabs +
+      `<div class="loading"><span class="spinner"></span><span id="livePruebasProgreso">Cargando pruebas…</span></div>`;
+    cargarPruebasAtletas((hechos, total) => {
+      const el = document.getElementById('livePruebasProgreso');
+      if(el) el.textContent = `Cargando pruebas… ${hechos}/${total}`;
+    }).then(() => renderVistaNadadoresClub(true));
+    return;
+  }
+
   const tarjetas = lista.map(a => {
     const nombre = esc(a.lastname ? `${a.lastname}, ${a.firstname}` : (a.fullname || '—'));
-    return `<div class="nadador-card" onclick="abrirPerfilNadadorLive('${escJs(a.id)}')">
-      <div class="nadador-header">
+    return `<div class="nadador-card">
+      <div class="nadador-header" style="cursor:pointer;" onclick="abrirPerfilNadadorLive('${escJs(a.id)}')">
         <div class="nadador-avatar">🏊</div>
         <div style="flex:1;">
           <div class="nadador-nombre">${nombre}</div>
@@ -2076,11 +2162,14 @@ function renderVistaNadadoresClub(soloLista){
         </div>
         <div style="font-size:18px;color:rgba(90,107,125,.5);">›</div>
       </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid #eef3f8;">
+        ${htmlPruebasAtleta(a.id)}
+      </div>
     </div>`;
   }).join('');
 
   cont.innerHTML = selector + tabs +
-    `<div style="font-size:13px;color:#5a6b7d;margin-bottom:10px;">${lista.length} nadador${lista.length === 1 ? '' : 'es'} · toca para ver todas sus pruebas</div>` +
+    `<div style="font-size:13px;color:#5a6b7d;margin-bottom:10px;">${lista.length} nadador${lista.length === 1 ? '' : 'es'}</div>` +
     tarjetas;
 }
 
