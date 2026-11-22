@@ -2315,7 +2315,7 @@ function renderResultRow(r,ev,i,etiqueta){
     else entSeg=parseFloat(entRaw)||0;
     if(entSeg>0&&swimSeg>0){
       const diff=swimSeg-entSeg;
-      const diffStr=diff<=0?`<span style="color:var(--verde);font-size:15px;">▼${Math.abs(diff).toFixed(2)}s</span>`:`<span style="color:#ff6b81;font-size:15px;">▲${diff.toFixed(2)}s</span>`;
+      const diffStr=diff<=0?`<span style="color:var(--verde);font-size:15px;">🚀${Math.abs(diff).toFixed(2)}s</span>`:`<span style="color:#ff6b81;font-size:15px;">▲${diff.toFixed(2)}s</span>`;
       const piscinaIns=(r.entrycourse==='1'||r.entrycourse===1)?'50m':'25m';
       entryStr=`<div style="font-size:15px;color:rgba(90,107,125,.6);">Ins: ${formatTiempoLive(entSeg*100)} (${piscinaIns}) ${diffStr}</div>`;
     }
@@ -2526,8 +2526,8 @@ function renderPruebaNadadorCard(ev,r){
     const entSeg=parsearTiempoSeg(r.entrytime);
     const diff=swimSeg-entSeg;
     mejoraHtml = diff<=0
-      ? `<span style="color:var(--verde);font-weight:600;">▼ ${Math.abs(diff).toFixed(2)}s mejor</span>`
-      : `<span style="color:#ff6b81;font-weight:600;">▲ ${diff.toFixed(2)}s peor</span>`;
+      ? `<span style="color:var(--verde);font-weight:600;">🚀 ${Math.abs(diff).toFixed(2)}s</span>`
+      : `<span style="color:#ff6b81;font-weight:600;">▲ ${diff.toFixed(2)}s</span>`;
   }
 
   // Serie y calle
@@ -4328,6 +4328,12 @@ function agruparCampeonatos(filas){
   return Array.from(mapa.values()).sort((a, b) => String(a.fecha_inicio).localeCompare(String(b.fecha_inicio)));
 }
 
+// Último día del campeonato: mientras no pase, sigue siendo "el que toca".
+// Una jornada de sábado y domingo no desaparece el domingo por la mañana.
+function finCampeonato(c){
+  return String((c && (c.fecha_fin || c.fecha_inicio)) || '');
+}
+
 // ¿Esta competición es para este nadador? Se mira la categoría y, si la
 // competición reparte grupos, que su club esté en alguno de ellos.
 function campeonatoParaNadador(g, u){
@@ -4358,18 +4364,16 @@ function proximoCampeonato(filas, hoy, u){
   const quien = (u !== undefined) ? u : (typeof usuario !== 'undefined' ? usuario : null);
   const lista = (filas || []).filter(c => c && c.fecha_inicio && campeonatoParaNadador(c, quien));
 
-  const abiertos = lista.filter(c => {
-    const d = diasHasta(c.plazo_inscripcion || c.fecha_inicio, hoy);
-    return d !== null && d >= 0;
-  });
-  const candidatos = abiertos.length ? abiertos : lista.filter(c => diasHasta(c.fecha_inicio, hoy) >= 0);
-  if(!candidatos.length) return null;
+  // Sigue viva mientras no haya terminado (no cuando empieza)
+  const vivas = lista.filter(c => diasHasta(finCampeonato(c), hoy) >= 0);
+  if(!vivas.length) return null;
 
-  // Varias jornadas caen el mismo día en sedes distintas y no todas publican sus
-  // grupos. Si entre las de esa fecha hay una que dice el grupo del club, esa es
-  // la buena: es la única información explícita que tenemos.
-  const fechaMin = candidatos[0].fecha_inicio;
-  const mismoDia = candidatos.filter(c => c.fecha_inicio === fechaMin);
+  // Si hay una en curso, esa manda: el domingo sigues nadando la del sábado
+  const enCurso = vivas.filter(c => diasHasta(c.fecha_inicio, hoy) <= 0);
+  const base = enCurso.length ? enCurso : vivas;
+
+  const fechaMin = base[0].fecha_inicio;
+  const mismoDia = base.filter(c => c.fecha_inicio === fechaMin);
 
   const mio = (quien && typeof grupoDeClub === 'function') ? grupoDeClub(quien.club) : null;
   if(mio){
@@ -4383,9 +4387,25 @@ function proximoCampeonato(filas, hoy, u){
   return mismoDia[0];
 }
 
-// Tarjeta con el próximo plazo (se pinta en la pantalla de clasificación)
+// Texto del estado: en curso, pendiente o terminada
+function estadoCompeticion(c, hoy){
+  const dIni = diasHasta(c.fecha_inicio, hoy);
+  const dFin = diasHasta(finCampeonato(c), hoy);
+
+  if(dIni !== null && dFin !== null && dIni <= 0 && dFin >= 0){
+    return { texto: (dIni === 0 && dFin === 0) ? 'es hoy' : 'en curso', color: 'var(--agua-light)', urgente: true };
+  }
+  if(dIni !== null && dIni > 0){
+    if(c.plazo_inscripcion){
+      const p = textoPlazo(c.plazo_inscripcion, hoy);
+      if(p) return p;
+    }
+    return textoPlazo(c.fecha_inicio, hoy, false);
+  }
+  return { texto: 'finalizada', color: '#93a3b5', urgente: false };
+}
+
 // Enlace universal de Google Maps: en el móvil abre la app, si no el navegador.
-// Se usa la instalación cuando la hay, porque la sede sola suele ser ambigua.
 function urlMapa(sede, instalacion){
   const q = [instalacion, sede].filter(Boolean).join(', ').trim();
   if(!q) return null;
@@ -4409,7 +4429,7 @@ async function renderProxCampeonato(){
   const c = proximoCampeonato(agruparCampeonatos(CAMPEONATOS.filas), undefined, usuario);
   if(!c){ vaciar(); return; }
 
-  const p = c.plazo_inscripcion ? textoPlazo(c.plazo_inscripcion) : textoPlazo(c.fecha_inicio, undefined, false);
+  const p = estadoCompeticion(c);
   const mia = c.sedes.find(s => sedeSugerida(s, usuario?.club));
   const sedeTxt = mia ? mia.sede : (c.sedes.length === 1 ? c.sedes[0].sede : 'varias sedes');
   const piscinaTxt = mia && mia.piscina ? ` · piscina de ${mia.piscina} m` : '';
@@ -4458,7 +4478,7 @@ async function renderCampeonatos(){
   const pasados = grupos.filter(g => diasHasta(g.fecha_inicio, hoy) < 0);
 
   const tarjeta = (g) => {
-    const p = g.plazo_inscripcion ? textoPlazo(g.plazo_inscripcion, hoy) : textoPlazo(g.fecha_inicio, hoy, false);
+    const p = estadoCompeticion(g, hoy);
     const fechas = g.fecha_fin && String(g.fecha_fin) !== String(g.fecha_inicio)
       ? `${fechaLarga(g.fecha_inicio)} – ${fechaLarga(g.fecha_fin)}`
       : fechaLarga(g.fecha_inicio);
@@ -4477,7 +4497,7 @@ async function renderCampeonatos(){
     const enlace = g.sedes.find(s => s.enlace)?.enlace;
 
     const aplica = campeonatoParaNadador(g, usuario);
-    return `<div class="card" style="margin-bottom:10px;${diasHasta(g.fecha_inicio, hoy) < 0 ? 'opacity:.55;' : (aplica ? '' : 'opacity:.6;')}">
+    return `<div class="card" style="margin-bottom:10px;${diasHasta(finCampeonato(g), hoy) < 0 ? 'opacity:.55;' : (aplica ? '' : 'opacity:.6;')}">
       <div style="font-weight:600;font-size:15px;">${esc(g.nombre)}${aplica ? '' : ' <span style="font-size:11px;color:#93a3b5;font-weight:400;">· no es de tu categoría</span>'}</div>
       <div style="font-size:13px;color:rgba(90,107,125,.9);margin-top:2px;">${fechas}</div>
       <div style="margin-top:4px;">${sedes}</div>
@@ -4566,7 +4586,7 @@ async function borrarTodosCampeonatos(){
   await renderAdminCampeonatos();
   renderProxCampeonato();
 }
-/* ══════════════════════════════════════════════════════════════════════════
+﻿/* ══════════════════════════════════════════════════════════════════════════
    PROGRESIÓN
    ──────────────────────────────────────────────────────────────────────────
    Evolución de un nadador en una prueba, con la mínima como línea de
@@ -4734,7 +4754,7 @@ function renderProgreso(valor){
       const previa = arr[i + 1];
       const delta = previa ? s.seg - previa.seg : null;
       const deltaTxt = delta === null ? ''
-        : `<span style="color:${delta <= 0 ? 'var(--verde)' : '#ff6b81'};font-size:12px;">${delta <= 0 ? '▼' : '▲'} ${Math.abs(delta).toFixed(2)}</span>`;
+        : `<span style="color:${delta <= 0 ? 'var(--verde)' : '#ff6b81'};font-size:12px;">${delta <= 0 ? '🚀' : '▲'} ${Math.abs(delta).toFixed(2)}</span>`;
       const fecha = s.fecha ? `${String(s.fecha.getDate()).padStart(2, '0')}/${String(s.fecha.getMonth() + 1).padStart(2, '0')}/${s.fecha.getFullYear()}` : '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid #eef3f8;font-size:13px;">
         <span style="width:78px;color:#7c8b9c;">${fecha}</span>
