@@ -270,6 +270,22 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
   </div>
   <div class="content">
 
+    <!-- LIGA: resultados oficiales -->
+    <div class="screen" id="screenLiga">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button onclick="showScreen('Ranking')" style="background:rgba(26,26,46,.06);border:1px solid var(--card-border);border-radius:10px;padding:7px 12px;color:#3d4a58;font-size:18px;cursor:pointer;">← Ranking</button>
+        <div class="section-title" style="margin:0;">Resultados de liga</div>
+      </div>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <select class="input-field" id="ligaPrueba" onchange="renderLiga()"></select>
+        <select class="input-field" id="ligaSexo" onchange="renderLiga()">
+          <option value="M">Masculino</option><option value="F">Femenino</option>
+        </select>
+        <div class="full"><select class="input-field" id="ligaJornada" onchange="renderLiga()"></select></div>
+      </div>
+      <div id="listaLiga"></div>
+    </div>
+
     <!-- MARCAS (nadador) / EQUIPO (entrenador) -->
     <div class="screen active" id="screenMarcas">
       <div class="section-title" id="titleMarcas">Mis Marcas</div>
@@ -446,6 +462,7 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         </div>
       </div>
       <div id="listaRanking"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+      <button onclick="showScreen('Liga');renderLiga()" style="width:100%;margin-top:12px;padding:12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:var(--agua-light);font-size:20px;font-weight:600;cursor:pointer;">📋 Resultados oficiales de liga ›</button>
     </div>
 
     <!-- ADMIN MÍNIMAS -->
@@ -486,6 +503,24 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <div id="admPdfEstado" style="font-size:17px;margin-top:8px;line-height:1.45;"></div>
         <button class="btn-primary" id="admPdfPublicar" style="display:none;margin-top:8px;" onclick="publicarPdfAdmin()">Publicar</button>
       </details>
+      <details style="margin-top:18px;">
+        <summary style="cursor:pointer;font-size:18px;color:var(--agua-light);">Importar acta de liga (resultados)</summary>
+        <div style="font-size:20px;color:#5a6b7d;margin:8px 0;line-height:1.6;">
+          Sube el PDF de <strong>Resultados</strong> de una jornada (el enlace "Resultados" de fncv.es/natacion-ligas).
+          Se guardan todos los nadadores de todas las pruebas, con su club y su tiempo.
+        </div>
+        <input type="file" id="actaArchivo" accept="application/pdf" style="width:100%;font-size:21px;color:#3d4a58;">
+        <div class="form-grid" style="margin-top:8px;">
+          <input class="input-field" id="actaJornada" placeholder="Nombre de la jornada (se lee del PDF)">
+          <input class="input-field" id="actaFecha" type="date" placeholder="Fecha">
+          <div class="full"><input class="input-field" id="actaClave" placeholder="Clave del acta (opcional, para no duplicar)"></div>
+        </div>
+        <button class="btn-primary" style="margin-top:8px;" onclick="importarActaLiga()">Leer acta</button>
+        <button class="btn-primary" id="btnSincronizarLiga" style="margin-top:8px;margin-left:8px;background:linear-gradient(135deg,var(--agua),var(--splash));" onclick="sincronizarLiga()">Sincronizar todas las publicadas</button>
+        <div id="actaEstado" style="font-size:21px;margin-top:8px;line-height:1.45;"></div>
+        <button class="btn-primary" id="btnPublicarActa" style="display:none;margin-top:8px;" onclick="publicarActa()">Publicar resultados</button>
+      </details>
+
       <details style="margin-top:18px;">
         <summary style="cursor:pointer;font-size:18px;color:var(--agua-light);">Pegar filas desde Excel</summary>
         <div style="font-size:16px;color:#5a6b7d;margin:8px 0;line-height:1.6;">
@@ -1580,6 +1615,7 @@ function showScreen(name){
   if(name==='Progreso')renderProgreso();
   if(name==='Campeonatos')renderCampeonatos();
   if(name==='MisMinimas')renderMisMinimas();
+  if(name==='Liga')renderLiga();
 }
 
 // -- MIS MARCAS (nadador) ---------------------------------
@@ -5179,6 +5215,441 @@ function renderMisMinimas(){
   `).join('');
 
   cont.innerHTML = chips + bloques;
+}
+
+﻿/* ══════════════════════════════════════════════════════════════════════════
+   RESULTADOS OFICIALES DE LIGA
+   ──────────────────────────────────────────────────────────────────────────
+   Las actas que la FNCV publica en fncv.es/natacion-ligas son PDFs de Splash
+   Meet Manager. Aquí se leen, se convierten en filas y se guardan para poder
+   consultarlas por prueba, con todos los clubes.
+
+   Formato de cada prueba dentro del acta:
+     Prueba 1 Masc., 400m Libre 14 - 51 años
+     24/10/2026 Resultados
+     14 - 15 años resultados provisionales
+     1. DAUDEN SOUSA, Dimas 12 Vila-Swim Fondistas Club Natación 4:40.17 434
+     50m: 31.86 100m: 1:07.48 ...        <- splits, se ignoran
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const LIGA = { filas: [], cargada: false, error: null, cargando: false };
+
+const RE_LIGA_PRUEBA = /Prueba\s+(\d+)\s+(Mas|Fem)\w*\.?,\s*(\d+)\s*m\s+(.+?)\s+(\d+)\s*-\s*(\d+)\s*a[nñ]os/i;
+const RE_LIGA_RESULTADO = /^\s*(\d+)\.\s+(.+?)\s+(\d{2})\s+(.+?)\s+(\d{1,2}:\d{2}\.\d{2}|\d{1,2}\.\d{2})\s*(.*)$/;
+const RE_LIGA_EDAD = /^(\d+)\s*-\s*(\d+)\s*a[nñ]os/i;
+
+function ligaSegundos(txt){
+  const s = String(txt || '').trim().replace(',', '.');
+  const m = s.match(/^(\d{1,2}):(\d{2})\.(\d{2})$/) || s.match(/^(\d{1,2})\.(\d{2})$/);
+  if(!m) return null;
+  return m.length === 4
+    ? parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3]) / 100
+    : parseInt(m[1]) + parseInt(m[2]) / 100;
+}
+
+// Líneas de texto del acta → resultados. Puro: no toca red ni DOM.
+function parsearLineasActa(lineas, meta){
+  const base = meta || {};
+  const resultados = [];
+  let prueba = null;
+  let bloqueEdad = null;
+
+  (lineas || []).forEach(bruta => {
+    const linea = String(bruta || '').trim();
+    if(!linea) return;
+
+    const mp = linea.match(RE_LIGA_PRUEBA);
+    if(mp){
+      prueba = {
+        numero: parseInt(mp[1]),
+        sexo: /^fem/i.test(mp[2]) ? 'F' : 'M',
+        distancia: parseInt(mp[3]),
+        estilo: mp[4].trim(),
+        edad_min: parseInt(mp[5]),
+        edad_max: parseInt(mp[6])
+      };
+      bloqueEdad = null;
+      return;
+    }
+
+    const me = linea.match(RE_LIGA_EDAD);
+    if(me){ bloqueEdad = [parseInt(me[1]), parseInt(me[2])]; return; }
+
+    if(!prueba) return;
+
+    const mr = linea.match(RE_LIGA_RESULTADO);
+    if(!mr) return;
+
+    const puesto = parseInt(mr[1]);
+    const nadador = mr[2].trim();
+    const anio = parseInt(mr[3]);
+    const club = mr[4].trim();
+    const tiempo = mr[5];
+    const resto = (mr[6] || '').trim();
+
+    // Descarta líneas de parciales que encajan por casualidad
+    if(/m:/.test(nadador) || /^\d+m:/.test(linea)) return;
+
+    const seg = ligaSegundos(tiempo);
+    if(seg === null) return;
+
+    const puntos = (resto.match(/^(\d+)/) || [])[1];
+
+    resultados.push({
+      jornada_clave: base.clave || '',
+      jornada: base.nombre || '',
+      fecha: base.fecha || null,
+      sede: base.sede || null,
+      prueba_num: prueba.numero,
+      sexo: prueba.sexo,
+      distancia: prueba.distancia,
+      estilo: prueba.estilo,
+      edad_min: bloqueEdad ? bloqueEdad[0] : prueba.edad_min,
+      edad_max: bloqueEdad ? bloqueEdad[1] : prueba.edad_max,
+      puesto,
+      nadador,
+      anio_nac: 2000 + anio,
+      club,
+      tiempo,
+      tiempo_seg: seg,
+      puntos: puntos ? parseInt(puntos) : null,
+      codigo: resto.replace(/^\d+\s*/, '') || null,
+      fuente: base.fuente || null
+    });
+  });
+
+  return resultados;
+}
+
+// Primera página del acta: nombre de la jornada, fecha y sede
+function cabeceraActa(lineas){
+  const texto = (lineas || []).join('\n');
+  const nombre = (texto.match(/(\d+[ªº]\s+JORNADA[^\n]*)/i) || [])[1] || '';
+  const fechaTxt = (texto.match(/(\d{1,2})\s+de\s+(\w{3})\w*\s+de\s+(\d{4})/i) || []);
+  const meses = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12 };
+  let fecha = null;
+  if(fechaTxt.length === 4){
+    const mes = meses[fechaTxt[2].toLowerCase().slice(0, 3)];
+    if(mes) fecha = `${fechaTxt[3]}-${String(mes).padStart(2, '0')}-${String(fechaTxt[1]).padStart(2, '0')}`;
+  }
+  return { nombre: nombre.trim(), fecha, sede: '' };
+}
+
+// PDF del acta → líneas de texto (una por renglón)
+async function leerLineasActa(arrayBuffer){
+  const pdfjs = await cargarPdfJs();
+  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  const lineas = [];
+
+  for(let n = 1; n <= pdf.numPages; n++){
+    const pagina = await pdf.getPage(n);
+    const contenido = await pagina.getTextContent();
+    const items = contenido.items
+      .filter(it => it.str && it.str.trim())
+      .map(it => ({ x: it.transform[4], y: it.transform[5], s: it.str }));
+    pdfLineas(items, 3).forEach(g => {
+      lineas.push(g.items.map(i => i.s).join(' ').replace(/\s+/g, ' ').trim());
+    });
+  }
+  return lineas;
+}
+
+// ── Descubrimiento: qué actas hay publicadas ───────────────────────────────
+// La página de ligas es HTML con JavaScript; se lee con el mismo lector que el
+// calendario, que devuelve markdown con los enlaces ya resueltos.
+function claveDeActa(url){
+  const m = String(url || '').match(/\/(\d+)_[^\/]*\.pdf/i);
+  return m ? m[1] : String(url || '');
+}
+
+const MESES_LIGA = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12 };
+
+function fechaDeBloque(txt){
+  const m = String(txt || '').match(/(\d{1,2})\s+(?:al\s+\d{1,2}\s+)?de\s+(\w{3})\w*\s+de\s+(\d{4})/i);
+  if(!m) return null;
+  const mes = MESES_LIGA[m[2].toLowerCase().slice(0, 3)];
+  if(!mes) return null;
+  return `${m[3]}-${String(mes).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+}
+
+// Markdown de la página de ligas → [{titulo, fecha, resultados, clave}]
+function parsearLigasFncv(markdown){
+  const salida = [];
+  let actual = null;
+
+  String(markdown || '').split('\n').forEach(linea => {
+    const titulo = linea.match(/^###\s+(.+?)\s*$/);
+    if(titulo){
+      actual = { titulo: titulo[1].replace(/\s+/g, ' ').trim(), fecha: null, resultados: null, clave: null };
+      salida.push(actual);
+      return;
+    }
+    if(!actual) return;
+
+    if(!actual.fecha) actual.fecha = fechaDeBloque(linea);
+
+    const enlace = linea.match(/\[Resultados\]\((https?:\/\/[^)]+)\)/i);
+    if(enlace){
+      actual.resultados = enlace[1];
+      actual.clave = claveDeActa(enlace[1]);
+    }
+  });
+
+  return salida.filter(x => x.titulo);
+}
+
+// ── Sincronización automática ──────────────────────────────────────────────
+async function sincronizarLiga(){
+  const estado = document.getElementById('actaEstado');
+  const boton = document.getElementById('btnSincronizarLiga');
+
+  if(!usuario || (usuario.rol !== 'admin_federacion' && usuario.rol !== 'admin')){
+    estado.textContent = 'Solo un administrador puede sincronizar.';
+    return;
+  }
+
+  if(boton) boton.disabled = true;
+  estado.textContent = 'Buscando actas publicadas en la FNCV…';
+
+  try{
+    const resp = await fetch(LECTOR_URL + 'https://www.fncv.es/natacion-ligas');
+    if(!resp.ok) throw new Error('la página de la FNCV no respondió (' + resp.status + ')');
+
+    const lista = parsearLigasFncv(await resp.text()).filter(x => x.resultados && x.clave);
+    if(!lista.length) throw new Error('no se ha encontrado ningún acta con resultados');
+
+    const yaImportadas = new Set((LIGA.filas || []).map(r => r.jornada_clave));
+    const pendientes = lista.filter(x => !yaImportadas.has(x.clave));
+
+    estado.textContent = `${lista.length} actas publicadas · ${lista.length - pendientes.length} ya importadas · ${pendientes.length} por importar…`;
+
+    if(!pendientes.length){
+      estado.textContent = `Todo al día: ${lista.length} actas publicadas, todas importadas.`;
+      return;
+    }
+
+    let hechas = 0, filas = 0;
+    for(const acta of pendientes){
+      estado.textContent = `Importando ${hechas + 1}/${pendientes.length}: ${acta.titulo.slice(0, 45)}…`;
+
+      const r = await fetch('/api/actas?url=' + encodeURIComponent(acta.resultados));
+      if(!r.ok) throw new Error('no se pudo descargar el acta ' + acta.clave + ' (' + r.status + ')');
+
+      const lineas = await leerLineasActa(await r.arrayBuffer());
+      const resultados = parsearLineasActa(lineas, {
+        nombre: acta.titulo,
+        fecha: acta.fecha,
+        clave: acta.clave,
+        fuente: acta.resultados
+      });
+
+      for(let i = 0; i < resultados.length; i += 500){
+        const lote = resultados.slice(i, i + 500);
+        const { error } = await sb.from('resultados_liga')
+          .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
+        if(error) throw error;
+      }
+
+      hechas++;
+      filas += resultados.length;
+    }
+
+    LIGA.cargada = false;
+    estado.textContent = `✅ ${hechas} actas importadas · ${filas} resultados.`;
+    if(document.getElementById('listaLiga')) renderLiga();
+
+  }catch(e){
+    estado.textContent = 'Error: ' + e.message;
+  }finally{
+    if(boton) boton.disabled = false;
+  }
+}
+
+// ── Importación (admin) ────────────────────────────────────────────────────
+let ACTA_PENDIENTE = null;
+
+async function importarActaLiga(){
+  const input = document.getElementById('actaArchivo');
+  const estado = document.getElementById('actaEstado');
+  const archivo = input && input.files && input.files[0];
+  if(!archivo){ estado.textContent = 'Elige primero el PDF del acta.'; return; }
+
+  estado.textContent = 'Leyendo el PDF…';
+  ACTA_PENDIENTE = null;
+
+  try{
+    const buffer = await archivo.arrayBuffer();
+    const lineas = await leerLineasActa(buffer);
+
+    const cab = cabeceraActa(lineas);
+    const nombre = (document.getElementById('actaJornada').value || '').trim() || cab.nombre;
+    const fecha = (document.getElementById('actaFecha').value || '').trim() || cab.fecha;
+    const clave = (document.getElementById('actaClave').value || '').trim() || (nombre + '|' + (fecha || ''));
+
+    const resultados = parsearLineasActa(lineas, {
+      nombre, fecha, clave, sede: '', fuente: archivo.name
+    });
+
+    if(!resultados.length){
+      estado.textContent = 'No se ha encontrado ningún resultado. ¿Seguro que es el PDF de actas y no el de series?';
+      return;
+    }
+
+    const pruebas = new Set(resultados.map(r => `${r.estilo} ${r.distancia}`)).size;
+    const clubes = new Set(resultados.map(r => r.club)).size;
+
+    ACTA_PENDIENTE = resultados;
+    estado.textContent = `${resultados.length} resultados · ${pruebas} pruebas · ${clubes} clubes — «${nombre}»${fecha ? ' (' + fecha + ')' : ''}`;
+    document.getElementById('btnPublicarActa').style.display = 'inline-block';
+  }catch(e){
+    estado.textContent = 'Error al leer el PDF: ' + e.message;
+  }
+}
+
+async function publicarActa(){
+  const estado = document.getElementById('actaEstado');
+  if(!ACTA_PENDIENTE || !ACTA_PENDIENTE.length){ estado.textContent = 'No hay nada que publicar.'; return; }
+
+  const boton = document.getElementById('btnPublicarActa');
+  boton.disabled = true;
+  estado.textContent = 'Publicando…';
+
+  try{
+    for(let i = 0; i < ACTA_PENDIENTE.length; i += 500){
+      const lote = ACTA_PENDIENTE.slice(i, i + 500);
+      const { error } = await sb.from('resultados_liga')
+        .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
+      if(error) throw error;
+      estado.textContent = `Publicando… ${Math.min(i + 500, ACTA_PENDIENTE.length)}/${ACTA_PENDIENTE.length}`;
+    }
+    estado.textContent = `✅ ${ACTA_PENDIENTE.length} resultados publicados.`;
+    ACTA_PENDIENTE = null;
+    boton.style.display = 'none';
+    LIGA.cargada = false;
+  }catch(e){
+    estado.textContent = 'Error al publicar: ' + e.message;
+  }finally{
+    boton.disabled = false;
+  }
+}
+
+// ── Consulta ───────────────────────────────────────────────────────────────
+async function cargarLiga(forzar){
+  if(LIGA.cargada && !forzar) return LIGA.filas;
+  if(LIGA.cargando) return LIGA.filas;
+
+  LIGA.cargando = true;
+  try{
+    const todas = [];
+    let desde = 0;
+    for(;;){
+      const { data, error } = await sb.from('resultados_liga')
+        .select('jornada_clave,jornada,fecha,sede,prueba_num,sexo,distancia,estilo,edad_min,edad_max,puesto,nadador,anio_nac,club,tiempo,tiempo_seg,puntos')
+        .order('jornada_clave').order('prueba_num').order('tiempo_seg')
+        .range(desde, desde + 999);
+      if(error) throw error;
+      const lote = data || [];
+      todas.push(...lote);
+      if(lote.length < 1000) break;
+      desde += 1000;
+    }
+    LIGA.filas = todas;
+    LIGA.cargada = true;
+    LIGA.error = null;
+  }catch(e){
+    LIGA.error = e.message;
+  }finally{
+    LIGA.cargando = false;
+  }
+  return LIGA.filas;
+}
+
+function fechaLiga(iso){
+  const p = String(iso || '').slice(0, 10).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : '';
+}
+
+async function renderLiga(){
+  const cont = document.getElementById('listaLiga');
+  if(!cont) return;
+
+  cont.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando resultados…</div>';
+  await cargarLiga();
+
+  if(LIGA.error){
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">No se pudieron cargar los resultados.<br>${esc(LIGA.error)}</div></div>`;
+    return;
+  }
+  if(!LIGA.filas.length){
+    cont.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div>
+      <div class="empty-text">Todavía no hay actas publicadas.<br>Se importan desde Administración con el PDF de resultados de la FNCV.</div></div>`;
+    return;
+  }
+
+  const selPrueba = document.getElementById('ligaPrueba');
+  const selJornada = document.getElementById('ligaJornada');
+
+  // Opciones de prueba y jornada (se rehacen solo si cambian)
+  const pruebas = [...new Set(LIGA.filas.map(r => `${r.estilo}|${r.distancia}`))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  const jornadas = [...new Set(LIGA.filas.map(r => r.jornada_clave))]
+    .sort();
+
+  if(selPrueba.dataset.opciones !== pruebas.join(';')){
+    const elegida = selPrueba.value;
+    selPrueba.innerHTML = pruebas.map(p => {
+      const [estilo, dist] = p.split('|');
+      return `<option value="${esc(p)}">${esc(estilo)} ${esc(dist)}m</option>`;
+    }).join('');
+    if(pruebas.includes(elegida)) selPrueba.value = elegida;
+    selPrueba.dataset.opciones = pruebas.join(';');
+  }
+
+  if(selJornada.dataset.opciones !== jornadas.join(';')){
+    const elegida = selJornada.value;
+    selJornada.innerHTML = jornadas.map(k => {
+      const fila = LIGA.filas.find(r => r.jornada_clave === k);
+      const etiqueta = `${fila.jornada || 'Jornada'}${fila.fecha ? ' · ' + fechaLiga(fila.fecha) : ''}`;
+      return `<option value="${esc(k)}">${esc(etiqueta)}</option>`;
+    }).join('');
+    if(jornadas.includes(elegida)) selJornada.value = elegida;
+    selJornada.dataset.opciones = jornadas.join(';');
+  }
+
+  const [estilo, dist] = (selPrueba.value || '').split('|');
+  const clave = selJornada.value;
+  const sexo = document.getElementById('ligaSexo').value || usuario.sexo;
+
+  const filas = LIGA.filas
+    .filter(r => r.jornada_clave === clave && r.estilo === estilo && String(r.distancia) === String(dist) && r.sexo === sexo)
+    .sort((a, b) => a.tiempo_seg - b.tiempo_seg);
+
+  if(!filas.length){
+    cont.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin resultados para esa prueba en esa jornada</div></div>';
+    return;
+  }
+
+  const miClub = normalizarClub(usuario.club);
+  const cuerpo = filas.map((r, i) => {
+    const mio = normalizarClub(r.club) === miClub;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid #f1f5f9;${mio ? 'background:rgba(0,119,182,.05);' : ''}">
+      <div style="width:26px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:19px;color:${i < 3 ? 'var(--amarillo)' : '#93a3b5'};">${i + 1}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:${mio ? '700' : '500'};font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.nadador)}</div>
+        <div style="font-size:18px;color:#93a3b5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.club)} · ${r.anio_nac || ''}</div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:21px;letter-spacing:.5px;color:var(--agua-light);">${esc(r.tiempo)}</div>
+    </div>`;
+  }).join('');
+
+  cont.innerHTML = `<div style="font-size:18px;color:#5a6b7d;margin-bottom:8px;">${filas.length} nadadores · ${esc(estilo)} ${esc(dist)}m · ${sexo === 'F' ? 'Femenino' : 'Masculino'}</div>${cuerpo}`;
+}
+
+function normalizarClub(txt){
+  return String(txt || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 </script>
