@@ -1,0 +1,27 @@
+{
+  "name": "Mínimas RFEN",
+  "short_name": "Mínimas",
+  "description": "Mínimas, marcas, ranking y calendario de natación de la RFEN",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0077b6",
+  "categories": ["sports", "health"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
