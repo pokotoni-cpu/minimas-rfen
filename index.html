@@ -5515,6 +5515,7 @@ async function listarActasPublicadas(onProgreso){
 // ── Sincronización automática ──────────────────────────────────────────────
 // Actas que han fallado en la última sincronización, para poder reintentarlas
 let ACTAS_FALLIDAS = [];
+let ACTAS_VACIAS = [];   // publicadas por la FNCV pero sin contenido
 
 function nombreArchivo(url){
   try { return decodeURIComponent(String(url).split('/').pop() || ''); }
@@ -5549,6 +5550,7 @@ async function sincronizarLiga(soloFallidas){
     }
 
     ACTAS_FALLIDAS = [];
+    ACTAS_VACIAS = [];
 
     if(!pendientes.length){
       estado.textContent = `Todo al día: ${actas.length} actas publicadas, todas importadas.`;
@@ -5562,7 +5564,16 @@ async function sincronizarLiga(soloFallidas){
       estado.textContent = `Importando ${hechas + fallos + 1}/${pendientes.length}: ${acta.clave.replace(/_/g, ' ').slice(0, 40)}…`;
       try{
         const r = await descargarDeFncv(acta.url);
-        const lineas = await leerLineasActa(await r.arrayBuffer());
+        const bytes = await r.arrayBuffer();
+
+        // La FNCV a veces publica el enlace con el PDF vacío: no es un fallo
+        // nuestro y no se arregla reintentando, así que se avisa aparte.
+        if(bytes.byteLength < 2000){
+          ACTAS_VACIAS.push({ nombre: nombreArchivo(acta.url), bytes: bytes.byteLength });
+          continue;
+        }
+
+        const lineas = await leerLineasActa(bytes);
         const cab = cabeceraActa(lineas);
 
         const resultados = parsearLineasActa(lineas, {
@@ -5612,6 +5623,17 @@ async function sincronizarLiga(soloFallidas){
           '⚠️ <strong>' + esc(f.nombre) + '</strong><br><span style="color:#a05a60;">' + esc(f.error) + '</span></div>'
         ).join('') +
         '<button class="btn-primary" style="margin-top:8px;font-size:20px;" onclick="sincronizarLiga(true)">Reintentar solo estas</button>' +
+        '</div>';
+    }
+
+    if(ACTAS_VACIAS.length){
+      aviso += '<div style="margin-top:10px;padding:12px;border:1px solid #f0dba8;background:#fffbf0;border-radius:10px;">' +
+        '<div style="font-size:20px;font-weight:600;color:#8a6d00;margin-bottom:6px;">Publicadas pero vacías en la FNCV:</div>' +
+        ACTAS_VACIAS.map(f =>
+          '<div style="font-size:19px;color:#7a6100;line-height:1.5;">' +
+          '📄 <strong>' + esc(f.nombre) + '</strong> — ' + (f.bytes / 1024).toFixed(1) + ' KB</div>'
+        ).join('') +
+        '<div style="font-size:18px;color:#8a6b20;margin-top:6px;">La federación las ha colgado sin contenido. Cuando las suban bien, vuelve a sincronizar.</div>' +
         '</div>';
     }
 
