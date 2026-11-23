@@ -176,7 +176,9 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
 .result-club-text{font-size:19px;color:rgba(90,107,125,.8);}
 .result-tiempo{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;color:var(--agua-light);}
 .result-minima{font-size:19px;padding:2px 6px;border-radius:10px;margin-left:4px;}
-.mi-club{border-color:var(--agua-light)!important;background:rgba(144,224,239,.06)!important;}
+.mi-club{border-color:var(--agua-light)!important;border-left-width:5px!important;background:rgba(0,119,182,.10)!important;box-shadow:0 1px 6px rgba(0,119,182,.14);}
+.mi-club .ranking-nombre{color:var(--agua-light);}
+.chip-yo{display:inline-block;background:var(--agua-light);color:#fff;border-radius:6px;padding:1px 7px;font-size:16px;font-weight:700;letter-spacing:.4px;vertical-align:middle;margin-left:6px;}
 .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--verde);color:#003d2e;padding:10px 20px;border-radius:50px;font-weight:600;font-size:18px;opacity:0;transition:all .3s;z-index:300;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 @media(min-width:480px){.app{border-left:1px solid var(--card-border);border-right:1px solid var(--card-border);}}
@@ -3441,15 +3443,18 @@ function filaRankingHtml(o, i, miId){
   const pos = i + 1;
   const posClass = pos === 1 ? 'gold' : pos === 2 ? 'silver' : pos === 3 ? 'bronze' : '';
   const esYo = miId && m.user_id === miId;
+  const deMiClub = !!(typeof usuario !== 'undefined' && usuario && typeof normalizarClub === 'function'
+    && normalizarClub(m.club) === normalizarClub(usuario.club));
+  const destacar = esYo || deMiClub;
   const seg = parseFloat(m.tiempo_seg);
   const ev = evaluarMarca({ ...paramsDeMarca(m), fecha: new Date() });
   const badge = (ev.nacional && ev.nacional.alcanzada)
     ? '<span class="marca-badge badge-si" style="font-size:13px;">MÍN ✓</span>'
     : '';
-  return `<div class="ranking-row${esYo ? ' mi-club' : ''}">
+  return `<div class="ranking-row${destacar ? ' mi-club' : ''}">
     <div class="ranking-pos ${posClass}">${pos}</div>
     <div class="ranking-info">
-      <div class="ranking-nombre">${esc(m.nombre_nadador) || '—'}${esYo ? ' 👈' : ''}</div>
+      <div class="ranking-nombre">${esc(m.nombre_nadador) || '—'}${esYo ? ' <span class="chip-yo">TÚ</span>' : ''}</div>
       <div class="ranking-sub">${esc(m.club)} · ${esc(m.ano_nacimiento)}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
@@ -5716,17 +5721,18 @@ async function renderLiga(){
 
   const cuerpo = clasificacion.map((r, i) => {
     const mio = normalizarClub(r.club) === miClub;
+    const soyYo = mio && normalizarClub(r.nadador).includes(normalizarClub(usuario.nombre || '').split(' ')[0] || '\u0000');
     const cat = r.anio_nac ? getCatLabel(String(r.anio_nac)) : '';
     const veces = r.veces > 1 ? r.veces + ' jornadas' : '1 jornada';
     const cuando = r.fecha ? ' · ' + fechaLiga(r.fecha) : '';
     const sede = r.sede ? ' · ' + esc(r.sede) : '';
     const posición = i < 3 ? 'var(--amarillo)' : '#93a3b5';
 
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:11px 2px;border-bottom:1px solid #f1f5f9;${mio ? 'background:rgba(0,119,182,.05);' : ''}">
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:11px 2px 11px 8px;border-bottom:1px solid #f1f5f9;border-left:${mio ? '4px solid var(--agua-light)' : '4px solid transparent'};${mio ? 'background:rgba(0,119,182,.10);' : ''}">
       <div style="width:26px;flex-shrink:0;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:19px;color:${posición};">${i + 1}</div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
-          <div style="font-weight:${mio ? '700' : '600'};font-size:21px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.nadador)}</div>
+          <div style="font-weight:${mio ? '700' : '600'};font-size:21px;color:${mio ? 'var(--agua-light)' : 'inherit'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.nadador)}</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.5px;color:var(--agua-light);flex-shrink:0;">${esc(r.tiempo)}</div>
         </div>
         <div style="font-size:19px;color:#5a6b7d;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.club)}${cat ? ' · ' + esc(cat) : ''}</div>
