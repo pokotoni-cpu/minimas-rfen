@@ -3438,6 +3438,24 @@ async function cargarRanking(){
 }
 
 // Una fila del ranking (aparte para poder probarla sin navegador)
+// Bandera de la Comunitat Valenciana en SVG (no hay emoji): campo amarillo con
+// las cuatro barras rojas y la franja azul de la Senyera coronada.
+function banderaCva(alto){
+  const h = alto || 12;
+  return `<svg width="${Math.round(h * 1.5)}" height="${h}" viewBox="0 0 15 10" style="vertical-align:-1px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.08);">
+    <rect width="15" height="10" fill="#FCDD09"/>
+    <rect y="2" width="15" height="1" fill="#DA121A"/>
+    <rect y="4" width="15" height="1" fill="#DA121A"/>
+    <rect y="6" width="15" height="1" fill="#DA121A"/>
+    <rect y="8" width="15" height="1" fill="#DA121A"/>
+    <rect width="3.4" height="10" fill="#0F47AF"/>
+  </svg>`;
+}
+
+function selloMinima(texto, bandera, color, fondo, borde){
+  return `<span title="${texto}" style="display:inline-flex;align-items:center;gap:4px;background:${fondo};border:1px solid ${borde};color:${color};border-radius:6px;padding:1px 6px;font-size:16px;font-weight:700;line-height:1.6;">${bandera}${texto}</span>`;
+}
+
 function filaRankingHtml(o, i, miId){
   const m = o.m;
   const pos = i + 1;
@@ -3448,18 +3466,25 @@ function filaRankingHtml(o, i, miId){
   const destacar = esYo || deMiClub;
   const seg = parseFloat(m.tiempo_seg);
   const ev = evaluarMarca({ ...paramsDeMarca(m), fecha: new Date() });
-  const badge = (ev.nacional && ev.nacional.alcanzada)
-    ? '<span class="marca-badge badge-si" style="font-size:13px;">MÍN ✓</span>'
+  const territorial = (typeof territorioDe === 'function') ? territorioDe(usuario) : 'CVA';
+  const conNacional = !!(ev.nacional && ev.nacional.alcanzada);
+  const conAutonomica = !!(ev.territorial && ev.territorial.alcanzada);
+
+  const banderas = (conNacional || conAutonomica)
+    ? '<div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;">' +
+        (conNacional ? selloMinima('NAC', '🇪🇸', '#a01020', 'rgba(198,11,30,.08)', 'rgba(198,11,30,.25)') : '') +
+        (conAutonomica ? selloMinima(esc(territorial), banderaCva(12), '#8a6d00', 'rgba(252,221,9,.18)', 'rgba(218,18,26,.3)') : '') +
+      '</div>'
     : '';
   return `<div class="ranking-row${destacar ? ' mi-club' : ''}">
     <div class="ranking-pos ${posClass}">${pos}</div>
     <div class="ranking-info">
       <div class="ranking-nombre">${esc(m.nombre_nadador) || '—'}${esYo ? ' <span class="chip-yo">TÚ</span>' : ''}</div>
       <div class="ranking-sub">${esc(m.club)} · ${esc(m.ano_nacimiento)}</div>
+      ${banderas}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
       <div class="ranking-tiempo">${tdis(seg)}</div>
-      ${badge}
     </div>
   </div>`;
 }
