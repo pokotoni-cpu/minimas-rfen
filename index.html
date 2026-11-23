@@ -521,6 +521,10 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="btn-primary" id="btnSincronizarLiga" style="margin-top:8px;margin-left:8px;background:linear-gradient(135deg,var(--agua),var(--splash));" onclick="sincronizarLiga()">Sincronizar todas las publicadas</button>
         <div id="actaEstado" style="font-size:21px;margin-top:8px;line-height:1.45;"></div>
         <button class="btn-primary" id="btnPublicarActa" style="display:none;margin-top:8px;" onclick="publicarActa()">Publicar resultados</button>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--card-border);">
+          <button class="btn-primary" id="btnBorrarLiga" style="background:#c0392b;font-size:20px;" onclick="borrarResultadosLiga()">🗑 Borrar todos los resultados de liga</button>
+          <div style="font-size:18px;color:#93a3b5;margin-top:6px;line-height:1.4;">Elimina de la base todas las actas importadas. No toca las mínimas ni las marcas de los nadadores.</div>
+        </div>
       </details>
 
       <details style="margin-top:18px;">
@@ -5687,6 +5691,48 @@ async function publicarActa(){
     estado.textContent = 'Error al publicar: ' + e.message;
   }finally{
     boton.disabled = false;
+  }
+}
+
+// Borra todos los resultados de liga importados (doble confirmación)
+async function borrarResultadosLiga(){
+  const estado = document.getElementById('actaEstado');
+  const boton = document.getElementById('btnBorrarLiga');
+
+  if(!usuario || (usuario.rol !== 'admin_federacion' && usuario.rol !== 'admin')){
+    estado.textContent = 'Solo un administrador puede borrar los resultados.';
+    return;
+  }
+
+  try{
+    if(!LIGA.cargada) await cargarLiga(true);
+    const total = (LIGA.filas || []).length;
+
+    if(!total){
+      estado.textContent = 'No hay resultados de liga que borrar.';
+      return;
+    }
+
+    if(!confirm(`Se van a borrar ${total} resultados de liga de todas las jornadas.\n\nEsto no se puede deshacer. ¿Continuar?`)) return;
+    if(!confirm(`¿Seguro del todo? ${total} resultados de liga desaparecerán.`)) return;
+
+    if(boton) boton.disabled = true;
+    estado.textContent = `Borrando ${total} resultados…`;
+
+    const { error } = await sb.from('resultados_liga').delete().gte('id', 0);
+    if(error) throw error;
+
+    LIGA.filas = [];
+    LIGA.cargada = true;
+    estado.textContent = `🗑 ${total} resultados de liga borrados.`;
+
+    if(document.getElementById('listaLiga')) renderLiga();
+    if(document.getElementById('actaEstado')) document.getElementById('actaEstado').textContent = `🗑 ${total} resultados de liga borrados.`;
+
+  }catch(e){
+    if(estado) estado.textContent = 'Error al borrar: ' + e.message;
+  }finally{
+    if(boton) boton.disabled = false;
   }
 }
 
