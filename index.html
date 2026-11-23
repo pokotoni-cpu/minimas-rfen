@@ -5934,9 +5934,28 @@ async function renderLiga(){
     </div>`;
   }).join('');
 
+  // Lista de actas cargadas: sin esto no hay forma de saber qué jornadas están dentro
+  const actasCargadas = new Map();
+  LIGA.filas.forEach(r => {
+    const k = r.jornada_clave;
+    if(!actasCargadas.has(k)) actasCargadas.set(k, { nombre: r.jornada, fecha: r.fecha, sede: r.sede, filas: 0 });
+    actasCargadas.get(k).filas++;
+  });
+
+  const listaActas = `<details style="margin-bottom:12px;">
+      <summary style="cursor:pointer;font-size:19px;color:var(--agua-light);">Ver las ${actasCargadas.size} actas cargadas</summary>
+      <div style="margin-top:8px;font-size:18px;color:#5a6b7d;line-height:1.6;">
+        ${[...actasCargadas.entries()].sort((a, b) => String(b[1].fecha).localeCompare(String(a[1].fecha))).map(([clave, a]) =>
+          `<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;">📄 <strong>${esc(a.nombre || clave)}</strong>` +
+          `${a.sede ? ' · ' + esc(a.sede) : ''}${a.fecha ? ' · ' + fechaLiga(a.fecha) : ''}` +
+          ` · ${a.filas} resultados</div>`
+        ).join('')}
+      </div>
+    </details>`;
+
   cont.innerHTML = `<div style="font-size:18px;color:#5a6b7d;margin-bottom:8px;">
       ${clasificacion.length} nadadores · ${jornadas} jornada${jornadas === 1 ? '' : 's'} · mejor tiempo de la temporada
-    </div>${cuerpo}`;
+    </div>${listaActas}${cuerpo}`;
 }
 
 function normalizarClub(txt){
