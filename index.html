@@ -5748,10 +5748,25 @@ async function publicarActa(){
       const lote = limpios.slice(i, i + 250);
       const { error } = await sb.from('resultados_liga')
         .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
-      if(error) throw error;
+      if(error) throw new Error('Supabase: ' + error.message);
       estado.textContent = `Publicando… ${Math.min(i + 250, limpios.length)}/${limpios.length}`;
     }
-    estado.textContent = `✅ ${limpios.length} resultados publicados.`;
+
+    // Comprobación: ¿están de verdad en la base con esta clave?
+    const clave = limpios[0].jornada_clave;
+    const { count, error: errCuenta } = await sb.from('resultados_liga')
+      .select('*', { count: 'exact', head: true })
+      .eq('jornada_clave', clave);
+
+    if(errCuenta){
+      estado.textContent = `✅ ${limpios.length} enviados, pero no se pudo comprobar: ${errCuenta.message}`;
+    }else if(count === 0){
+      estado.textContent = `⚠️ Se enviaron ${limpios.length} filas pero la base no tiene ninguna con la clave "${clave}". Revisa la política de escritura (RLS) de resultados_liga.`;
+    }else{
+      estado.textContent = `✅ ${limpios.length} resultados publicados · la base tiene ${count} de esta acta.` +
+        `<div style="font-size:18px;color:#93a3b5;margin-top:4px;">Clave: ${esc(clave)}</div>`;
+    }
+
     ACTA_PENDIENTE = null;
     boton.style.display = 'none';
     LIGA.cargada = false;
