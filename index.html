@@ -5491,11 +5491,12 @@ async function sincronizarLiga(){
           clave: acta.clave,
           fuente: acta.url
         });
-        if(!resultados.length){ fallos++; continue; }
+        const limpios = deduplicarResultados(resultados);
+        if(!limpios.length){ fallos++; continue; }
 
-        for(let i = 0; i < resultados.length; i += 500){
+        for(let i = 0; i < limpios.length; i += 500){
           const { error } = await sb.from('resultados_liga')
-            .upsert(resultados.slice(i, i + 500), { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
+            .upsert(limpios.slice(i, i + 500), { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
           if(error) throw error;
         }
 
@@ -5572,14 +5573,15 @@ async function publicarActa(){
   estado.textContent = 'Publicando…';
 
   try{
-    for(let i = 0; i < ACTA_PENDIENTE.length; i += 500){
-      const lote = ACTA_PENDIENTE.slice(i, i + 500);
+    const limpios = deduplicarResultados(ACTA_PENDIENTE);
+    for(let i = 0; i < limpios.length; i += 500){
+      const lote = limpios.slice(i, i + 500);
       const { error } = await sb.from('resultados_liga')
         .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
       if(error) throw error;
-      estado.textContent = `Publicando… ${Math.min(i + 500, ACTA_PENDIENTE.length)}/${ACTA_PENDIENTE.length}`;
+      estado.textContent = `Publicando… ${Math.min(i + 500, limpios.length)}/${limpios.length}`;
     }
-    estado.textContent = `✅ ${ACTA_PENDIENTE.length} resultados publicados.`;
+    estado.textContent = `✅ ${limpios.length} resultados publicados.`;
     ACTA_PENDIENTE = null;
     boton.style.display = 'none';
     LIGA.cargada = false;
@@ -5619,6 +5621,19 @@ async function cargarLiga(forzar){
     LIGA.cargando = false;
   }
   return LIGA.filas;
+}
+
+// Un nadador puede aparecer dos veces en la misma prueba dentro de un acta
+// (mismo nombre y club en dos bloques de edad). Postgres no admite un upsert
+// con la clave repetida en el mismo lote, así que se queda con la mejor marca.
+function deduplicarResultados(filas){
+  const mapa = new Map();
+  (filas || []).forEach(f => {
+    const clave = [f.jornada_clave, f.prueba_num, f.sexo, f.nadador, f.club].join('|');
+    const previo = mapa.get(clave);
+    if(!previo || (f.tiempo_seg || Infinity) < (previo.tiempo_seg || Infinity)) mapa.set(clave, f);
+  });
+  return [...mapa.values()];
 }
 
 // Todas las jornadas en una sola clasificación: el mejor tiempo de cada nadador.
