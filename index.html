@@ -5418,14 +5418,32 @@ function actasDeLigasHtml(html, base){
   return salida;
 }
 
-async function descargarDeFncv(url){
-  const r = await fetch('/api/actas?url=' + encodeURIComponent(url));
-  if(!r.ok){
-    let detalle = '';
-    try { detalle = (await r.json()).error || ''; } catch(e){}
-    throw new Error('no se pudo descargar (' + r.status + ')' + (detalle ? ': ' + detalle : ''));
+// Una descarga puede tardar o cortarse: se reintenta un par de veces antes de
+// dar el acta por perdida. 30 s por intento.
+async function descargarDeFncv(url, intentos){
+  const total = intentos || 3;
+  let ultimo = null;
+
+  for(let i = 0; i < total; i++){
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), 30000);
+    try{
+      const r = await fetch('/api/actas?url=' + encodeURIComponent(url), { signal: corte.signal });
+      if(r.ok) return r;
+
+      let detalle = '';
+      try { detalle = (await r.json()).error || ''; } catch(e){}
+      ultimo = 'HTTP ' + r.status + (detalle ? ': ' + detalle : '');
+    }catch(e){
+      ultimo = e.name === 'AbortError' ? 'tardó más de 30 s' : e.message;
+    }finally{
+      clearTimeout(reloj);
+    }
+
+    if(i < total - 1) await new Promise(ok => setTimeout(ok, 1500));
   }
-  return r;
+
+  throw new Error(ultimo || 'no se pudo descargar');
 }
 
 async function listarActasPublicadas(onProgreso){
@@ -5447,7 +5465,15 @@ async function listarActasPublicadas(onProgreso){
 }
 
 // ── Sincronización automática ──────────────────────────────────────────────
-async function sincronizarLiga(){
+// Actas que han fallado en la última sincronización, para poder reintentarlas
+let ACTAS_FALLIDAS = [];
+
+function nombreArchivo(url){
+  try { return decodeURIComponent(String(url).split('/').pop() || ''); }
+  catch(e){ return String(url).split('/').pop() || ''; }
+}
+
+async function sincronizarLiga(soloFallidas){
   const estado = document.getElementById('actaEstado');
   const boton = document.getElementById('btnSincronizarLiga');
 
@@ -5467,7 +5493,14 @@ async function sincronizarLiga(){
 
     await cargarLiga(true);
     const yaImportadas = new Set((LIGA.filas || []).map(r => r.jornada_clave));
-    const pendientes = actas.filter(a => !yaImportadas.has(a.clave));
+    let pendientes = actas.filter(a => !yaImportadas.has(a.clave));
+
+    if(soloFallidas && ACTAS_FALLIDAS.length){
+      const queridas = new Set(ACTAS_FALLIDAS.map(f => f.url));
+      pendientes = actas.filter(a => queridas.has(a.url));
+    }
+
+    ACTAS_FALLIDAS = [];
 
     if(!pendientes.length){
       estado.textContent = `Todo al día: ${actas.length} actas publicadas, todas importadas.`;
@@ -5494,26 +5527,47 @@ async function sincronizarLiga(){
         const limpios = deduplicarResultados(resultados);
         if(!limpios.length){ fallos++; continue; }
 
-        for(let i = 0; i < limpios.length; i += 500){
-          const { error } = await sb.from('resultados_liga')
-            .upsert(limpios.slice(i, i + 500), { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
-          if(error) throw error;
+        for(let i = 0; i < limpios.length; i += 250){
+          const lote = limpios.slice(i, i + 250);
+          let error = null;
+
+          for(let intento = 0; intento < 3; intento++){
+            const res = await sb.from('resultados_liga')
+              .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
+            error = res.error;
+            if(!error) break;
+            await new Promise(ok => setTimeout(ok, 1200));
+          }
+
+          if(error) throw new Error('Supabase: ' + error.message);
         }
 
         hechas++;
         filas += resultados.length;
       }catch(e){
         fallos++;
-        detalleFallos.push(acta.clave.slice(0, 28) + ': ' + (e.message || 'error'));
+        ACTAS_FALLIDAS.push({ url: acta.url, nombre: nombreArchivo(acta.url), error: e.message || 'error' });
+        detalleFallos.push(nombreArchivo(acta.url) + ' → ' + (e.message || 'error'));
       }
     }
 
     LIGA.cargada = false;
     let texto = `✅ ${hechas} actas importadas · ${filas} resultados`;
     if(fallos) texto += ` · ${fallos} con problemas`;
-    estado.innerHTML = esc(texto) + (detalleFallos.length
-      ? '<div style="font-size:18px;color:#93a3b5;margin-top:6px;line-height:1.45;">' + detalleFallos.slice(0, 5).map(x => esc(x)).join('<br>') + '</div>'
-      : '');
+
+    let aviso = '';
+    if(ACTAS_FALLIDAS.length){
+      aviso = '<div style="margin-top:10px;padding:12px;border:1px solid #f0b8be;background:#fff6f6;border-radius:10px;">' +
+        '<div style="font-size:20px;font-weight:600;color:#b02a37;margin-bottom:6px;">No se pudieron importar:</div>' +
+        ACTAS_FALLIDAS.map(f =>
+          '<div style="font-size:19px;color:#8a2c33;line-height:1.5;margin-bottom:4px;">' +
+          '⚠️ <strong>' + esc(f.nombre) + '</strong><br><span style="color:#a05a60;">' + esc(f.error) + '</span></div>'
+        ).join('') +
+        '<button class="btn-primary" style="margin-top:8px;font-size:20px;" onclick="sincronizarLiga(true)">Reintentar solo estas</button>' +
+        '</div>';
+    }
+
+    estado.innerHTML = esc(texto) + aviso;
     if(document.getElementById('listaLiga')) renderLiga();
 
   }catch(e){
@@ -5574,12 +5628,12 @@ async function publicarActa(){
 
   try{
     const limpios = deduplicarResultados(ACTA_PENDIENTE);
-    for(let i = 0; i < limpios.length; i += 500){
-      const lote = limpios.slice(i, i + 500);
+    for(let i = 0; i < limpios.length; i += 250){
+      const lote = limpios.slice(i, i + 250);
       const { error } = await sb.from('resultados_liga')
         .upsert(lote, { onConflict: 'jornada_clave,prueba_num,sexo,nadador,club' });
       if(error) throw error;
-      estado.textContent = `Publicando… ${Math.min(i + 500, limpios.length)}/${limpios.length}`;
+      estado.textContent = `Publicando… ${Math.min(i + 250, limpios.length)}/${limpios.length}`;
     }
     estado.textContent = `✅ ${limpios.length} resultados publicados.`;
     ACTA_PENDIENTE = null;
