@@ -5239,6 +5239,10 @@ const LIGA = { filas: [], cargada: false, error: null, cargando: false };
 // Las actas de infantil llevan rango ("14 - 51 años") y las de alevín/benjamín
 // uno solo ("12 años"), así que el rango es opcional.
 const RE_LIGA_PRUEBA = /Prueba\s+(\d+)\s+(Mas|Fem)\w*\.?,\s*(\d+)\s*m\s+(.+?)\s+(\d+)(?:\s*-\s*(\d+))?\s*a[nñ]os/i;
+// Si el lector parte el encabezado ("Prueba 1 Masc., 400m Libre" y el rango de
+// edad en otra línea), basta con el número, el sexo, la distancia y el estilo.
+const RE_LIGA_PRUEBA_LAXA = /Prueba\s+(\d+)\s+(Mas|Fem)\w*\.?,?\s*(\d+)\s*m\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)/i;
+
 const RE_LIGA_RESULTADO = /^\s*(\d+)\.\s+(.+?)\s+(\d{2})\s+(.+?)\s+(\d{1,2}:\d{2}\.\d{2}|\d{1,2}\.\d{2})\s*(.*)$/;
 const RE_LIGA_EDAD = /^(\d+)\s*-\s*(\d+)\s*a[nñ]os/i;
 
@@ -5262,15 +5266,23 @@ function parsearLineasActa(lineas, meta){
     const linea = String(bruta || '').trim();
     if(!linea) return;
 
-    const mp = linea.match(RE_LIGA_PRUEBA);
+    // 1º el formato completo; si el lector ha partido la línea, uno más laxo
+    let mp = linea.match(RE_LIGA_PRUEBA);
+    let laxo = false;
+
+    if(!mp){
+      mp = linea.match(RE_LIGA_PRUEBA_LAXA);
+      laxo = true;
+    }
+
     if(mp){
       prueba = {
         numero: parseInt(mp[1]),
         sexo: /^fem/i.test(mp[2]) ? 'F' : 'M',
         distancia: parseInt(mp[3]),
         estilo: mp[4].trim(),
-        edad_min: parseInt(mp[5]),
-        edad_max: parseInt(mp[6] || mp[5])
+        edad_min: laxo ? null : parseInt(mp[5]),
+        edad_max: laxo ? null : parseInt(mp[6] || mp[5])
       };
       bloqueEdad = null;
       return;
@@ -5308,8 +5320,8 @@ function parsearLineasActa(lineas, meta){
       sexo: prueba.sexo,
       distancia: prueba.distancia,
       estilo: prueba.estilo,
-      edad_min: bloqueEdad ? bloqueEdad[0] : prueba.edad_min,
-      edad_max: bloqueEdad ? bloqueEdad[1] : prueba.edad_max,
+      edad_min: bloqueEdad ? bloqueEdad[0] : (prueba.edad_min ?? null),
+      edad_max: bloqueEdad ? bloqueEdad[1] : (prueba.edad_max ?? null),
       puesto,
       nadador,
       anio_nac: 2000 + anio,
