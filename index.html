@@ -4329,10 +4329,24 @@ async function importarCalendarioFncv(){
     if(!confirm(`He encontrado ${futuras.length} competiciones futuras:\n\n${resumen}\n\n¿Añadirlas al calendario?`)) return;
 
     const rows = futuras.map(filaCampeonatoDesdeFncv);
+
+    // Antes de insertar se borra lo que ya estaba con el mismo nombre y fecha.
+    // Si no, cada descarga añadía otra copia y la misma jornada aparecía con
+    // varias sedes, que es lo que pasaba con la fase territorial.
+    if(estado) estado.textContent = '⏳ Sustituyendo las que ya estaban…';
+    for(const r of rows){
+      await sb.from('campeonatos')
+        .delete()
+        .eq('temporada', r.temporada)
+        .eq('territorio', r.territorio)
+        .eq('nombre', r.nombre)
+        .eq('fecha_inicio', r.fecha_inicio);
+    }
+
     const { error } = await sb.from('campeonatos').insert(rows);
     if(error){ if(estado) estado.textContent = 'Error al guardar: ' + error.message; return; }
 
-    if(estado) estado.textContent = `✅ ${rows.length} competiciones añadidas.`;
+    if(estado) estado.textContent = `✅ ${rows.length} competiciones actualizadas.`;
     await cargarCampeonatos(true);
     if(typeof renderAdminCampeonatos === 'function') await renderAdminCampeonatos();
     if(errores.length && estado) estado.textContent += ` (${errores.length} páginas con error)`;
