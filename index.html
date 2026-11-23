@@ -1166,6 +1166,36 @@ function contarMinimas(marcas, perfil){
   return { total: (marcas || []).length, nac, aut };
 }
 
+// ── Banderas de mínima ─────────────────────────────────────────────────────
+// La Comunitat Valenciana no tiene emoji: se dibuja la Senyera en SVG.
+// Se usan en el ranking, en las tarjetas de marca y en "¿Me clasifico?".
+function banderaCva(alto){
+  const h = alto || 12;
+  return `<svg width="${Math.round(h * 1.5)}" height="${h}" viewBox="0 0 15 10" style="vertical-align:-1px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.08);">
+    <rect width="15" height="10" fill="#FCDD09"/>
+    <rect y="2" width="15" height="1" fill="#DA121A"/>
+    <rect y="4" width="15" height="1" fill="#DA121A"/>
+    <rect y="6" width="15" height="1" fill="#DA121A"/>
+    <rect y="8" width="15" height="1" fill="#DA121A"/>
+    <rect width="3.4" height="10" fill="#0F47AF"/>
+  </svg>`;
+}
+
+function selloMinima(texto, bandera, color, fondo, borde){
+  return `<span style="display:inline-flex;align-items:center;gap:4px;background:${fondo};border:1px solid ${borde};color:${color};border-radius:6px;padding:1px 6px;font-size:16px;font-weight:700;line-height:1.6;white-space:nowrap;">${bandera}${texto}</span>`;
+}
+
+// Los dos sellos juntos (o ninguno)
+function sellosMinima(nac, aut, territorio, alto){
+  const h = alto || 12;
+  const terr = territorio || 'CVA';
+  if(!nac && !aut) return '';
+  return '<span style="display:inline-flex;gap:5px;flex-wrap:wrap;">' +
+    (nac ? selloMinima('NAC', '🇪🇸', '#a01020', 'rgba(198,11,30,.08)', 'rgba(198,11,30,.25)') : '') +
+    (aut ? selloMinima(esc(terr), banderaCva(h), '#8a6d00', 'rgba(252,221,9,.18)', 'rgba(218,18,26,.3)') : '') +
+    '</span>';
+}
+
 function getDBMinima(ano, sexo, estilo, dist, piscina, fecha){
   const r = minimaNacional({ anoNacimiento: ano, sexo, estilo, distancia: dist, piscina, fecha });
   return r ? r.seg : null;
@@ -1389,12 +1419,8 @@ function marcaHtml(m,mostrarNombre=false,pos=null){
 
   const prueba = `${esc(m.estilo)} ${esc(m.distancia)}m · ${esc(m.piscina)}m`;
 
-  // Sellos compactos: NAC y el código de la federación
-  const sello = (texto, color, fondo, borde) =>
-    `<span style="display:inline-block;background:${fondo};border:1px solid ${borde};color:${color};border-radius:7px;padding:2px 7px;font-size:18px;font-weight:700;white-space:nowrap;">${texto}</span>`;
-  const sellos =
-    (nac ? sello('NAC', 'var(--agua-light)', 'rgba(0,119,182,.12)', 'rgba(0,119,182,.35)') : '') +
-    (aut ? sello(esc(terr || 'AUT'), '#e08800', 'rgba(255,165,0,.14)', 'rgba(255,165,0,.4)') : '');
+  // Los mismos sellos con bandera que en el ranking
+  const sellos = sellosMinima(nac, aut, terr);
 
   // Margen con la mínima nacional de su categoría
   let margen = '';
@@ -2991,8 +3017,8 @@ async function importarRFEN(){
 let clasifFiltro = 'todas';
 
 const ESTADOS_CLASIF = {
-  conseguida: { peso: 0, texto: '✅ Mínima nacional', color: 'var(--verde)', bg: 'badge-si' },
-  autonoma:   { peso: 1, texto: '🟠 Mínima autonómica', color: '#e08800', bg: '' },
+  conseguida: { peso: 0, texto: 'Mínima nacional', color: 'var(--verde)', bg: 'badge-si' },
+  autonoma:   { peso: 1, texto: 'Mínima autonómica', color: '#e08800', bg: '' },
   cerca:      { peso: 2, texto: '🎯 A punto', color: 'var(--amarillo)', bg: '' },
   lejos:      { peso: 3, texto: 'Lejos', color: 'var(--rojo)', bg: 'badge-no' },
   sin_marca:  { peso: 4, texto: 'Sin marca', color: 'rgba(90,107,125,.8)', bg: 'badge-na' },
@@ -3256,15 +3282,15 @@ function htmlFilaClasif(f){
           ${mejor}
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <div class="marca-badge ${f.estado === 'sin_minima' ? 'badge-na' : e.bg || ''}"
+          ${f.estado === 'conseguida' || f.estado === 'autonoma'
+            ? sellosMinima(f.estado === 'conseguida', f.estado === 'autonoma', territorioDe(usuario), 13)
+            : `<div class="marca-badge ${f.estado === 'sin_minima' ? 'badge-na' : e.bg || ''}"
                style="${e.bg ? '' : `background:rgba(26,26,46,.04);color:${e.color};border:1px solid rgba(26,26,46,.08);`}">
             ${f.estado === 'cerca' ? `+${Math.abs(f.margen).toFixed(2)} s`
               : f.estado === 'lejos' ? `+${Math.abs(f.margen).toFixed(2)} s`
-              : f.estado === 'conseguida' ? 'MÍNIMA ✓'
-              : f.estado === 'autonoma' ? 'AUTONÓMICA'
               : f.estado === 'sin_marca' ? 'SIN MARCA'
               : 'SIN MÍNIMA'}
-          </div>
+          </div>`}
         </div>
       </div>
       ${f.seg ? `<div style="height:6px;border-radius:3px;background:#e8eef5;margin-top:9px;overflow:hidden;">
@@ -3438,24 +3464,6 @@ async function cargarRanking(){
 }
 
 // Una fila del ranking (aparte para poder probarla sin navegador)
-// Bandera de la Comunitat Valenciana en SVG (no hay emoji): campo amarillo con
-// las cuatro barras rojas y la franja azul de la Senyera coronada.
-function banderaCva(alto){
-  const h = alto || 12;
-  return `<svg width="${Math.round(h * 1.5)}" height="${h}" viewBox="0 0 15 10" style="vertical-align:-1px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.08);">
-    <rect width="15" height="10" fill="#FCDD09"/>
-    <rect y="2" width="15" height="1" fill="#DA121A"/>
-    <rect y="4" width="15" height="1" fill="#DA121A"/>
-    <rect y="6" width="15" height="1" fill="#DA121A"/>
-    <rect y="8" width="15" height="1" fill="#DA121A"/>
-    <rect width="3.4" height="10" fill="#0F47AF"/>
-  </svg>`;
-}
-
-function selloMinima(texto, bandera, color, fondo, borde){
-  return `<span title="${texto}" style="display:inline-flex;align-items:center;gap:4px;background:${fondo};border:1px solid ${borde};color:${color};border-radius:6px;padding:1px 6px;font-size:16px;font-weight:700;line-height:1.6;">${bandera}${texto}</span>`;
-}
-
 function filaRankingHtml(o, i, miId){
   const m = o.m;
   const pos = i + 1;
@@ -3471,10 +3479,7 @@ function filaRankingHtml(o, i, miId){
   const conAutonomica = !!(ev.territorial && ev.territorial.alcanzada);
 
   const banderas = (conNacional || conAutonomica)
-    ? '<div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;">' +
-        (conNacional ? selloMinima('NAC', '🇪🇸', '#a01020', 'rgba(198,11,30,.08)', 'rgba(198,11,30,.25)') : '') +
-        (conAutonomica ? selloMinima(esc(territorial), banderaCva(12), '#8a6d00', 'rgba(252,221,9,.18)', 'rgba(218,18,26,.3)') : '') +
-      '</div>'
+    ? '<div style="margin-top:4px;">' + sellosMinima(conNacional, conAutonomica, territorial) + '</div>'
     : '';
   return `<div class="ranking-row${destacar ? ' mi-club' : ''}">
     <div class="ranking-pos ${posClass}">${pos}</div>
