@@ -5387,8 +5387,11 @@ function parsearLineasActa(lineas, meta){
 
 // Primera página del acta: nombre de la jornada, fecha y sede
 function cabeceraActa(lineas){
-  const texto = (lineas || []).join('\n');
+  const L = (lineas || []).map(x => String(x || '').trim());
+  const texto = L.join('\n');
+
   const nombre = (texto.match(/(\d+[ªº]\s+JORNADA[^\n]*)/i) || [])[1] || '';
+
   const fechaTxt = (texto.match(/(\d{1,2})\s+de\s+(\w{3})\w*\s+de\s+(\d{4})/i) || []);
   const meses = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12 };
   let fecha = null;
@@ -5397,17 +5400,60 @@ function cabeceraActa(lineas){
     if(mes) fecha = `${fechaTxt[3]}-${String(mes).padStart(2, '0')}-${String(fechaTxt[1]).padStart(2, '0')}`;
   }
 
-  // La sede es la línea que va justo debajo de la piscina
+  // Una línea "de relleno" es una etiqueta o un encabezado de sección, no una sede
+  const esEtiqueta = (c) =>
+    !c ||
+    /^\d+\./.test(c) ||                        // "1. Datos de la instalación"
+    /^[A-ZÁÉÍÓÚÑ\s.,]{4,}$/.test(c) ||         // "COMPOSICIÓN DEL JURADO"
+    /\d{3,}/.test(c);                          // teléfonos, códigos
+
   let sede = '';
-  const idx = (lineas || []).findIndex(x => /piscina/i.test(x));
-  if(idx >= 0){
-    for(let i = idx + 1; i < Math.min(idx + 3, lineas.length); i++){
-      const c = String(lineas[i] || '').trim();
-      if(c && c.length < 40 && !/\d{3,}/.test(c)){ sede = c; break; }
+
+  // Formato nuevo (ficha técnica): LOCALIDAD en una línea y el valor debajo
+  const ETIQUETAS_FICHA = /^(FECHAS|HORARIO|LOCALIDAD|INSTALACI[OÓ]N|CRONOMETRAJE|INCIDENCIAS|COMPOSICI[OÓ]N.*)$/i;
+  // El lector puede dejar "LOCALIDAD" sola o pegada al valor, así que se
+  // contemplan las dos formas.
+  const iLoc = L.findIndex(x => /LOCALIDAD/i.test(x));
+  if(iLoc >= 0){
+    const resto = L[iLoc].replace(/^.*?LOCALIDAD\s*[:-]?\s*/i, '').trim();
+    if(resto && !ETIQUETAS_FICHA.test(resto)){
+      sede = resto;
+    }else{
+      // pdf.js puede juntar las columnas: "22 de Nov de 2026 10.00/ 17.00 L´ALCUDIA"
+      const sig = L[iLoc + 1] || '';
+      const conHora = sig.match(/(\d{1,2}[.:]\d{2}\s*(?:\/\s*\d{1,2}[.:]\d{2})?)\s+(.+)$/);
+      if(conHora){
+        sede = conHora[2].trim();
+      }else{
+        for(let i = iLoc + 1; i < Math.min(iLoc + 4, L.length); i++){
+          // "L´ALCUDIA" va en mayúsculas, así que aquí no se descarta por eso
+          if(L[i] && !ETIQUETAS_FICHA.test(L[i])){ sede = L[i]; break; }
+        }
+      }
     }
   }
 
-  return { nombre: nombre.trim(), fecha, sede };
+  // Formato clásico: la ciudad va justo debajo de la línea de la piscina
+  if(!sede){
+    const iPisc = L.findIndex(x => /piscina|polideportivo/i.test(x) && !/^\d+\./.test(x));
+    if(iPisc >= 0){
+      for(let i = iPisc + 1; i < Math.min(iPisc + 4, L.length); i++){
+        if(!esEtiqueta(L[i])){ sede = L[i]; break; }
+      }
+    }
+  }
+
+  // Tercer formato: sin línea de piscina; la ciudad va debajo de la fecha
+  if(!sede){
+    const iFecha = L.findIndex(x => /^\d{1,2}\s+(al\s+\d{1,2}\s+)?de\s+\w{3}\w*\s+de\s+\d{4}/i.test(x));
+    if(iFecha >= 0){
+      for(let i = iFecha + 1; i < Math.min(iFecha + 4, L.length); i++){
+        if(!esEtiqueta(L[i])){ sede = L[i]; break; }
+      }
+    }
+  }
+
+  return { nombre: nombre.trim(), fecha, sede: sede.trim() };
 }
 
 // PDF del acta → líneas de texto (una por renglón)
