@@ -619,9 +619,6 @@ select.input-field option{background:#ffffff;color:var(--texto-principal);}
         <button class="btn-primary" onclick="showScreen('Admin')">⚙️ Administrar mínimas</button>
       </div>
       <button class="btn-danger" onclick="doLogout()">Cerrar sesión</button>
-      <div style="text-align:center;margin-top:14px;">
-        <a href="/privacidad.html" target="_blank" rel="noopener" style="font-size:18px;color:#93a3b5;text-decoration:underline;">Privacidad</a>
-      </div>
       </div>
     </div>
 
@@ -5234,7 +5231,9 @@ function renderMisMinimas(){
 
 const LIGA = { filas: [], cargada: false, error: null, cargando: false };
 
-const RE_LIGA_PRUEBA = /Prueba\s+(\d+)\s+(Mas|Fem)\w*\.?,\s*(\d+)\s*m\s+(.+?)\s+(\d+)\s*-\s*(\d+)\s*a[nñ]os/i;
+// Las actas de infantil llevan rango ("14 - 51 años") y las de alevín/benjamín
+// uno solo ("12 años"), así que el rango es opcional.
+const RE_LIGA_PRUEBA = /Prueba\s+(\d+)\s+(Mas|Fem)\w*\.?,\s*(\d+)\s*m\s+(.+?)\s+(\d+)(?:\s*-\s*(\d+))?\s*a[nñ]os/i;
 const RE_LIGA_RESULTADO = /^\s*(\d+)\.\s+(.+?)\s+(\d{2})\s+(.+?)\s+(\d{1,2}:\d{2}\.\d{2}|\d{1,2}\.\d{2})\s*(.*)$/;
 const RE_LIGA_EDAD = /^(\d+)\s*-\s*(\d+)\s*a[nñ]os/i;
 
@@ -5266,7 +5265,7 @@ function parsearLineasActa(lineas, meta){
         distancia: parseInt(mp[3]),
         estilo: mp[4].trim(),
         edad_min: parseInt(mp[5]),
-        edad_max: parseInt(mp[6])
+        edad_max: parseInt(mp[6] || mp[5])
       };
       bloqueEdad = null;
       return;
@@ -5459,6 +5458,7 @@ async function sincronizarLiga(){
     }
 
     let hechas = 0, filas = 0, fallos = 0;
+    const detalleFallos = [];
 
     for(const acta of pendientes){
       estado.textContent = `Importando ${hechas + fallos + 1}/${pendientes.length}: ${acta.clave.replace(/_/g, ' ').slice(0, 40)}…`;
@@ -5486,11 +5486,16 @@ async function sincronizarLiga(){
         filas += resultados.length;
       }catch(e){
         fallos++;
+        detalleFallos.push(acta.clave.slice(0, 28) + ': ' + (e.message || 'error'));
       }
     }
 
     LIGA.cargada = false;
-    estado.textContent = `✅ ${hechas} actas importadas · ${filas} resultados` + (fallos ? ` · ${fallos} con problemas` : '') + '.';
+    let texto = `✅ ${hechas} actas importadas · ${filas} resultados`;
+    if(fallos) texto += ` · ${fallos} con problemas`;
+    estado.innerHTML = esc(texto) + (detalleFallos.length
+      ? '<div style="font-size:18px;color:#93a3b5;margin-top:6px;line-height:1.45;">' + detalleFallos.slice(0, 5).map(x => esc(x)).join('<br>') + '</div>'
+      : '');
     if(document.getElementById('listaLiga')) renderLiga();
 
   }catch(e){
